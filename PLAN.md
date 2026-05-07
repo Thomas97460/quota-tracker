@@ -46,6 +46,10 @@ To ensure the robustness of the daemon's parsing logic across different provider
 - **Frontend Views**: 
   - Global overview (all providers combined).
   - Individual provider drill-down.
+  - **Configuration Panel**: Web interface to manage the daemon and providers:
+    - **Provider Management**: Toggle providers (enable/disable) and trigger re-scans.
+    - **Path Configuration**: Customize paths for provider-specific config files and local databases (e.g., specifying a non-standard `~/.gemini` or `~/.codex` location).
+    - **Polling Control**: Adjust active probing and passive syncing intervals.
 - **Performance**: Minimal RAM/CPU footprint; lean storage (no session content).
 
 ## Database Storage (Schema)
