@@ -4,7 +4,13 @@ from __future__ import annotations
 import argparse
 import base64
 import json
+import os
 import sqlite3
+import ssl
+import sys
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -185,6 +191,55 @@ def decode_jwt_payload(token: str | None) -> dict[str, Any] | None:
         return json.loads(raw.decode("utf-8"))
     except Exception:
         return None
+
+
+CHATGPT_BACKEND_URL = "https://chatgpt.com/backend-api/wham/usage"
+
+
+def _ssl_context() -> ssl.SSLContext:
+    for env_name in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE"):
+        env_path = os.environ.get(env_name)
+        if env_path and Path(env_path).exists():
+            return ssl.create_default_context(cafile=env_path)
+
+    for ca_path in (
+        "/etc/ssl/certs/ca-certificates.crt",
+        "/etc/ssl/cert.pem",
+        "/etc/pki/tls/certs/ca-bundle.crt",
+    ):
+        if Path(ca_path).exists():
+            return ssl.create_default_context(cafile=ca_path)
+
+    return ssl.create_default_context()
+
+
+def fetch_wham_usage(access_token: str, timeout_seconds: int = 20) -> dict[str, Any] | None:
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+    }
+    request = urllib.request.Request(CHATGPT_BACKEND_URL, headers=headers)
+    try:
+        with urllib.request.urlopen(
+            request,
+            timeout=timeout_seconds,
+            context=_ssl_context(),
+        ) as response:
+            payload = response.read().decode("utf-8", errors="replace")
+            return json.loads(payload)
+    except Exception:
+        return None
+
+
+def format_seconds(seconds: int | None) -> str:
+    if seconds is None:
+        return "n/a"
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    if hours > 0:
+        return f"{hours}h {minutes}m"
+    return f"{minutes}m"
 
 
 def summarize_auth(codex_home: Path) -> dict[str, Any]:
@@ -684,6 +739,31 @@ def text_report(data: dict[str, Any], top_n: int) -> str:
     lines.append(f"- subscription_active_until: {auth.get('subscription_active_until')}")
     lines.append("")
 
+    wham = data.get("wham_usage")
+    if wham:
+        lines.append("[Quota]")
+        lines.append(f"- email: {wham.get('email')}")
+        lines.append(f"- plan: {wham.get('plan_type')}")
+        rl = wham.get("rate_limit", {})
+        if rl:
+            pw = rl.get("primary_window", {})
+            if pw:
+                lines.append(
+                    f"- primary window: used={pw.get('used_percent')}% "
+                    f"remaining={100 - pw.get('used_percent', 0)}% "
+                    f"window={format_seconds(pw.get('limit_window_seconds'))} "
+                    f"reset_after={format_seconds(pw.get('reset_after_seconds'))}"
+                )
+            sw = rl.get("secondary_window", {})
+            if sw:
+                lines.append(
+                    f"- secondary window: used={sw.get('used_percent')}% "
+                    f"remaining={100 - sw.get('used_percent', 0)}% "
+                    f"window={format_seconds(sw.get('limit_window_seconds'))} "
+                    f"reset_after={format_seconds(sw.get('reset_after_seconds'))}"
+                )
+        lines.append("")
+
     sess = data["sessions"]
     lines.append("[Token usage from sessions/*.jsonl]")
     lines.append(f"- files_scanned: {sess['files_scanned']} (failed: {sess['files_failed']})")
@@ -792,12 +872,25 @@ def build_report(
     largest_files: int,
 ) -> dict[str, Any]:
     version = load_json(codex_home / "version.json")
+    auth_summary = summarize_auth(codex_home)
+    wham_usage = None
+    if auth_summary.get("loaded"):
+        auth_path = codex_home / "auth.json"
+        try:
+            auth_data = json.loads(auth_path.read_text(encoding="utf-8", errors="replace"))
+            access_token = auth_data.get("tokens", {}).get("access_token")
+            if access_token:
+                wham_usage = fetch_wham_usage(access_token)
+        except Exception:
+            pass
+
     report = {
         "generated_at": datetime.now(tz=UTC).isoformat(),
         "codex_home": str(codex_home),
         "version": version,
         "config": summarize_config(codex_home),
-        "auth": summarize_auth(codex_home),
+        "auth": auth_summary,
+        "wham_usage": wham_usage,
         "files": summarize_files(codex_home, top_n=largest_files),
         "sessions": summarize_sessions(
             codex_home,
