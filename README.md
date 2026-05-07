@@ -25,4 +25,6 @@ uv run --python 3.12 python gemini_local_audit.py --json --output gemini_audit_r
 uv run --python 3.12 python gemini_local_audit.py --quota-timeout 30
 ```
 
-Le script Gemini remonte : settings/projets/auth sanitisée, tokens détaillés depuis `~/.gemini/tmp/**/chats`, plages de dates, top sessions, et tente systématiquement de récupérer le quota live via la CLI Gemini (`/stats model` en mode interactif automatisé).
+Le script Gemini remonte : settings/projets/auth sanitisée, tokens détaillés depuis `~/.gemini/tmp/**/chats`, plages de dates, top sessions, et le quota live Gemini Code Assist via l'endpoint interne `retrieveUserQuota` utilisé par la CLI. Si cet appel échoue, il tente un fallback via la CLI Gemini (`/stats model` en mode interactif automatisé).
+
+La sonde Code Assist utilise `~/.gemini/oauth_creds.json` mais n'affiche jamais les tokens. Elle retourne seulement le projet Code Assist, le tier et les buckets de quota par modèle (`remaining_percent`, `used_percent`, `reset_time`).

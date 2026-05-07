@@ -4,17 +4,34 @@ from __future__ import annotations
 import argparse
 import base64
 import hashlib
+import fcntl
 import json
 import os
 import pty
 import re
 import select
+import ssl
+import struct
 import subprocess
+import termios
 import time
+import urllib.error
+import urllib.parse
+import urllib.request
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+CODE_ASSIST_ENDPOINT = "https://cloudcode-pa.googleapis.com"
+CODE_ASSIST_API_VERSION = "v1internal"
+CODE_ASSIST_METADATA = {
+    "ideType": "IDE_UNSPECIFIED",
+    "platform": "PLATFORM_UNSPECIFIED",
+    "pluginType": "GEMINI",
+}
+OAUTH_CLIENT_ID = "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com"
+OAUTH_CLIENT_SECRET = "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"
 
 
 @dataclass
@@ -594,7 +611,229 @@ def _extract_quota_from_interactive_output(clean_text: str) -> dict[str, Any]:
     }
 
 
-def probe_live_quota(timeout_seconds: int, model: str = "gemini-2.5-flash") -> dict[str, Any]:
+def _code_assist_url(method: str) -> str:
+    endpoint = os.environ.get("CODE_ASSIST_ENDPOINT", CODE_ASSIST_ENDPOINT).rstrip("/")
+    version = os.environ.get("CODE_ASSIST_API_VERSION", CODE_ASSIST_API_VERSION)
+    return f"{endpoint}/{version}:{method}"
+
+
+def _ssl_context() -> ssl.SSLContext:
+    for env_name in ("SSL_CERT_FILE", "REQUESTS_CA_BUNDLE"):
+        env_path = os.environ.get(env_name)
+        if env_path and Path(env_path).exists():
+            return ssl.create_default_context(cafile=env_path)
+
+    for ca_path in (
+        "/etc/ssl/certs/ca-certificates.crt",
+        "/etc/ssl/cert.pem",
+        "/etc/pki/tls/certs/ca-bundle.crt",
+    ):
+        if Path(ca_path).exists():
+            return ssl.create_default_context(cafile=ca_path)
+
+    return ssl.create_default_context()
+
+
+def _http_post_json(
+    url: str,
+    body: dict[str, Any],
+    *,
+    bearer_token: str | None = None,
+    timeout_seconds: int = 20,
+) -> dict[str, Any]:
+    headers = {"Content-Type": "application/json"}
+    if bearer_token:
+        headers["Authorization"] = f"Bearer {bearer_token}"
+    request = urllib.request.Request(
+        url,
+        data=json.dumps(body).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(
+            request,
+            timeout=timeout_seconds,
+            context=_ssl_context(),
+        ) as response:
+            payload = response.read().decode("utf-8", errors="replace")
+    except urllib.error.HTTPError as exc:
+        payload = exc.read().decode("utf-8", errors="replace")
+        try:
+            error_data = json.loads(payload)
+        except json.JSONDecodeError:
+            error_data = payload[:1000]
+        raise RuntimeError(f"HTTP {exc.code}: {error_data}") from exc
+    if not payload.strip():
+        return {}
+    data = json.loads(payload)
+    return data if isinstance(data, dict) else {"value": data}
+
+
+def _oauth_expired(creds: dict[str, Any], skew_seconds: int = 60) -> bool:
+    expiry_ms = creds.get("expiry_date")
+    if not expiry_ms:
+        return False
+    try:
+        return int(expiry_ms) <= int((time.time() + skew_seconds) * 1000)
+    except (TypeError, ValueError):
+        return False
+
+
+def _get_oauth_access_token(creds: dict[str, Any], timeout_seconds: int) -> tuple[str | None, bool]:
+    access_token = creds.get("access_token")
+    if isinstance(access_token, str) and access_token and not _oauth_expired(creds):
+        return access_token, False
+
+    refresh_token = creds.get("refresh_token")
+    if not isinstance(refresh_token, str) or not refresh_token:
+        return access_token if isinstance(access_token, str) else None, False
+
+    form = urllib.parse.urlencode(
+        {
+            "client_id": OAUTH_CLIENT_ID,
+            "client_secret": OAUTH_CLIENT_SECRET,
+            "refresh_token": refresh_token,
+            "grant_type": "refresh_token",
+        }
+    ).encode("utf-8")
+    request = urllib.request.Request(
+        "https://oauth2.googleapis.com/token",
+        data=form,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    with urllib.request.urlopen(request, timeout=timeout_seconds, context=_ssl_context()) as response:
+        data = json.loads(response.read().decode("utf-8", errors="replace"))
+    refreshed = data.get("access_token")
+    return (refreshed if isinstance(refreshed, str) else None), True
+
+
+def _summarize_quota_buckets(buckets: Any) -> list[dict[str, Any]]:
+    if not isinstance(buckets, list):
+        return []
+    out: list[dict[str, Any]] = []
+    for bucket in buckets:
+        if not isinstance(bucket, dict):
+            continue
+        remaining_fraction = bucket.get("remainingFraction")
+        try:
+            remaining_fraction_float = (
+                float(remaining_fraction) if remaining_fraction is not None else None
+            )
+        except (TypeError, ValueError):
+            remaining_fraction_float = None
+
+        remaining_amount = bucket.get("remainingAmount")
+        try:
+            remaining_amount_int = int(remaining_amount) if remaining_amount is not None else None
+        except (TypeError, ValueError):
+            remaining_amount_int = None
+
+        item = {
+            "model_id": bucket.get("modelId"),
+            "token_type": bucket.get("tokenType"),
+            "reset_time": bucket.get("resetTime"),
+            "remaining_fraction": remaining_fraction_float,
+            "remaining_percent": (
+                round(remaining_fraction_float * 100, 4)
+                if remaining_fraction_float is not None
+                else None
+            ),
+            "used_percent": (
+                round((1.0 - remaining_fraction_float) * 100, 4)
+                if remaining_fraction_float is not None
+                else None
+            ),
+            "remaining_amount": remaining_amount_int,
+        }
+        out.append(item)
+    return sorted(out, key=lambda x: (str(x.get("model_id") or ""), str(x.get("token_type") or "")))
+
+
+def probe_code_assist_quota(gemini_home: Path, timeout_seconds: int = 20) -> dict[str, Any]:
+    """
+    Fetch the same user quota buckets that Gemini CLI uses for OAuth Code Assist.
+
+    This uses the internal Code Assist endpoint observed in the installed CLI
+    bundle. The report intentionally excludes OAuth tokens and raw credentials.
+    """
+    oauth_path = gemini_home / "oauth_creds.json"
+    creds = load_json(oauth_path)
+    if not isinstance(creds, dict):
+        return {
+            "attempted": True,
+            "method": "code-assist-retrieve-user-quota",
+            "available": False,
+            "error": "oauth_creds.json not found or invalid",
+        }
+
+    try:
+        access_token, refreshed = _get_oauth_access_token(creds, timeout_seconds)
+        if not access_token:
+            return {
+                "attempted": True,
+                "method": "code-assist-retrieve-user-quota",
+                "available": False,
+                "error": "OAuth access token unavailable",
+            }
+
+        load_req = {
+            "cloudaicompanionProject": None,
+            "metadata": CODE_ASSIST_METADATA,
+        }
+        load_res = _http_post_json(
+            _code_assist_url("loadCodeAssist"),
+            load_req,
+            bearer_token=access_token,
+            timeout_seconds=timeout_seconds,
+        )
+        project = load_res.get("cloudaicompanionProject")
+        if not isinstance(project, str) or not project:
+            return {
+                "attempted": True,
+                "method": "code-assist-retrieve-user-quota",
+                "available": False,
+                "token_refreshed_in_memory": refreshed,
+                "tier": (load_res.get("paidTier") or load_res.get("currentTier") or {}).get("name")
+                if isinstance(load_res.get("paidTier") or load_res.get("currentTier"), dict)
+                else None,
+                "error": "Code Assist project unavailable",
+            }
+
+        quota_res = _http_post_json(
+            _code_assist_url("retrieveUserQuota"),
+            {"project": project},
+            bearer_token=access_token,
+            timeout_seconds=timeout_seconds,
+        )
+        buckets = _summarize_quota_buckets(quota_res.get("buckets"))
+        return {
+            "attempted": True,
+            "method": "code-assist-retrieve-user-quota",
+            "available": bool(buckets),
+            "token_refreshed_in_memory": refreshed,
+            "project": project,
+            "current_tier": (load_res.get("currentTier") or {}).get("name")
+            if isinstance(load_res.get("currentTier"), dict)
+            else None,
+            "paid_tier": (load_res.get("paidTier") or {}).get("name")
+            if isinstance(load_res.get("paidTier"), dict)
+            else None,
+            "buckets": buckets,
+            "raw_bucket_count": len(quota_res.get("buckets") or []),
+            "note": "Uses Gemini CLI's internal Code Assist quota endpoint; not a public Gemini API contract.",
+        }
+    except Exception as exc:  # noqa: BLE001
+        return {
+            "attempted": True,
+            "method": "code-assist-retrieve-user-quota",
+            "available": False,
+            "error": str(exc),
+        }
+
+
+def probe_live_quota(timeout_seconds: int, model: str = "gemini-3-flash-preview") -> dict[str, Any]:
     """
     Always try to fetch live quota from Gemini CLI interactive footer and /stats command.
     """
@@ -607,12 +846,18 @@ def probe_live_quota(timeout_seconds: int, model: str = "gemini-2.5-flash") -> d
 
     try:
         master_fd, slave_fd = pty.openpty()
+
+        # Set terminal size to 24x80
+        buf = struct.pack("HHHH", 24, 80, 0, 0)
+        fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, buf)
+
         process = subprocess.Popen(
             cmd,
             stdin=slave_fd,
             stdout=slave_fd,
             stderr=slave_fd,
             close_fds=True,
+            env={**os.environ, "TERM": "xterm-256color"},
         )
         os.close(slave_fd)
 
@@ -623,47 +868,41 @@ def probe_live_quota(timeout_seconds: int, model: str = "gemini-2.5-flash") -> d
 
             ready, _, _ = select.select([master_fd], [], [], 0.2)
             if ready:
-                chunk = os.read(master_fd, 8192)
+                try:
+                    chunk = os.read(master_fd, 8192)
+                except OSError:
+                    break
                 if not chunk:
                     break
                 raw_chunks.append(chunk)
                 text = _strip_ansi(b"".join(raw_chunks).decode("utf-8", errors="replace"))
 
-                if not sent_stats and (
-                    "Type your message" in text
-                    or "Ready (" in text
-                    or "? for shortcuts" in text
-                ):
+                # Look for prompts: "Type your message", "Ready (", "? for shortcuts"
+                if not sent_stats and any(p in text for p in ["Type your message", "Ready (", "? for shortcuts"]):
                     os.write(master_fd, b"/stats model\n")
                     sent_stats = True
 
-                if sent_stats and not sent_exit and (
-                    "No API calls have been made in this session." in text
-                    or "Model Usage Statistics" in text
-                ):
+                # Wait for stats output or session message before exiting
+                if sent_stats and not sent_exit and any(p in text[text.find("/stats model"):] for p in ["Model Usage Statistics", "No API calls", "Quota"]):
                     os.write(master_fd, b"/exit\n")
                     sent_exit = True
 
             elapsed = time.monotonic() - start
-            if not sent_stats and elapsed > min(4.0, timeout_seconds * 0.5):
+            if not sent_stats and elapsed > timeout_seconds * 0.7:
+                # Fallback if we missed the prompt but have waited long enough
                 os.write(master_fd, b"/stats model\n")
                 sent_stats = True
-            if sent_stats and not sent_exit and elapsed > min(8.0, timeout_seconds * 0.8):
+            
+            if sent_stats and not sent_exit and elapsed > timeout_seconds * 0.9:
                 os.write(master_fd, b"/exit\n")
                 sent_exit = True
 
         if process.poll() is None:
-            try:
-                if master_fd is not None:
-                    os.write(master_fd, b"/exit\n")
-            except OSError:
-                pass
             process.terminate()
             try:
-                process.wait(timeout=3)
+                process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 process.kill()
-                process.wait(timeout=3)
 
         output_text = _strip_ansi(b"".join(raw_chunks).decode("utf-8", errors="replace"))
         parsed = _extract_quota_from_interactive_output(output_text)
@@ -676,7 +915,7 @@ def probe_live_quota(timeout_seconds: int, model: str = "gemini-2.5-flash") -> d
             "sent_stats_command": sent_stats,
             "sent_exit_command": sent_exit,
             **parsed,
-            "output_excerpt": output_text.strip()[:2000],
+            "output_excerpt": output_text.strip()[-2000:],
         }
     except FileNotFoundError:
         return {
@@ -706,6 +945,11 @@ def build_report(
     largest_files: int,
     quota_timeout: int,
 ) -> dict[str, Any]:
+    code_assist_quota = probe_code_assist_quota(gemini_home, timeout_seconds=quota_timeout)
+    interactive_quota = None
+    if not code_assist_quota.get("available"):
+        interactive_quota = probe_live_quota(timeout_seconds=quota_timeout)
+
     report = {
         "generated_at": datetime.now(tz=UTC).isoformat(),
         "gemini_home": str(gemini_home),
@@ -716,7 +960,9 @@ def build_report(
         "history": summarize_history(gemini_home),
         "chats": summarize_chats(gemini_home, top_n=top_sessions),
         "files": summarize_files(gemini_home, top_n=largest_files),
-        "live_quota_probe": probe_live_quota(timeout_seconds=quota_timeout),
+        "code_assist_quota_probe": code_assist_quota,
+        "interactive_quota_probe": interactive_quota,
+        "live_quota_probe": code_assist_quota if code_assist_quota.get("available") else interactive_quota,
     }
     return report
 
@@ -812,23 +1058,53 @@ def text_report(data: dict[str, Any], top_n: int) -> str:
         )
         lines.append(f"   file={session.get('file')}")
 
-    live_probe = data.get("live_quota_probe")
-    if isinstance(live_probe, dict):
+    code_assist_probe = data.get("code_assist_quota_probe")
+    if isinstance(code_assist_probe, dict):
         lines.append("")
-        lines.append("[Live quota]")
-        lines.append(f"- attempted: {live_probe.get('attempted')}")
-        lines.append(f"- method: {live_probe.get('method')}")
-        lines.append(f"- available: {live_probe.get('available')}")
-        if live_probe.get("error") is not None:
-            lines.append(f"- error: {live_probe.get('error')}")
-        lines.append(f"- return_code: {live_probe.get('return_code')}")
+        lines.append("[Code Assist quota]")
+        lines.append(f"- attempted: {code_assist_probe.get('attempted')}")
+        lines.append(f"- method: {code_assist_probe.get('method')}")
+        lines.append(f"- available: {code_assist_probe.get('available')}")
+        if code_assist_probe.get("project"):
+            lines.append(f"- project: {code_assist_probe.get('project')}")
+        if code_assist_probe.get("current_tier") or code_assist_probe.get("paid_tier"):
+            lines.append(
+                f"- tier: current={code_assist_probe.get('current_tier')}, "
+                f"paid={code_assist_probe.get('paid_tier')}"
+            )
+        if code_assist_probe.get("error") is not None:
+            lines.append(f"- error: {code_assist_probe.get('error')}")
+        buckets = code_assist_probe.get("buckets") or []
+        if buckets:
+            lines.append("- buckets:")
+            for bucket in buckets:
+                lines.append(
+                    "  "
+                    f"{bucket.get('model_id')}: "
+                    f"remaining={bucket.get('remaining_percent')}%, "
+                    f"used={bucket.get('used_percent')}%, "
+                    f"reset={bucket.get('reset_time')}"
+                )
+        if code_assist_probe.get("note"):
+            lines.append(f"- note: {code_assist_probe.get('note')}")
+
+    interactive_probe = data.get("interactive_quota_probe")
+    if isinstance(interactive_probe, dict):
+        lines.append("")
+        lines.append("[Interactive quota fallback]")
+        lines.append(f"- attempted: {interactive_probe.get('attempted')}")
+        lines.append(f"- method: {interactive_probe.get('method')}")
+        lines.append(f"- available: {interactive_probe.get('available')}")
+        if interactive_probe.get("error") is not None:
+            lines.append(f"- error: {interactive_probe.get('error')}")
+        lines.append(f"- return_code: {interactive_probe.get('return_code')}")
         lines.append(
-            f"- quota_used_percent: {live_probe.get('quota_used_percent')} "
-            f"(remaining={live_probe.get('quota_remaining_percent')})"
+            f"- quota_used_percent: {interactive_probe.get('quota_used_percent')} "
+            f"(remaining={interactive_probe.get('quota_remaining_percent')})"
         )
         lines.append(
-            f"- context_used_percent: {live_probe.get('context_used_percent')} "
-            f"(remaining={live_probe.get('context_remaining_percent')})"
+            f"- context_used_percent: {interactive_probe.get('context_used_percent')} "
+            f"(remaining={interactive_probe.get('context_remaining_percent')})"
         )
 
     return "\n".join(lines)

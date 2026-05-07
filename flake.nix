@@ -19,13 +19,19 @@
       devShells = forAllSystems (
         system:
         let
-          pkgs = import nixpkgs { inherit system; };
+          pkgs = import nixpkgs {
+            inherit system;
+            config.allowUnfree = true;
+          };
         in
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
               python312
               uv
+              gemini-cli
+              codex
+              github-copilot-cli
             ];
           };
         }
