@@ -168,10 +168,10 @@ They prove where the data lives and how live quota probes work. The production i
   - [x] Include global daemon settings: active probe interval minutes, passive sync interval minutes, web host, web port, database path, log level.
   - [x] Include provider settings for `gemini`, `codex`, and `copilot`: enabled flag, home path, active probe enabled flag, passive sync enabled flag, provider-specific safe options.
   - [x] Include no secrets in config.
-- [ ] Implement structured logging.
-  - [ ] Log provider id, operation name, outcome, elapsed time, and error summary.
-  - [ ] Do not log secret values, raw cookies, raw tokens, or conversation content.
-  - [ ] Make logs useful for daemon troubleshooting without requiring debug secrets.
+- [x] Implement structured logging.
+  - [x] Log provider id, operation name, outcome, elapsed time, and error summary.
+  - [x] Do not log secret values, raw cookies, raw tokens, or conversation content.
+  - [x] Make logs useful for daemon troubleshooting without requiring debug secrets.
 
 ### 2. SQLite Schema And Migrations
 

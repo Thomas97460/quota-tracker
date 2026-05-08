@@ -8,6 +8,7 @@ from typing import Any
 @dataclass
 class QuotaRecord:
     """Normalized quota record."""
+
     provider_id: str
     quota_name: str
     timestamp: datetime
@@ -22,6 +23,7 @@ class QuotaRecord:
 @dataclass
 class SessionRecord:
     """Normalized session record."""
+
     provider_id: str
     external_session_id: str
     model_name: str = "unknown"
@@ -35,6 +37,7 @@ class SessionRecord:
 @dataclass
 class TokenUsageRecord:
     """Normalized token usage record."""
+
     provider_id: str
     external_session_id: str
     external_event_id: str
