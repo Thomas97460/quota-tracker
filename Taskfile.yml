@@ -12,7 +12,7 @@ tasks:
   setup:
     desc: Setup development environment
     cmds:
-      - pip install -e ".[dev]"
+      - uv sync --extra dev
       - "{{.NPM}} install"
 
   format:
