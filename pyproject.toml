@@ -1,0 +1,61 @@
+[project]
+name = "quota-tracker"
+version = "0.1.0"
+description = "A daemon to track AI provider quotas and session history."
+authors = [{ name = "Gemini CLI Agent" }]
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.111.0",
+    "uvicorn>=0.30.0",
+    "pydantic>=2.7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "ruff>=0.4.0",
+    "mypy>=1.10.0",
+    "interrogate>=1.7.0",
+]
+
+[project.scripts]
+quota-tracker = "quota_tracker.cli:main"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM", "ARG", "PT"]
+ignore = []
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+addopts = "-v --strict-markers"
+
+[tool.interrogate]
+ignore-init-method = true
+ignore-init-module = false
+ignore-magic = false
+ignore-semiprivate = false
+ignore-private = false
+ignore-property-decorators = false
+ignore-module = false
+ignore-nested-functions = false
+fail-under = 100
+exclude = ["setup.py", "docs", "build"]
+ignore-regex = ["^test_"]
+verbose = 1
+quiet = false
+whitelist-regex = []
+color = true
+generate-json = false
+data-file = ""

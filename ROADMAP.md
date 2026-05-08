@@ -141,10 +141,10 @@ They prove where the data lives and how live quota probes work. The production i
   - [x] Move production logic into the package instead of extending the existing audit scripts.
   - [x] Keep the existing scripts available as references until equivalent production behavior is implemented and tested.
   - [x] Add a single installed CLI command named `quota-tracker`.
-- [ ] Add project packaging and tool configuration.
-  - [ ] Define Python dependencies for FastAPI, Uvicorn, Pydantic, pytest, ruff, mypy, and interrogate.
-  - [ ] Define frontend tooling for Vite, React, TypeScript, and ECharts.
-  - [ ] Configure `ruff`, `mypy`, `pytest`, and `interrogate` in the project configuration.
+- [x] Add project packaging and tool configuration.
+  - [x] Define Python dependencies for FastAPI, Uvicorn, Pydantic, pytest, ruff, mypy, and interrogate.
+  - [x] Define frontend tooling for Vite, React, TypeScript, and ECharts.
+  - [x] Configure `ruff`, `mypy`, `pytest`, and `interrogate` in the project configuration.
 - [ ] Add a root `Taskfile.yml` as the canonical command registry.
   - [ ] Every documented development, validation, build, test, install, run, and cleanup command must be available as a `task` target.
   - [ ] The README and developer docs must reference `task` targets instead of duplicating raw shell command sequences.
