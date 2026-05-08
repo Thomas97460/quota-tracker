@@ -137,10 +137,10 @@ They prove where the data lives and how live quota probes work. The production i
 
 ### 1. Repository And Application Foundation
 
-- [ ] Create a Python package named `quota_tracker`.
-  - [ ] Move production logic into the package instead of extending the existing audit scripts.
-  - [ ] Keep the existing scripts available as references until equivalent production behavior is implemented and tested.
-  - [ ] Add a single installed CLI command named `quota-tracker`.
+- [x] Create a Python package named `quota_tracker`.
+  - [x] Move production logic into the package instead of extending the existing audit scripts.
+  - [x] Keep the existing scripts available as references until equivalent production behavior is implemented and tested.
+  - [x] Add a single installed CLI command named `quota-tracker`.
 - [ ] Add project packaging and tool configuration.
   - [ ] Define Python dependencies for FastAPI, Uvicorn, Pydantic, pytest, ruff, mypy, and interrogate.
   - [ ] Define frontend tooling for Vite, React, TypeScript, and ECharts.
