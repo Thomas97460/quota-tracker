@@ -153,9 +153,7 @@ class CodexProvider(BaseProvider):
             return
 
         try:
-            wham_res = self._http_get_json(
-                WHAM_BACKEND_URL, bearer_token=access_token
-            )
+            wham_res = self._http_get_json(WHAM_BACKEND_URL, bearer_token=access_token)
             yield from self._parse_wham_usage(wham_res)
         except Exception:
             logger.exception("Codex active quota probe failed")
@@ -211,9 +209,10 @@ class CodexProvider(BaseProvider):
                     started_at = parse_iso(payload.get("timestamp")) or started_at
                 elif record_type == "turn_context":
                     model = payload.get("model", model)
-                elif record_type == (
-                    "event_msg"
-                ) and payload.get("type") == "token_count":
+                elif (
+                    record_type == ("event_msg")
+                    and payload.get("type") == "token_count"
+                ):
                     info = payload.get("info") or {}
                     usage = info.get("last_token_usage") or {}
 
@@ -221,7 +220,7 @@ class CodexProvider(BaseProvider):
                     event_id = self._deterministic_id(
                         f"{path.name}:{timestamp_str}:{line}"
                     )
-                    
+
                     token_records.append(
                         TokenUsageRecord(
                             provider_id=self.provider_id,
@@ -281,7 +280,7 @@ class CodexProvider(BaseProvider):
             window = rl.get(key)
             if not isinstance(window, dict):
                 continue
-            
+
             used_percent = window.get("used_percent")
             if used_percent is None:
                 continue
@@ -292,11 +291,13 @@ class CodexProvider(BaseProvider):
                     quota_name=key,
                     timestamp=timestamp,
                     used_percent=float(used_percent),
-                    remaining_percent=None, # Computed
+                    remaining_percent=None,  # Computed
                     window_minutes=window.get("window_minutes"),
-                    resets_at=parse_iso(window.get("resets_at_iso")) or (
+                    resets_at=parse_iso(window.get("resets_at_iso"))
+                    or (
                         datetime.fromtimestamp(window["resets_at"], tz=UTC)
-                        if window.get("resets_at") else None
+                        if window.get("resets_at")
+                        else None
                     ),
                     source="local_log",
                     raw_data=window,
@@ -320,12 +321,12 @@ class CodexProvider(BaseProvider):
             con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
             con.row_factory = sqlite3.Row
             cur = con.cursor()
-            
+
             query = "SELECT * FROM threads WHERE updated_at > ? ORDER BY updated_at ASC"
             for row in cur.execute(query, (last_updated,)):
                 updated_at = row["updated_at"]
                 session_id = row["id"]
-                
+
                 yield SessionRecord(
                     provider_id=self.provider_id,
                     external_session_id=session_id,
@@ -378,7 +379,7 @@ class CodexProvider(BaseProvider):
             con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
             con.row_factory = sqlite3.Row
             cur = con.cursor()
-            
+
             query = (
                 "SELECT * FROM logs WHERE ts > ? AND feedback_log_body "
                 "LIKE 'Received message %' ORDER BY ts ASC"
@@ -400,7 +401,7 @@ class CodexProvider(BaseProvider):
                     continue
 
                 model = response.get("model") or "unknown"
-                # logs_2 doesn't have a session ID directly in the log row usually, 
+                # logs_2 doesn't have a session ID directly in the log row usually,
                 # but we can maybe extract it from somewhere if needed.
                 # For now, use a generic session ID or hash.
                 session_id = payload.get("conversation_id") or "logs_2_session"
@@ -449,7 +450,7 @@ class CodexProvider(BaseProvider):
             window = rl.get(key)
             if not isinstance(window, dict):
                 continue
-            
+
             used_percent = window.get("used_percent")
             if used_percent is None:
                 continue
@@ -507,7 +508,7 @@ class CodexProvider(BaseProvider):
         }
         if bearer_token:
             headers["Authorization"] = f"Bearer {bearer_token}"
-        
+
         request = urllib.request.Request(url, headers=headers, method="GET")
         try:
             with urllib.request.urlopen(
@@ -519,7 +520,7 @@ class CodexProvider(BaseProvider):
         except urllib.error.HTTPError as exc:
             payload = exc.read().decode("utf-8", errors="replace")
             raise RuntimeError(f"HTTP {exc.code}: {payload[:1000]}") from exc
-        
+
         if not payload.strip():
             return {}
         data = json.loads(payload)

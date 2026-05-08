@@ -66,72 +66,72 @@ They prove where the data lives and how live quota probes work. The production i
 
 ### Codex
 
-- [ ] Use `codex_local_audit.py` as the reference for local file discovery, token parsing, SQLite inspection, and WHAM usage probing.
-- [ ] Default home path: `~/.codex`.
-- [ ] Local files and databases to support:
-  - `~/.codex/auth.json`
-  - `~/.codex/config.toml`
-  - `~/.codex/version.json`
-  - `~/.codex/sessions/**/*.jsonl`
-  - `~/.codex/archived_sessions/*.jsonl`
-  - `~/.codex/state_5.sqlite`
-  - `~/.codex/logs_2.sqlite`
-- [ ] Token fields to normalize:
-  - `input_tokens`
-  - `cached_input_tokens` mapped to `cached_tokens`
-  - `output_tokens`
-  - `reasoning_output_tokens` mapped to `reasoning_tokens`
-  - `total_tokens`
-- [ ] Rate limit fields to normalize when present in session files:
-  - primary window used percent
-  - primary remaining percent
-  - primary window minutes
-  - primary reset timestamp
-  - secondary window used percent
-  - secondary remaining percent
-  - secondary window minutes
-  - secondary reset timestamp
-- [ ] WHAM usage probing:
-  - Use the local access token only in memory.
-  - Call `https://chatgpt.com/backend-api/wham/usage`.
-  - Store only quota/usage metadata, never tokens.
-  - Mock this probe in tests.
+- [x] Use `codex_local_audit.py` as the reference for local file discovery, token parsing, SQLite inspection, and WHAM usage probing.
+- [x] Default home path: `~/.codex`.
+- [x] Local files and databases to support:
+  - [x] `~/.codex/auth.json`
+  - [x] `~/.codex/config.toml`
+  - [x] `~/.codex/version.json`
+  - [x] `~/.codex/sessions/**/*.jsonl`
+  - [x] `~/.codex/archived_sessions/*.jsonl`
+  - [x] `~/.codex/state_5.sqlite`
+  - [x] `~/.codex/logs_2.sqlite`
+- [x] Token fields to normalize:
+  - [x] `input_tokens`
+  - [x] `cached_input_tokens` mapped to `cached_tokens`
+  - [x] `output_tokens`
+  - [x] `reasoning_output_tokens` mapped to `reasoning_tokens`
+  - [x] `total_tokens`
+- [x] Rate limit fields to normalize when present in session files:
+  - [x] primary window used percent
+  - [x] primary remaining percent
+  - [x] primary window minutes
+  - [x] primary reset timestamp
+  - [x] secondary window used percent
+  - [x] secondary remaining percent
+  - [x] secondary window minutes
+  - [x] secondary reset timestamp
+- [x] WHAM usage probing:
+  - [x] Use the local access token only in memory.
+  - [x] Call `https://chatgpt.com/backend-api/wham/usage`.
+  - [x] Store only quota/usage metadata, never tokens.
+  - [x] Mock this probe in tests.
 
 ### Copilot
 
-- [ ] Use `copilot_local_audit.py`, `get_weekly_quota.py`, `copilot_report.md`, and `analysis/` as references for local parsing and precise weekly quota probing.
-- [ ] Default home path: `~/.copilot`.
-- [ ] Local files to support:
-  - `~/.copilot/config.json`
-  - `~/.copilot/command-history-state.json`
-  - `~/.copilot/session-state/**/events.jsonl`
-- [ ] Token fields to normalize:
-  - `inputTokens` or `input_tokens`
-  - `outputTokens` or `output_tokens`
-  - `cacheReadTokens` or `cache_read_tokens` mapped to `cached_tokens`
-  - `cacheWriteTokens` or `cache_write_tokens` stored inside raw metadata
-  - `reasoningTokens` or `reasoning_tokens`
-  - `totalTokens` or `total_tokens`
-- [ ] Precise weekly quota probe:
-  - Read the local Copilot token from `~/.copilot/config.json` in memory only.
-  - Resolve the model API endpoint through `https://api.github.com/copilot_internal/user`.
-  - Send a minimal Copilot chat completion request using a known supported low-cost model.
-  - Parse `x-usage-ratelimit-weekly`.
-  - Compute `used_percent = 100 - rem`.
-  - Store `remaining_percent = rem`.
-  - Store `resets_at = rst`.
-  - Store the parsed header metadata in `raw_data`.
-- [ ] Copilot quota headers to parse:
-  - `x-usage-ratelimit-weekly`
-  - `x-usage-ratelimit-session`
-  - `x-quota-snapshot-chat`
-  - `x-quota-snapshot-completions`
-  - `x-quota-snapshot-premium_interactions`
-- [ ] Copilot entitlement probe:
-  - Keep it separate from the weekly probe.
-  - Use it only for monthly/premium request quota metadata.
-  - Do not treat entitlement data as the weekly quota source.
-- [ ] Copilot command history must be sanitized before any display or persistence. Persist no raw cookie-bearing command.
+- [x] Use `copilot_local_audit.py`, `get_weekly_quota.py`, `copilot_report.md`, and `analysis/` as references for local parsing and precise weekly quota probing.
+- [x] Default home path: `~/.copilot`.
+- [x] Local files to support:
+  - [x] `~/.copilot/config.json`
+  - [x] `~/.copilot/command-history-state.json`
+  - [x] `~/.copilot/session-state/**/events.jsonl`
+- [x] Token fields to normalize:
+  - [x] `inputTokens` or `input_tokens`
+  - [x] `outputTokens` or `output_tokens`
+  - [x] `cacheReadTokens` or `cache_read_tokens` mapped to `cached_tokens`
+  - [x] `cacheWriteTokens` or `cache_write_tokens` stored inside raw metadata
+  - [x] `reasoningTokens` or `reasoning_tokens`
+  - [x] `totalTokens` or `total_tokens`
+- [x] Precise weekly quota probe:
+  - [x] Read the local Copilot token from `~/.copilot/config.json` in memory only.
+  - [x] Resolve the model API endpoint through `https://api.github.com/copilot_internal/user`.
+  - [x] Send a minimal Copilot chat completion request using a known supported low-cost model.
+  - [x] Parse `x-usage-ratelimit-weekly`.
+  - [x] Compute `used_percent = 100 - rem`.
+  - [x] Store `remaining_percent = rem`.
+  - [x] Store `resets_at = rst`.
+  - [x] Store the parsed header metadata in `raw_data`.
+- [x] Copilot quota headers to parse:
+  - [x] `x-usage-ratelimit-weekly`
+  - [x] `x-usage-ratelimit-session`
+  - [x] `x-quota-snapshot-chat`
+  - [x] `x-quota-snapshot-completions`
+  - [x] `x-quota-snapshot-premium_interactions`
+- [x] Copilot entitlement probe:
+  - [x] Keep it separate from the weekly probe.
+  - [x] Use it only for monthly/premium request quota metadata.
+  - [x] Do not treat entitlement data as the weekly quota source.
+- [x] Copilot command history must be sanitized before any display or persistence. Persist no raw cookie-bearing command.
 
 ## Implementation Roadmap
 
@@ -290,37 +290,37 @@ They prove where the data lives and how live quota probes work. The production i
 
 ### 6. Copilot Provider
 
-- [ ] Implement Copilot passive session syncing.
-  - [ ] Discover `session-state/**/events.jsonl`.
-  - [ ] Parse `session.start`, `session.model_change`, `assistant.message`, and `session.shutdown` usage metadata.
-  - [ ] Prefer `session.shutdown` model metrics as authoritative session totals when present.
-  - [ ] Normalize per-model usage into token usage rows.
-  - [ ] Store models seen and safe CLI metadata in `sessions.metadata`.
-- [ ] Implement Copilot precise weekly active probing.
-  - [ ] Read the local Copilot token from `config.json` in memory.
-  - [ ] Resolve the API base URL through `https://api.github.com/copilot_internal/user`.
-  - [ ] Send one minimal chat completion request using the locked probe model from the current R&D script unless tests override it.
-  - [ ] Parse response headers with prefixes `x-usage-ratelimit-` and `x-quota-snapshot-`.
-  - [ ] For `x-usage-ratelimit-weekly`, parse query params `ent`, `ov`, `ovPerm`, `rem`, `rst`, `hasQuota`, `tbb`, and `totRem` when present.
-  - [ ] Store weekly `remaining_percent = rem`.
-  - [ ] Store weekly `used_percent = 100 - rem`.
-  - [ ] Store weekly `resets_at = rst`.
-  - [ ] Store `quota_name = weekly` and `source = active_probe`.
-- [ ] Implement Copilot session and snapshot quotas.
-  - [ ] Parse `x-usage-ratelimit-session` into `quota_name = session`.
-  - [ ] Parse `x-quota-snapshot-chat` into `quota_name = chat`.
-  - [ ] Parse `x-quota-snapshot-completions` into `quota_name = completions`.
-  - [ ] Parse `x-quota-snapshot-premium_interactions` into `quota_name = premium_interactions`.
-- [ ] Implement Copilot monthly entitlement probing.
-  - [ ] Keep the monthly entitlement probe separate from the weekly header probe.
-  - [ ] Use GitHub cookie discovery only when explicitly enabled or already configured safely.
-  - [ ] Store monthly/premium request quota with `quota_name = monthly` or `premium_interactions`.
-  - [ ] Do not use entitlement data to estimate weekly usage.
-- [ ] Implement Copilot safety.
-  - [ ] Never persist the local Copilot token.
-  - [ ] Never persist raw cookies.
-  - [ ] Never persist unsanitized command history.
-  - [ ] Mark the active weekly probe in UI/API as an active request that may consume quota.
+- [x] Implement Copilot passive session syncing.
+  - [x] Discover `session-state/**/events.jsonl`.
+  - [x] Parse `session.start`, `session.model_change`, `assistant.message`, and `session.shutdown` usage metadata.
+  - [x] Prefer `session.shutdown` model metrics as authoritative session totals when present.
+  - [x] Normalize per-model usage into token usage rows.
+  - [x] Store models seen and safe CLI metadata in `sessions.metadata`.
+- [x] Implement Copilot precise weekly active probing.
+  - [x] Read the local Copilot token from `config.json` in memory.
+  - [x] Resolve the API base URL through `https://api.github.com/copilot_internal/user`.
+  - [x] Send one minimal chat completion request using the locked probe model from the current R&D script unless tests override it.
+  - [x] Parse response headers with prefixes `x-usage-ratelimit-` and `x-quota-snapshot-`.
+  - [x] For `x-usage-ratelimit-weekly`, parse query params `ent`, `ov`, `ovPerm`, `rem`, `rst`, `hasQuota`, `tbb`, and `totRem` when present.
+  - [x] Store weekly `remaining_percent = rem`.
+  - [x] Store weekly `used_percent = 100 - rem`.
+  - [x] Store weekly `resets_at = rst`.
+  - [x] Store `quota_name = weekly` and `source = active_probe`.
+- [x] Implement Copilot session and snapshot quotas.
+  - [x] Parse `x-usage-ratelimit-session` into `quota_name = session`.
+  - [x] Parse `x-quota-snapshot-chat` into `quota_name = chat`.
+  - [x] Parse `x-quota-snapshot-completions` into `quota_name = completions`.
+  - [x] Parse `x-quota-snapshot-premium_interactions` into `quota_name = premium_interactions`.
+- [x] Implement Copilot monthly entitlement probing.
+  - [x] Keep the monthly entitlement probe separate from the weekly header probe.
+  - [x] Use GitHub cookie discovery only when explicitly enabled or already configured safely.
+  - [x] Store monthly/premium request quota with `quota_name = monthly` or `premium_interactions`.
+  - [x] Do not use entitlement data to estimate weekly usage.
+- [x] Implement Copilot safety.
+  - [x] Never persist the local Copilot token.
+  - [x] Never persist raw cookies.
+  - [x] Never persist unsanitized command history.
+  - [x] Mark the active weekly probe in UI/API as an active request that may consume quota.
 
 ### 7. Daemon And Sync Scheduler
 

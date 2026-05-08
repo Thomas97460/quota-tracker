@@ -97,7 +97,8 @@ def test_gemini_incremental() -> None:
     records3 = list(provider.scan_incremental(str(input_dir), sync_state))
     # It will yield 1 SessionRecord and 1 TokenUsageRecord for session-1
     assert len(records3) == 2
-    
+
     from quota_tracker.core.models import SessionRecord
+
     assert isinstance(records3[0], SessionRecord)
     assert records3[0].external_session_id == "session-1"

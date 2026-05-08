@@ -1,0 +1,42 @@
+{
+  "sessions": [
+    {
+      "provider_id": "copilot",
+      "external_session_id": "s1",
+      "model_name": "gpt-4",
+      "project_path": null,
+      "project_name": null,
+      "created_at": "2024-05-01T10:00:00+00:00",
+      "last_seen_at": "2024-05-01T10:05:00+00:00",
+      "metadata": {
+        "models_seen": [
+          "gpt-4"
+        ],
+        "shutdown_found": true,
+        "file_path": "tests/snapshots/copilot/0.1.0/input/session-state/s1/events.jsonl"
+      }
+    }
+  ],
+  "token_usage": [
+    {
+      "provider_id": "copilot",
+      "external_session_id": "s1",
+      "external_event_id": "dd3d70bf196709fc3402fd54ab3705dfc157653e294f20a0a713e13662f57823",
+      "timestamp": "2024-05-01T10:05:00+00:00",
+      "model_name": "gpt-4",
+      "input_tokens": 15,
+      "output_tokens": 25,
+      "cached_tokens": 0,
+      "reasoning_tokens": 0,
+      "thoughts_tokens": 0,
+      "tool_tokens": 0,
+      "total_tokens": 40,
+      "raw_data": {
+        "inputTokens": 15,
+        "outputTokens": 25,
+        "totalTokens": 40
+      }
+    }
+  ],
+  "quotas": []
+}

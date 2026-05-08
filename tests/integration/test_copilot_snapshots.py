@@ -1,4 +1,4 @@
-"""Integration test for Codex provider snapshots."""
+"""Integration test for Copilot provider snapshots."""
 
 import json
 from dataclasses import asdict
@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from quota_tracker.providers.codex import CodexProvider
+from quota_tracker.providers.copilot import CopilotProvider
 
 
 def json_serial(obj: Any) -> str:
@@ -18,10 +18,10 @@ def json_serial(obj: Any) -> str:
     raise TypeError(f"Type {type(obj)} not serializable")
 
 
-def test_codex_snapshots() -> None:
-    snapshot_root = Path("tests/snapshots/codex")
+def test_copilot_snapshots() -> None:
+    snapshot_root = Path("tests/snapshots/copilot")
     if not snapshot_root.exists():
-        pytest.skip("No codex snapshots found")
+        pytest.skip("No copilot snapshots found")
 
     for snapshot_dir in snapshot_root.iterdir():
         if not snapshot_dir.is_dir():
@@ -30,7 +30,7 @@ def test_codex_snapshots() -> None:
         input_dir = snapshot_dir / "input"
         expected_file = snapshot_dir / "expected.json"
 
-        provider = CodexProvider()
+        provider = CopilotProvider()
         records = list(provider.scan_passive(str(input_dir)))
 
         # Sort records to be deterministic for comparison
@@ -68,39 +68,29 @@ def test_codex_snapshots() -> None:
         )
 
 
-def test_codex_incremental() -> None:
-    snapshot_dir = Path("tests/snapshots/codex/0.1.0")
+def test_copilot_incremental() -> None:
+    snapshot_dir = Path("tests/snapshots/copilot/0.1.0")
     if not snapshot_dir.exists():
         pytest.skip("Base snapshot for incremental test not found")
 
     input_dir = snapshot_dir / "input"
 
-    provider = CodexProvider()
+    provider = CopilotProvider()
     sync_state: dict[str, Any] = {}
 
     # First pass
     records1 = list(provider.scan_incremental(str(input_dir), sync_state))
-    # 1 session from JSONL + 1 session from state_db = 2 sessions
-    # 1 token from JSONL + 1 token from state_db + 1 token from logs_db = 3 tokens
-    # 1 quota from JSONL = 1 quota
-    # Total = 6 records
-    assert len(records1) == 6
-
-    # Check sync state keys
-    assert str(input_dir / "sessions/session-1.jsonl") in sync_state
-    assert f"{input_dir / 'state_5.sqlite'}:last_updated" in sync_state
-    assert f"{input_dir / 'logs_2.sqlite'}:last_ts" in sync_state
+    assert len(records1) == 2  # 1 SessionRecord, 1 TokenUsageRecord (from shutdown)
+    assert len(sync_state) == 1
 
     # Second pass - no changes
     records2 = list(provider.scan_incremental(str(input_dir), sync_state))
     assert len(records2) == 0
 
-    # Modify JSONL file
-    path = input_dir / "sessions/session-1.jsonl"
+    # Modify a file
+    path = input_dir / "session-state/s1/events.jsonl"
     path.touch()
 
-    # Third pass - should re-read modified file
+    # Third pass
     records3 = list(provider.scan_incremental(str(input_dir), sync_state))
-    # It will yield 1 SessionRecord, 1 TokenUsageRecord,
-    # and 1 QuotaRecord from session-1.jsonl
-    assert len(records3) == 3
+    assert len(records3) == 2
