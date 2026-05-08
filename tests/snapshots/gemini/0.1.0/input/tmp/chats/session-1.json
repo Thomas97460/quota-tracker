@@ -1,0 +1,23 @@
+{
+  "sessionId": "session-1",
+  "kind": "chat",
+  "projectHash": "hash123",
+  "startTime": "2024-05-01T10:00:00Z",
+  "lastUpdated": "2024-05-01T10:05:00Z",
+  "messages": [
+    {
+      "type": "user",
+      "timestamp": "2024-05-01T10:00:00Z",
+      "content": "Hello"
+    },
+    {
+      "type": "gemini",
+      "timestamp": "2024-05-01T10:00:05Z",
+      "model": "gemini-1.5-pro",
+      "tokens": {
+        "input": 10,
+        "output": 20
+      }
+    }
+  ]
+}

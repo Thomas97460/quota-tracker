@@ -236,28 +236,28 @@ They prove where the data lives and how live quota probes work. The production i
 
 ### 4. Gemini Provider
 
-- [ ] Implement Gemini passive history syncing.
-  - [ ] Discover supported chat JSON and JSONL files under the configured Gemini home.
-  - [ ] Parse session metadata: session id, kind, project hash, start time, last updated.
-  - [ ] Parse Gemini message token data without storing message text.
-  - [ ] Deduplicate token-bearing messages using a stable event identity.
-  - [ ] Normalize each chat file into sessions and token usage rows.
-  - [ ] Store project hash and detected safe metadata in `sessions.metadata`.
-- [ ] Implement Gemini incremental syncing.
-  - [ ] Skip unchanged files using high-water marks.
-  - [ ] Re-read changed files and rely on deterministic event ids to avoid duplicate rows.
-  - [ ] Update high-water marks only after a successful transaction.
-- [ ] Implement Gemini active quota probing.
-  - [ ] Read OAuth credentials from the configured Gemini home.
-  - [ ] Refresh expired access tokens in memory.
-  - [ ] Call Code Assist `loadCodeAssist`.
-  - [ ] Call Code Assist `retrieveUserQuota`.
-  - [ ] Store each returned bucket as a quota history row.
-  - [ ] Use quota names that include model id and token type in raw metadata while keeping `quota_name` generic and queryable.
-- [ ] Implement Gemini error handling.
-  - [ ] If credentials are missing, record a provider health warning and keep passive syncing operational.
-  - [ ] If quota probing fails, do not fail the whole daemon loop.
-  - [ ] Interactive fallback is optional for manual CLI mode only and must not block daemon execution.
+- [x] Implement Gemini passive history syncing.
+  - [x] Discover supported chat JSON and JSONL files under the configured Gemini home.
+  - [x] Parse session metadata: session id, kind, project hash, start time, last updated.
+  - [x] Parse Gemini message token data without storing message text.
+  - [x] Deduplicate token-bearing messages using a stable event identity.
+  - [x] Normalize each chat file into sessions and token usage rows.
+  - [x] Store project hash and detected safe metadata in `sessions.metadata`.
+- [x] Implement Gemini incremental syncing.
+  - [x] Skip unchanged files using high-water marks.
+  - [x] Re-read changed files and rely on deterministic event ids to avoid duplicate rows.
+  - [x] Update high-water marks only after a successful transaction.
+- [x] Implement Gemini active quota probing.
+  - [x] Read OAuth credentials from the configured Gemini home.
+  - [x] Refresh expired access tokens in memory.
+  - [x] Call Code Assist `loadCodeAssist`.
+  - [x] Call Code Assist `retrieveUserQuota`.
+  - [x] Store each returned bucket as a quota history row.
+  - [x] Use quota names that include model id and token type in raw metadata while keeping `quota_name` generic and queryable.
+- [x] Implement Gemini error handling.
+  - [x] If credentials are missing, record a provider health warning and keep passive syncing operational.
+  - [x] If quota probing fails, do not fail the whole daemon loop.
+  - [x] Interactive fallback is optional for manual CLI mode only and must not block daemon execution.
 
 ### 5. Codex Provider
 
@@ -526,31 +526,31 @@ The testing strategy is part of the implementation. Do not leave it for later.
 
 ### Test Layout
 
-- [ ] Create `tests/unit/` for pure parsing, normalization, config, migration, and utility tests.
-- [ ] Create `tests/integration/` for provider snapshot tests, database sync tests, API tests, and daemon scheduler tests.
-- [ ] Create `tests/snapshots/` with version-stamped provider fixtures.
-- [ ] Create `tests/snapshots/<provider>/<cli-version>/input/` for sample local provider files.
-- [ ] Create `tests/snapshots/<provider>/<cli-version>/expected.json` for normalized expected output.
+- [x] Create `tests/unit/` for pure parsing, normalization, config, migration, and utility tests.
+- [x] Create `tests/integration/` for provider snapshot tests, database sync tests, API tests, and daemon scheduler tests.
+- [x] Create `tests/snapshots/` with version-stamped provider fixtures.
+- [x] Create `tests/snapshots/<provider>/<cli-version>/input/` for sample local provider files.
+- [x] Create `tests/snapshots/<provider>/<cli-version>/expected.json` for normalized expected output.
 - [ ] Create `tests/fixtures/` for shared HTTP responses, quota headers, sanitized config files, and tiny SQLite databases.
 
 ### Version-Stamped Snapshot Testing
 
-- [ ] Snapshot directories must encode provider and CLI version.
-  - [ ] Example: `tests/snapshots/gemini/0.35.0/`.
+- [x] Snapshot directories must encode provider and CLI version.
+  - [x] Example: `tests/snapshots/gemini/0.35.0/`.
   - [ ] Example: `tests/snapshots/gemini/0.40.1/`.
   - [ ] Example: `tests/snapshots/codex/<version>/`.
   - [ ] Example: `tests/snapshots/copilot/1.0.40/`.
-- [ ] Each snapshot must contain realistic sample config/session/log files generated by or modeled after that CLI version.
-- [ ] Each snapshot must contain `expected.json`.
-- [ ] `expected.json` must include:
-  - normalized sessions
-  - normalized token usage
-  - normalized quota rows when fixture data contains quota information
-  - expected detected CLI version in `sessions.metadata`
-  - expected parse failure counts when fixture files intentionally contain bad records
-- [ ] `pytest` must iterate through all snapshot directories automatically.
-- [ ] Snapshot tests must fail when a provider parser changes normalized output unexpectedly.
-- [ ] Snapshot tests must not contain real secrets or real conversation content.
+- [x] Each snapshot must contain realistic sample config/session/log files generated by or modeled after that CLI version.
+- [x] Each snapshot must contain `expected.json`.
+- [x] `expected.json` must include:
+  - [x] normalized sessions
+  - [x] normalized token usage
+  - [x] normalized quota rows when fixture data contains quota information
+  - [ ] expected detected CLI version in `sessions.metadata`
+  - [ ] expected parse failure counts when fixture files intentionally contain bad records
+- [x] `pytest` must iterate through all snapshot directories automatically.
+- [x] Snapshot tests must fail when a provider parser changes normalized output unexpectedly.
+- [x] Snapshot tests must not contain real secrets or real conversation content.
 
 ### Nix-Powered Multi-Version Testing
 

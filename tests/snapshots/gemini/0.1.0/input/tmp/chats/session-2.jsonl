@@ -1,0 +1,3 @@
+{"sessionId": "session-2", "kind": "chat", "projectHash": "hash123", "startTime": "2024-05-01T11:00:00Z", "lastUpdated": "2024-05-01T11:05:00Z"}
+{"type": "user", "timestamp": "2024-05-01T11:00:00Z", "content": "How are you?"}
+{"type": "gemini", "timestamp": "2024-05-01T11:00:05Z", "model": "gemini-1.5-flash", "tokens": {"input": 15, "output": 25}}

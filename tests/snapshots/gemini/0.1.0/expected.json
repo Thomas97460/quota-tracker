@@ -1,0 +1,70 @@
+{
+  "sessions": [
+    {
+      "provider_id": "gemini",
+      "external_session_id": "session-1",
+      "model_name": "gemini-1.5-pro",
+      "project_path": null,
+      "project_name": "My Project",
+      "created_at": "2024-05-01T10:00:00+00:00",
+      "last_seen_at": "2024-05-01T10:05:00+00:00",
+      "metadata": {
+        "project_hash": "hash123",
+        "kind": "chat",
+        "file_path": "tests/snapshots/gemini/0.1.0/input/tmp/chats/session-1.json"
+      }
+    },
+    {
+      "provider_id": "gemini",
+      "external_session_id": "session-2",
+      "model_name": "gemini-1.5-flash",
+      "project_path": null,
+      "project_name": "My Project",
+      "created_at": "2024-05-01T11:00:00+00:00",
+      "last_seen_at": "2024-05-01T11:05:00+00:00",
+      "metadata": {
+        "project_hash": "hash123",
+        "kind": "chat",
+        "file_path": "tests/snapshots/gemini/0.1.0/input/tmp/chats/session-2.jsonl"
+      }
+    }
+  ],
+  "token_usage": [
+    {
+      "provider_id": "gemini",
+      "external_session_id": "session-1",
+      "external_event_id": "1bdee364a5d68f7c0226806de18f854f1bba1173c264c3b609fe4b7702d08aa6",
+      "timestamp": "2024-05-01T10:00:05+00:00",
+      "model_name": "gemini-1.5-pro",
+      "input_tokens": 10,
+      "output_tokens": 20,
+      "cached_tokens": 0,
+      "reasoning_tokens": 0,
+      "thoughts_tokens": 0,
+      "tool_tokens": 0,
+      "total_tokens": 30,
+      "raw_data": {
+        "input": 10,
+        "output": 20
+      }
+    },
+    {
+      "provider_id": "gemini",
+      "external_session_id": "session-2",
+      "external_event_id": "f3f0ee0e5c0e300ecc223b83285a4135cd1218b8ca54ab1b16ecee5d57e8886e",
+      "timestamp": "2024-05-01T11:00:05+00:00",
+      "model_name": "gemini-1.5-flash",
+      "input_tokens": 15,
+      "output_tokens": 25,
+      "cached_tokens": 0,
+      "reasoning_tokens": 0,
+      "thoughts_tokens": 0,
+      "tool_tokens": 0,
+      "total_tokens": 40,
+      "raw_data": {
+        "input": 15,
+        "output": 25
+      }
+    }
+  ]
+}

@@ -50,10 +50,9 @@ class ProviderRepository:
                     )
                     VALUES (?, ?, ?, ?, ?)
                     """,
-                    (pid, 1, json.dumps({}), now, now)
+                    (pid, 1, json.dumps({}), now, now),
                 )
             conn.commit()
-
 
     def get_provider_config(self, provider_id: str) -> dict[str, Any] | None:
         """Get the configuration for a provider."""
