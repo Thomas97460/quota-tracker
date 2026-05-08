@@ -157,12 +157,12 @@ They prove where the data lives and how live quota probes work. The production i
   - [x] On failure, `task validate:quiet` must also print the path to a full temporary log file for the failing command.
   - [x] `task validate:quiet` must prefer non-verbose command modes when available, for example quiet pytest output or non-verbose frontend build output.
   - [x] `task validate:quiet` must not hide the failure reason completely; the first 120 lines must be enough to identify the failing subsystem.
-- [ ] Define application directories.
-  - [ ] Default config directory: `~/.config/quota-tracker`.
-  - [ ] Default database path: `~/.local/share/quota-tracker/quota-tracker.sqlite3`.
-  - [ ] Default log directory: `~/.local/state/quota-tracker/logs`.
-  - [ ] Default web host: `127.0.0.1`.
-  - [ ] Default web port: `8787`.
+- [x] Define application directories.
+  - [x] Default config directory: `~/.config/quota-tracker`.
+  - [x] Default database path: `~/.local/share/quota-tracker/quota-tracker.sqlite3`.
+  - [x] Default log directory: `~/.local/state/quota-tracker/logs`.
+  - [x] Default web host: `127.0.0.1`.
+  - [x] Default web port: `8787`.
 - [ ] Define the config file format.
   - [ ] Store config as JSON at `~/.config/quota-tracker/config.json`.
   - [ ] Include global daemon settings: active probe interval minutes, passive sync interval minutes, web host, web port, database path, log level.

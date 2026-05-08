@@ -29,11 +29,32 @@
             packages = with pkgs; [
               python312
               uv
+              nodejs
               gemini-cli
               codex
               github-copilot-cli
               go-task
             ];
+
+            shellHook = ''
+              export UV_PROJECT_ENVIRONMENT="$PWD/.venv"
+              export PATH="$PWD/.venv/bin:$PWD/node_modules/.bin:$PATH"
+              export PYTHONPATH="$PWD''${PYTHONPATH:+:$PYTHONPATH}"
+
+              if [ ! -x "$PWD/.venv/bin/python" ] \
+                || [ "$PWD/pyproject.toml" -nt "$PWD/.venv/bin/python" ] \
+                || [ "$PWD/uv.lock" -nt "$PWD/.venv/bin/python" ]; then
+                echo "[nix] syncing Python dependencies with uv"
+                uv sync --extra dev
+              fi
+
+              if [ ! -d "$PWD/node_modules" ] \
+                || [ "$PWD/package-lock.json" -nt "$PWD/node_modules" ] \
+                || [ "$PWD/package.json" -nt "$PWD/node_modules" ]; then
+                echo "[nix] installing Node dependencies with npm ci"
+                npm ci --no-fund --no-audit
+              fi
+            '';
           };
         }
       );

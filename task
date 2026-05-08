@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Wrapper to run go-task via system command, npx, or nix
+
+if command -v go-task &> /dev/null; then
+  exec go-task "$@"
+elif command -v task &> /dev/null && task --version &> /dev/null; then
+  # Ensure it's not this script itself
+  TASK_PATH=$(command -v task)
+  if [[ "$TASK_PATH" != "$(pwd)/task" ]]; then
+    exec task "$@"
+  fi
+fi
+
+if command -v npx &> /dev/null; then
+  exec npx task "$@"
+fi
+
+echo "Error: task runner not found. Please install go-task or run 'npm install'."
+exit 1

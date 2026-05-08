@@ -85,16 +85,17 @@ tasks:
     desc: Run all quality gates silently on success
     cmds:
       - task: _run_quiet
-        vars: {NAME: "lint", CMD: "task lint"}
+        vars: {NAME: "lint", CMD: "./task lint"}
       - task: _run_quiet
-        vars: {NAME: "typecheck", CMD: "task typecheck"}
+        vars: {NAME: "typecheck", CMD: "./task typecheck"}
       - task: _run_quiet
-        vars: {NAME: "docstrings", CMD: "task docstrings"}
+        vars: {NAME: "docstrings", CMD: "./task docstrings"}
       - task: _run_quiet
-        vars: {NAME: "test", CMD: "task test"}
+        vars: {NAME: "test", CMD: "./task test"}
       - task: _run_quiet
-        vars: {NAME: "nix-check", CMD: "task nix-check"}
+        vars: {NAME: "nix-check", CMD: "./task nix-check"}
       - echo "Validation successful"
+
 
   run-api:
     desc: Run the API server
@@ -142,8 +143,9 @@ tasks:
     cmds:
       - |
         LOG=$(mktemp /tmp/task_XXXXXX.log)
-        if ! {{.CMD}} > $LOG 2>&1; then
-          EXIT_CODE=$?
+        {{.CMD}} > $LOG 2>&1
+        EXIT_CODE=$?
+        if [ $EXIT_CODE -ne 0 ]; then
           echo "Task failed: {{.NAME}}"
           echo "Exit code: $EXIT_CODE"
           echo "Command: {{.CMD}}"
