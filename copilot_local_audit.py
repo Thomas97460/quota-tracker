@@ -15,13 +15,20 @@ import subprocess
 import termios
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
+import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 COPILOT_ENTITLEMENT_URL = "https://github.com/github-copilot/chat/entitlement"
+COPILOT_GITHUB_USER_URL = "https://api.github.com/copilot_internal/user"
+COPILOT_DEFAULT_API_URL = "https://api.githubcopilot.com"
+COPILOT_WEEKLY_PROBE_MODEL = "claude-haiku-4.5"
+COPILOT_INTEGRATION_ID = "copilot-developer-cli"
+COPILOT_API_VERSION = "2026-01-09"
 GITHUB_SESSION_COOKIE_NAMES = (
     "user_session",
     "__Host-user_session_same_site",
@@ -393,6 +400,247 @@ def _http_get_json(
         return {}
     data = json.loads(payload)
     return data if isinstance(data, dict) else {"value": data}
+
+
+def _http_request_json_with_headers(
+    url: str,
+    *,
+    method: str,
+    headers: dict[str, str],
+    timeout_seconds: int,
+    body: dict[str, Any] | None = None,
+) -> tuple[int, dict[str, str], dict[str, Any]]:
+    request_body = json.dumps(body).encode("utf-8") if body is not None else None
+    request = urllib.request.Request(url, data=request_body, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(
+            request,
+            timeout=timeout_seconds,
+            context=_ssl_context(),
+        ) as response:
+            payload = response.read().decode("utf-8", errors="replace")
+            response_headers = {k.lower(): v for k, v in response.headers.items()}
+            status = response.status
+    except urllib.error.HTTPError as exc:
+        payload = exc.read().decode("utf-8", errors="replace")
+        response_headers = {k.lower(): v for k, v in exc.headers.items()}
+        status = exc.code
+
+    if not payload.strip():
+        data: dict[str, Any] = {}
+    else:
+        try:
+            parsed = json.loads(payload)
+            data = parsed if isinstance(parsed, dict) else {"value": parsed}
+        except json.JSONDecodeError:
+            data = {"raw": payload[:1000]}
+    return status, response_headers, data
+
+
+def _copilot_config_token(copilot_home: Path) -> tuple[str | None, str | None, str | None]:
+    cfg = load_json(copilot_home / "config.json")
+    if not isinstance(cfg, dict):
+        return None, None, "Copilot config.json could not be loaded"
+
+    tokens = cfg.get("copilotTokens")
+    if not isinstance(tokens, dict) or not tokens:
+        return None, None, "No copilotTokens entry found in Copilot config.json"
+
+    last_user = cfg.get("lastLoggedInUser")
+    if isinstance(last_user, dict):
+        host = last_user.get("host")
+        login = last_user.get("login")
+        if isinstance(host, str) and isinstance(login, str):
+            key = f"{host}:{login}"
+            token = tokens.get(key)
+            if isinstance(token, str) and token.strip():
+                return token.strip(), f"config:{key}", None
+
+    for key, token in tokens.items():
+        if isinstance(token, str) and token.strip():
+            return token.strip(), f"config:{key}", None
+
+    return None, None, "No non-empty Copilot token found in config.json"
+
+
+def _fetch_copilot_user(
+    *,
+    token: str,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    return _http_get_json(
+        COPILOT_GITHUB_USER_URL,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            "User-Agent": f"GitHubCopilotChat/{_copilot_cli_version()}",
+        },
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def _copilot_cli_version() -> str:
+    pkg_root = Path.home() / ".cache" / "copilot" / "pkg" / "linux-x64"
+    if pkg_root.exists():
+        versions = sorted((p.name for p in pkg_root.iterdir() if p.is_dir()), reverse=True)
+        if versions:
+            return versions[0]
+    return "unknown"
+
+
+def _parse_quota_header(value: str) -> dict[str, Any] | None:
+    try:
+        params = urllib.parse.parse_qs(value, keep_blank_values=True)
+
+        def first(name: str) -> str | None:
+            vals = params.get(name)
+            return vals[0] if vals else None
+
+        entitlement = _as_int(first("ent") or "0")
+        overage = _as_float(first("ov") or "0.0")
+        remaining = _as_float(first("rem") or "0.0")
+        if entitlement is None or overage is None or remaining is None:
+            return None
+
+        reset = first("rst")
+        overage_permitted = first("ovPerm") == "true"
+        is_unlimited = entitlement == -1
+        used_requests = 0 if is_unlimited else round(max(0.0, entitlement * (1 - remaining / 100)))
+        used_percent = max(0.0, min(100.0, 100.0 - remaining))
+        out: dict[str, Any] = {
+            "is_unlimited_entitlement": is_unlimited,
+            "entitlement_requests": entitlement,
+            "used_requests": used_requests,
+            "usage_allowed_with_exhausted_quota": overage_permitted,
+            "overage": overage,
+            "overage_allowed_with_exhausted_quota": overage_permitted,
+            "remaining_percent": remaining,
+            "used_percent": used_percent,
+            "reset_date": reset,
+        }
+        if first("hasQuota") is not None:
+            out["has_quota"] = first("hasQuota") == "true"
+        if first("tbb") is not None:
+            out["token_based_billing"] = first("tbb") == "true"
+        total_remaining = _as_float(first("totRem"))
+        if total_remaining is not None:
+            out["total_remaining"] = total_remaining
+        return out
+    except Exception:
+        return None
+
+
+def _extract_quota_headers(headers: dict[str, str]) -> dict[str, dict[str, Any]]:
+    out: dict[str, dict[str, Any]] = {}
+    for name, value in headers.items():
+        lower = name.lower()
+        key = None
+        if lower.startswith("x-quota-snapshot-"):
+            key = lower[len("x-quota-snapshot-") :]
+        elif lower.startswith("x-usage-ratelimit-"):
+            key = lower[len("x-usage-ratelimit-") :]
+        if not key:
+            continue
+        parsed = _parse_quota_header(value)
+        if parsed is not None:
+            parsed["source_header"] = lower
+            out[key] = parsed
+    return out
+
+
+def probe_capi_usage_ratelimit_quota(
+    copilot_home: Path,
+    timeout_seconds: int,
+) -> dict[str, Any]:
+    token, token_source, token_error = _copilot_config_token(copilot_home)
+    if not token:
+        return {
+            "attempted": True,
+            "method": "copilot-api-chat-completions-headers",
+            "available": False,
+            "token_source": token_source,
+            "error": token_error,
+        }
+
+    try:
+        copilot_user = _fetch_copilot_user(token=token, timeout_seconds=timeout_seconds)
+        endpoints = copilot_user.get("endpoints")
+        api_url = (
+            endpoints.get("api")
+            if isinstance(endpoints, dict) and isinstance(endpoints.get("api"), str)
+            else COPILOT_DEFAULT_API_URL
+        )
+    except Exception as exc:
+        return {
+            "attempted": True,
+            "method": "copilot-api-chat-completions-headers",
+            "available": False,
+            "token_source": token_source,
+            "error": f"unable to resolve Copilot API endpoint: {exc}",
+        }
+
+    interaction_id = str(uuid.uuid4())
+    status, response_headers, payload = _http_request_json_with_headers(
+        f"{api_url.rstrip('/')}/chat/completions",
+        method="POST",
+        timeout_seconds=timeout_seconds,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Openai-Intent": "conversation-agent",
+            "X-Initiator": "user",
+            "X-GitHub-Api-Version": COPILOT_API_VERSION,
+            "Copilot-Integration-Id": COPILOT_INTEGRATION_ID,
+            "X-Interaction-Id": interaction_id,
+            "User-Agent": f"GitHubCopilotChat/{_copilot_cli_version()}",
+        },
+        body={
+            "model": COPILOT_WEEKLY_PROBE_MODEL,
+            "messages": [{"role": "user", "content": "Reply with ok."}],
+            "max_tokens": 1,
+            "stream": False,
+        },
+    )
+
+    quota_headers = _extract_quota_headers(response_headers)
+    weekly = quota_headers.get("weekly")
+    session = quota_headers.get("session")
+    error_obj = payload.get("error") if isinstance(payload.get("error"), dict) else {}
+    result: dict[str, Any] = {
+        "attempted": True,
+        "method": "copilot-api-chat-completions-headers",
+        "available": weekly is not None,
+        "status_code": status,
+        "token_source": token_source,
+        "api_url": api_url,
+        "model": COPILOT_WEEKLY_PROBE_MODEL,
+        "quota_snapshots": quota_headers,
+    }
+    if error_obj:
+        result["api_error_code"] = error_obj.get("code")
+        result["api_error_message"] = error_obj.get("message")
+    if weekly:
+        result.update(
+            {
+                "weekly_used_percent": weekly.get("used_percent"),
+                "weekly_remaining_percent": weekly.get("remaining_percent"),
+                "weekly_reset_date": weekly.get("reset_date"),
+                "weekly_source_header": weekly.get("source_header"),
+            }
+        )
+    if session:
+        result.update(
+            {
+                "session_used_percent": session.get("used_percent"),
+                "session_remaining_percent": session.get("remaining_percent"),
+                "session_reset_date": session.get("reset_date"),
+                "session_source_header": session.get("source_header"),
+            }
+        )
+    if not weekly and error_obj:
+        result["error"] = error_obj.get("message") or str(error_obj)
+    return result
 
 
 def _summarize_entitlement_quota(payload: dict[str, Any]) -> dict[str, Any]:
@@ -910,28 +1158,51 @@ def probe_live_quota(
     github_cookie: str | None,
     cookie_source: str | None,
     cookie_error: str | None,
+    copilot_home: Path,
 ) -> dict[str, Any]:
+    capi_probe = probe_capi_usage_ratelimit_quota(
+        copilot_home=copilot_home,
+        timeout_seconds=timeout_seconds,
+    )
     entitlement_probe = probe_entitlement_quota(
         timeout_seconds=timeout_seconds,
         github_cookie=github_cookie,
         cookie_source=cookie_source,
         cookie_error=cookie_error,
     )
-    if entitlement_probe.get("available"):
-        return entitlement_probe
+    if capi_probe.get("available") or entitlement_probe.get("available"):
+        merged = {
+            "attempted": True,
+            "method": "copilot-api-chat-completions-headers+github-chat-entitlement",
+            "available": bool(capi_probe.get("available") or entitlement_probe.get("available")),
+            "weekly_available": bool(capi_probe.get("available")),
+            "entitlement_available": bool(entitlement_probe.get("available")),
+            "weekly_probe": capi_probe,
+            "entitlement_probe": entitlement_probe,
+        }
+        for key, value in entitlement_probe.items():
+            if key not in {"attempted", "method", "available"}:
+                merged[key] = value
+        for key, value in capi_probe.items():
+            if key not in {"attempted", "method", "available"}:
+                merged[key] = value
+        return merged
 
     interactive_probe = probe_interactive_quota(timeout_seconds=timeout_seconds)
     if interactive_probe.get("available"):
-        interactive_probe["fallback_from"] = "github-chat-entitlement"
+        interactive_probe["fallback_from"] = "copilot-api-chat-completions-headers+github-chat-entitlement"
+        if capi_probe.get("error"):
+            interactive_probe["capi_error"] = capi_probe.get("error")
         if entitlement_probe.get("error"):
             interactive_probe["entitlement_error"] = entitlement_probe.get("error")
         return interactive_probe
 
     return {
         "attempted": True,
-        "method": "github-chat-entitlement+interactive-slash-usage",
+        "method": "copilot-api-chat-completions-headers+github-chat-entitlement+interactive-slash-usage",
         "available": False,
-        "error": entitlement_probe.get("error") or interactive_probe.get("error"),
+        "error": capi_probe.get("error") or entitlement_probe.get("error") or interactive_probe.get("error"),
+        "weekly_probe": capi_probe,
         "entitlement_probe": entitlement_probe,
         "interactive_probe": interactive_probe,
     }
@@ -962,6 +1233,7 @@ def build_report(
             github_cookie=cookie_value,
             cookie_source=cookie_source,
             cookie_error=cookie_error,
+            copilot_home=copilot_home,
         ),
     }
 
@@ -1048,6 +1320,22 @@ def text_report(data: dict[str, Any], top_n: int) -> str:
             lines.append(f"- plan: {live_probe.get('plan')}")
         if live_probe.get("license_type") is not None:
             lines.append(f"- license_type: {live_probe.get('license_type')}")
+        if live_probe.get("weekly_available") is not None:
+            lines.append(f"- weekly_available: {live_probe.get('weekly_available')}")
+        if live_probe.get("weekly_used_percent") is not None:
+            lines.append(
+                f"- weekly_used_percent: {live_probe.get('weekly_used_percent')} "
+                f"(remaining={live_probe.get('weekly_remaining_percent')})"
+            )
+        if live_probe.get("weekly_reset_date") is not None:
+            lines.append(f"- weekly_reset_date: {live_probe.get('weekly_reset_date')}")
+        if live_probe.get("session_used_percent") is not None:
+            lines.append(
+                f"- session_used_percent: {live_probe.get('session_used_percent')} "
+                f"(remaining={live_probe.get('session_remaining_percent')})"
+            )
+        if live_probe.get("session_reset_date") is not None:
+            lines.append(f"- session_reset_date: {live_probe.get('session_reset_date')}")
         lines.append(f"- return_code: {live_probe.get('return_code')}")
         lines.append(f"- limit_requests: {live_probe.get('limit_requests')}")
         lines.append(f"- requests_used: {live_probe.get('requests_used')}")

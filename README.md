@@ -38,9 +38,13 @@ uv run --python 3.12 python copilot_local_audit.py
 uv run --python 3.12 python copilot_local_audit.py --json
 uv run --python 3.12 python copilot_local_audit.py --json --output copilot_audit_report.json
 uv run --python 3.12 python copilot_local_audit.py --github-cookie-file ~/.config/quota-tracker/github_cookie.txt
+uv run --python 3.12 python get_weekly_quota.py
+uv run --python 3.12 python get_weekly_quota.py --remaining
 ```
 
 Le script Copilot remonte : config/auth sanitisée, sessions/tokens depuis `~/.copilot/session-state/**/events.jsonl`, et un probe quota live.
+
+Pour la weekly limit, le script appelle l'API modèle Copilot avec l'auth locale `~/.copilot/config.json`, puis lit le header `x-usage-ratelimit-weekly`. La valeur affichée est le pourcentage utilisé exact calculé par Copilot (`100 - rem`). `get_weekly_quota.py` affiche seulement ce pourcentage par défaut. C'est un probe actif : il envoie une requête minimale à Copilot.
 
 Pour le quota mensuel en nombre de requêtes, il interroge l'endpoint GitHub `https://github.com/github-copilot/chat/entitlement`.  
 La récupération est automatique par défaut (aucun flag requis).  
