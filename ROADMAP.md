@@ -175,37 +175,37 @@ They prove where the data lives and how live quota probes work. The production i
 
 ### 2. SQLite Schema And Migrations
 
-- [ ] Implement idempotent SQLite migrations.
-  - [ ] Store migration state in a generic internal table named `schema_migrations`.
-  - [ ] Running migrations twice must not change existing data.
-  - [ ] Opening the application must apply pending migrations before any scan or API read.
-- [ ] Implement the `providers` table.
-  - [ ] Columns: `id`, `enabled`, `config`, `created_at`, `updated_at`.
-  - [ ] `id` values must be exactly `gemini`, `codex`, and `copilot`.
-  - [ ] `config` must be JSON text containing provider paths, intervals, high-water marks, and safe provider options.
-- [ ] Implement the `quota_history` table.
-  - [ ] Required PLAN fields: `provider_id`, `timestamp`, `used_percent`, `remaining_percent`, `window_minutes`, `resets_at`, `raw_data`.
-  - [ ] Add generic V1 fields: `id`, `quota_name`, `source`, `created_at`.
-  - [ ] `quota_name` examples: `default`, `primary`, `secondary`, `weekly`, `session`, `monthly`, `premium_interactions`, `chat`, `completions`.
-  - [ ] `source` examples: `active_probe`, `local_log`, `provider_db`.
-  - [ ] Add indexes on provider id, timestamp, quota name, and reset time.
-- [ ] Implement the `sessions` table.
-  - [ ] Required PLAN fields: `id`, `provider_id`, `external_session_id`, `model_name`, `project_path`, `project_name`, `created_at`, `last_seen_at`, `metadata`.
-  - [ ] `id` must be deterministic from provider id and external session id.
-  - [ ] `metadata` must include detected CLI version when available.
-  - [ ] `metadata` may include project hash, source file path, source database name, parse version, and safe provider metadata.
-  - [ ] `metadata` must not include conversation text.
-- [ ] Implement the `token_usage_history` table.
-  - [ ] Required PLAN fields: `session_id`, `timestamp`, `input_tokens`, `output_tokens`, `cached_tokens`, `reasoning_tokens`, `thoughts_tokens`, `tool_tokens`, `total_tokens`, `raw_data`.
-  - [ ] Add generic V1 fields: `id`, `provider_id`, `external_event_id`, `model_name`, `source`, `created_at`.
-  - [ ] `external_event_id` must make repeated syncs idempotent.
-  - [ ] Add a unique constraint that prevents duplicate token usage rows for the same provider/session/event.
-- [ ] Implement safe database access.
-  - [ ] Use write transactions for each provider sync batch.
-  - [ ] Enable WAL mode.
-  - [ ] Use UTC ISO timestamps.
-  - [ ] Validate JSON before storing it.
-  - [ ] Provide read queries used by the API without exposing raw secret-bearing metadata.
+- [x] Implement idempotent SQLite migrations.
+  - [x] Store migration state in a generic internal table named `schema_migrations`.
+  - [x] Running migrations twice must not change existing data.
+  - [x] Opening the application must apply pending migrations before any scan or API read.
+- [x] Implement the `providers` table.
+  - [x] Columns: `id`, `enabled`, `config`, `created_at`, `updated_at`.
+  - [x] `id` values must be exactly `gemini`, `codex`, and `copilot`.
+  - [x] `config` must be JSON text containing provider paths, intervals, high-water marks, and safe provider options.
+- [x] Implement the `quota_history` table.
+  - [x] Required PLAN fields: `provider_id`, `timestamp`, `used_percent`, `remaining_percent`, `window_minutes`, `resets_at`, `raw_data`.
+  - [x] Add generic V1 fields: `id`, `quota_name`, `source`, `created_at`.
+  - [x] `quota_name` examples: `default`, `primary`, `secondary`, `weekly`, `session`, `monthly`, `premium_interactions`, `chat`, `completions`.
+  - [x] `source` examples: `active_probe`, `local_log`, `provider_db`.
+  - [x] Add indexes on provider id, timestamp, quota name, and reset time.
+- [x] Implement the `sessions` table.
+  - [x] Required PLAN fields: `id`, `provider_id`, `external_session_id`, `model_name`, `project_path`, `project_name`, `created_at`, `last_seen_at`, `metadata`.
+  - [x] `id` must be deterministic from provider id and external session id.
+  - [x] `metadata` must include detected CLI version when available.
+  - [x] `metadata` may include project hash, source file path, source database name, parse version, and safe provider metadata.
+  - [x] `metadata` must not include conversation text.
+- [x] Implement the `token_usage_history` table.
+  - [x] Required PLAN fields: `session_id`, `timestamp`, `input_tokens`, `output_tokens`, `cached_tokens`, `reasoning_tokens`, `thoughts_tokens`, `tool_tokens`, `total_tokens`, `raw_data`.
+  - [x] Add generic V1 fields: `id`, `provider_id`, `external_event_id`, `model_name`, `source`, `created_at`.
+  - [x] `external_event_id` must make repeated syncs idempotent.
+  - [x] Add a unique constraint that prevents duplicate token usage rows for the same provider/session/event.
+- [x] Implement safe database access.
+  - [x] Use write transactions for each provider sync batch.
+  - [x] Enable WAL mode.
+  - [x] Use UTC ISO timestamps.
+  - [x] Validate JSON before storing it.
+  - [x] Provide read queries used by the API without exposing raw secret-bearing metadata.
 
 ### 3. Provider Contract And Normalization
 
