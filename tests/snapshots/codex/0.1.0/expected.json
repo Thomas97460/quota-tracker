@@ -1,0 +1,113 @@
+{
+  "sessions": [
+    {
+      "provider_id": "codex",
+      "external_session_id": "session-1",
+      "model_name": "gpt-4",
+      "project_path": "/project",
+      "project_name": "project",
+      "created_at": "2024-05-01T10:00:00+00:00",
+      "last_seen_at": "2024-05-01T10:00:05+00:00",
+      "metadata": {
+        "cli_version": "0.1.0",
+        "file_path": "tests/snapshots/codex/0.1.0/input/sessions/session-1.jsonl"
+      }
+    },
+    {
+      "provider_id": "codex",
+      "external_session_id": "thread-1",
+      "model_name": "gpt-4",
+      "project_path": "/project",
+      "project_name": "project",
+      "created_at": "2024-05-01T10:00:00+00:00",
+      "last_seen_at": "2024-05-01T10:01:00+00:00",
+      "metadata": {
+        "title": "Thread 1",
+        "cli_version": "0.1.0",
+        "source": "state_5.sqlite"
+      }
+    }
+  ],
+  "token_usage": [
+    {
+      "provider_id": "codex",
+      "external_session_id": "conv-1",
+      "external_event_id": "863505f094952f3d68f57bf0f2733fded1d6008b6835517ca04ed55c43582b03",
+      "timestamp": "2024-05-01T10:00:00+00:00",
+      "model_name": "gpt-4o",
+      "input_tokens": 100,
+      "output_tokens": 50,
+      "cached_tokens": 0,
+      "reasoning_tokens": 0,
+      "thoughts_tokens": 0,
+      "tool_tokens": 0,
+      "total_tokens": 150,
+      "raw_data": {
+        "input_tokens": 100,
+        "output_tokens": 50,
+        "total_tokens": 150
+      }
+    },
+    {
+      "provider_id": "codex",
+      "external_session_id": "session-1",
+      "external_event_id": "a8625ce2a55f63bd8d66ab05abeb130fac4d8ed670239ed833a256ff2aa9e210",
+      "timestamp": "2024-05-01T10:00:05+00:00",
+      "model_name": "gpt-4",
+      "input_tokens": 10,
+      "output_tokens": 20,
+      "cached_tokens": 0,
+      "reasoning_tokens": 0,
+      "thoughts_tokens": 0,
+      "tool_tokens": 0,
+      "total_tokens": 30,
+      "raw_data": {
+        "input_tokens": 10,
+        "output_tokens": 20,
+        "total_tokens": 30
+      }
+    },
+    {
+      "provider_id": "codex",
+      "external_session_id": "thread-1",
+      "external_event_id": "1821576973f7ad8458b3cb19273a8b6ac47016412ad69c88890b67d94646d9eb",
+      "timestamp": "2024-05-01T10:01:00+00:00",
+      "model_name": "gpt-4",
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "cached_tokens": 0,
+      "reasoning_tokens": 0,
+      "thoughts_tokens": 0,
+      "tool_tokens": 0,
+      "total_tokens": 150,
+      "raw_data": {
+        "id": "thread-1",
+        "created_at": 1714557600,
+        "updated_at": 1714557660,
+        "model": "gpt-4",
+        "tokens_used": 150,
+        "cwd": "/project",
+        "title": "Thread 1",
+        "cli_version": "0.1.0"
+      }
+    }
+  ],
+  "quotas": [
+    {
+      "provider_id": "codex",
+      "quota_name": "primary",
+      "timestamp": "2024-05-01T10:00:05+00:00",
+      "used_percent": 45.0,
+      "remaining_percent": 55.0,
+      "window_minutes": 60,
+      "resets_at": "2024-05-01T10:00:00+00:00",
+      "source": "local_log",
+      "raw_data": {
+        "used_percent": 45,
+        "window_minutes": 60,
+        "resets_at": 1714557600,
+        "resets_at_iso": "2024-05-01T10:00:00Z"
+      }
+    }
+  ]
+}

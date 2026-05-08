@@ -37,14 +37,14 @@ class CopilotProvider(BaseProvider):
 
     def scan_passive(
         self, _home_path: str
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Perform a full passive scan of local history."""
         # Logic from copilot_local_audit.py will be moved here in detail
         return []
 
     def scan_incremental(
         self, _home_path: str, _sync_state: dict[str, Any]
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Perform an incremental passive scan of local history."""
         return []
 

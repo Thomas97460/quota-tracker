@@ -261,32 +261,32 @@ They prove where the data lives and how live quota probes work. The production i
 
 ### 5. Codex Provider
 
-- [ ] Implement Codex passive session syncing.
-  - [ ] Discover `sessions/**/*.jsonl`.
-  - [ ] Include `archived_sessions/*.jsonl` unless disabled in config.
-  - [ ] Parse session metadata from `session_meta` and `turn_context`.
-  - [ ] Parse `token_count` events.
-  - [ ] Normalize latest total usage when available.
-  - [ ] Store CLI version in `sessions.metadata` when present.
-- [ ] Implement Codex local SQLite syncing.
-  - [ ] Read `state_5.sqlite` in read-only mode.
-  - [ ] Read `logs_2.sqlite` in read-only mode.
-  - [ ] Extract useful session, thread, model, token, and rate-limit metadata without mutating provider databases.
-  - [ ] Convert local SQLite data into the common schema.
-  - [ ] Use deterministic event ids to avoid duplicate token rows.
-- [ ] Implement Codex quota extraction.
-  - [ ] Extract primary and secondary rate limit windows from session files when available.
-  - [ ] Convert each window to a quota history row with `quota_name` `primary` or `secondary`.
-  - [ ] Store reset timestamp and window minutes.
-- [ ] Implement Codex WHAM active probing.
-  - [ ] Read the local access token from `auth.json` in memory.
-  - [ ] Call the WHAM usage endpoint only when active probing is enabled.
-  - [ ] Normalize returned quota metadata into quota history rows.
-  - [ ] Store only safe usage metadata.
-- [ ] Implement Codex resilience.
-  - [ ] Missing auth disables active probe only.
-  - [ ] Missing local SQLite databases must not disable session JSONL parsing.
-  - [ ] Broken JSONL lines must be counted as parse failures and skipped.
+- [x] Implement Codex passive session syncing.
+  - [x] Discover `sessions/**/*.jsonl`.
+  - [x] Include `archived_sessions/*.jsonl` unless disabled in config.
+  - [x] Parse session metadata from `session_meta` and `turn_context`.
+  - [x] Parse `token_count` events.
+  - [x] Normalize latest total usage when available.
+  - [x] Store CLI version in `sessions.metadata` when present.
+- [x] Implement Codex local SQLite syncing.
+  - [x] Read `state_5.sqlite` in read-only mode.
+  - [x] Read `logs_2.sqlite` in read-only mode.
+  - [x] Extract useful session, thread, model, token, and rate-limit metadata without mutating provider databases.
+  - [x] Convert local SQLite data into the common schema.
+  - [x] Use deterministic event ids to avoid duplicate token rows.
+- [x] Implement Codex quota extraction.
+  - [x] Extract primary and secondary rate limit windows from session files when available.
+  - [x] Convert each window to a quota history row with `quota_name` `primary` or `secondary`.
+  - [x] Store reset timestamp and window minutes.
+- [x] Implement Codex WHAM active probing.
+  - [x] Read the local access token from `auth.json` in memory.
+  - [x] Call the WHAM usage endpoint only when active probing is enabled.
+  - [x] Normalize returned quota metadata into quota history rows.
+  - [x] Store only safe usage metadata.
+- [x] Implement Codex resilience.
+  - [x] Missing auth disables active probe only.
+  - [x] Missing local SQLite databases must not disable session JSONL parsing.
+  - [x] Broken JSONL lines must be counted as parse failures and skipped.
 
 ### 6. Copilot Provider
 

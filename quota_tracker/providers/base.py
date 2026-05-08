@@ -38,13 +38,13 @@ class BaseProvider(ABC):
     @abstractmethod
     def scan_passive(
         self, home_path: str
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Perform a full passive scan of local history."""
 
     @abstractmethod
     def scan_incremental(
         self, home_path: str, sync_state: dict[str, Any]
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Perform an incremental passive scan of local history."""
 
     @abstractmethod

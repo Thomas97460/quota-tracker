@@ -1,0 +1,3 @@
+{"type": "session_meta", "timestamp": "2024-05-01T10:00:00Z", "payload": {"id": "session-1", "cwd": "/project", "cli_version": "0.1.0"}}
+{"type": "turn_context", "timestamp": "2024-05-01T10:00:01Z", "payload": {"model": "gpt-4"}}
+{"type": "event_msg", "timestamp": "2024-05-01T10:00:05Z", "payload": {"type": "token_count", "info": {"last_token_usage": {"input_tokens": 10, "output_tokens": 20, "total_tokens": 30}}, "rate_limits": {"primary": {"used_percent": 45, "window_minutes": 60, "resets_at": 1714557600, "resets_at_iso": "2024-05-01T10:00:00Z"}}}}

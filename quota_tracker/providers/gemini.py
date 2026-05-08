@@ -64,7 +64,7 @@ class GeminiProvider(BaseProvider):
 
     def scan_passive(
         self, home_path: str
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Perform a full passive scan of local history.
 
         Args:
@@ -84,7 +84,7 @@ class GeminiProvider(BaseProvider):
 
     def scan_incremental(
         self, home_path: str, sync_state: dict[str, Any]
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Perform an incremental passive scan of local history.
 
         Args:
@@ -245,7 +245,7 @@ class GeminiProvider(BaseProvider):
 
     def _parse_chat_file(
         self, path: Path, project_mapping: dict[str, str]
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Parse a single chat file.
 
         Args:
@@ -264,7 +264,7 @@ class GeminiProvider(BaseProvider):
 
     def _parse_json_chat(
         self, path: Path, obj: dict[str, Any], project_mapping: dict[str, str]
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Parse a JSON chat file.
 
         Args:
@@ -295,7 +295,7 @@ class GeminiProvider(BaseProvider):
 
     def _parse_jsonl_chat(
         self, path: Path, project_mapping: dict[str, str]
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Parse a JSONL chat file.
 
         Args:
@@ -370,7 +370,7 @@ class GeminiProvider(BaseProvider):
         last_updated: datetime | None,
         messages: list[dict[str, Any]],
         project_mapping: dict[str, str],
-    ) -> Iterable[SessionRecord | TokenUsageRecord]:
+    ) -> Iterable[SessionRecord | TokenUsageRecord | QuotaRecord]:
         """Common message parsing logic for JSON and JSONL.
 
         Args:
