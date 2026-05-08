@@ -38,7 +38,7 @@ class GeminiTokenUsage:
     total_tokens: int = 0
 
     @classmethod
-    def from_mapping(cls, value: dict[str, Any] | None) -> "GeminiTokenUsage":
+    def from_mapping(cls, value: dict[str, Any] | None) -> GeminiTokenUsage:
         if not value:
             return cls()
         return cls(
@@ -50,7 +50,7 @@ class GeminiTokenUsage:
             total_tokens=int(value.get("total_tokens") or value.get("total") or 0),
         )
 
-    def add(self, other: "GeminiTokenUsage") -> None:
+    def add(self, other: GeminiTokenUsage) -> None:
         self.input_tokens += other.input_tokens
         self.output_tokens += other.output_tokens
         self.cached_tokens += other.cached_tokens

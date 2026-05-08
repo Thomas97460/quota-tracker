@@ -7,7 +7,6 @@ import json
 import os
 import sqlite3
 import ssl
-import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -31,7 +30,7 @@ class TokenUsage:
     total_tokens: int = 0
 
     @classmethod
-    def from_mapping(cls, value: dict[str, Any] | None) -> "TokenUsage":
+    def from_mapping(cls, value: dict[str, Any] | None) -> TokenUsage:
         if not value:
             return cls()
 
@@ -56,7 +55,7 @@ class TokenUsage:
             total_tokens=total,
         )
 
-    def add(self, other: "TokenUsage") -> None:
+    def add(self, other: TokenUsage) -> None:
         self.input_tokens += other.input_tokens
         self.cached_input_tokens += other.cached_input_tokens
         self.output_tokens += other.output_tokens
@@ -105,7 +104,7 @@ class RateLimits:
     secondary: RateWindow = field(default_factory=RateWindow)
 
     @classmethod
-    def from_mapping(cls, value: dict[str, Any] | None) -> "RateLimits":
+    def from_mapping(cls, value: dict[str, Any] | None) -> RateLimits:
         value = value or {}
         primary = value.get("primary") or {}
         secondary = value.get("secondary") or {}

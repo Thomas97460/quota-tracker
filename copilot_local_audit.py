@@ -18,7 +18,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -48,7 +48,7 @@ class CopilotTokenUsage:
     total_tokens: int = 0
 
     @classmethod
-    def from_mapping(cls, value: dict[str, Any] | None) -> "CopilotTokenUsage":
+    def from_mapping(cls, value: dict[str, Any] | None) -> CopilotTokenUsage:
         if not value:
             return cls()
         input_tokens = int(value.get("inputTokens") or value.get("input_tokens") or 0)
@@ -66,7 +66,7 @@ class CopilotTokenUsage:
             total_tokens=total,
         )
 
-    def add(self, other: "CopilotTokenUsage") -> None:
+    def add(self, other: CopilotTokenUsage) -> None:
         self.input_tokens += other.input_tokens
         self.output_tokens += other.output_tokens
         self.cache_read_tokens += other.cache_read_tokens

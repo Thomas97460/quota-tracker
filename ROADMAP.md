@@ -145,18 +145,18 @@ They prove where the data lives and how live quota probes work. The production i
   - [x] Define Python dependencies for FastAPI, Uvicorn, Pydantic, pytest, ruff, mypy, and interrogate.
   - [x] Define frontend tooling for Vite, React, TypeScript, and ECharts.
   - [x] Configure `ruff`, `mypy`, `pytest`, and `interrogate` in the project configuration.
-- [ ] Add a root `Taskfile.yml` as the canonical command registry.
-  - [ ] Every documented development, validation, build, test, install, run, and cleanup command must be available as a `task` target.
-  - [ ] The README and developer docs must reference `task` targets instead of duplicating raw shell command sequences.
-  - [ ] Each task must be deterministic from the repository root and must avoid depending on the caller's current subdirectory.
-  - [ ] Task names must be stable and descriptive: `setup`, `format`, `lint`, `typecheck`, `docstrings`, `test`, `test-unit`, `test-integration`, `test-snapshots`, `test-frontend`, `build-frontend`, `nix-check`, `validate`, `validate:quiet`, `run-api`, `run-daemon`, `scan`, `probe`, `migrate`, `install-user-service`, and `clean`.
-  - [ ] `task validate` must run all required local validation gates in a normal developer-readable mode.
-  - [ ] `task validate:quiet` must run the same validation gates as `task validate` with silent success output.
-  - [ ] `task validate:quiet` must print nothing when every validation gate succeeds except an optional final one-line success summary.
-  - [ ] On failure, `task validate:quiet` must stop at the first failing gate and print only the failing task name, exit code, raw command, and the first 120 lines of captured output.
-  - [ ] On failure, `task validate:quiet` must also print the path to a full temporary log file for the failing command.
-  - [ ] `task validate:quiet` must prefer non-verbose command modes when available, for example quiet pytest output or non-verbose frontend build output.
-  - [ ] `task validate:quiet` must not hide the failure reason completely; the first 120 lines must be enough to identify the failing subsystem.
+- [x] Add a root `Taskfile.yml` as the canonical command registry.
+  - [x] Every documented development, validation, build, test, install, run, and cleanup command must be available as a `task` target.
+  - [x] The README and developer docs must reference `task` targets instead of duplicating raw shell command sequences.
+  - [x] Each task must be deterministic from the repository root and must avoid depending on the caller's current subdirectory.
+  - [x] Task names must be stable and descriptive: `setup`, `format`, `lint`, `typecheck`, `docstrings`, `test`, `test-unit`, `test-integration`, `test-snapshots`, `test-frontend`, `build-frontend`, `nix-check`, `validate`, `validate:quiet`, `run-api`, `run-daemon`, `scan`, `probe`, `migrate`, `install-user-service`, and `clean`.
+  - [x] `task validate` must run all required local validation gates in a normal developer-readable mode.
+  - [x] `task validate:quiet` must run the same validation gates as `task validate` with silent success output.
+  - [x] `task validate:quiet` must print nothing when every validation gate succeeds except an optional final one-line success summary.
+  - [x] On failure, `task validate:quiet` must stop at the first failing gate and print only the failing task name, exit code, raw command, and the first 120 lines of captured output.
+  - [x] On failure, `task validate:quiet` must also print the path to a full temporary log file for the failing command.
+  - [x] `task validate:quiet` must prefer non-verbose command modes when available, for example quiet pytest output or non-verbose frontend build output.
+  - [x] `task validate:quiet` must not hide the failure reason completely; the first 120 lines must be enough to identify the failing subsystem.
 - [ ] Define application directories.
   - [ ] Default config directory: `~/.config/quota-tracker`.
   - [ ] Default database path: `~/.local/share/quota-tracker/quota-tracker.sqlite3`.

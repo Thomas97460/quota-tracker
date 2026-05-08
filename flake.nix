@@ -32,6 +32,7 @@
               gemini-cli
               codex
               github-copilot-cli
+              go-task
             ];
           };
         }

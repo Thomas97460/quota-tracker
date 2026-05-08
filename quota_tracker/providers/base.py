@@ -1,7 +1,7 @@
 """Base provider interface."""
 
 from abc import ABC, abstractmethod
-from typing import Iterable
+from collections.abc import Iterable
 
 from quota_tracker.core.models import QuotaRecord, SessionRecord, TokenUsageRecord
 
@@ -20,7 +20,9 @@ class BaseProvider(ABC):
         """Return the provider display name."""
 
     @abstractmethod
-    def scan_passive(self, home_path: str) -> Iterable[SessionRecord | TokenUsageRecord]:
+    def scan_passive(
+        self, home_path: str
+    ) -> Iterable[SessionRecord | TokenUsageRecord]:
         """Perform a passive scan of local history."""
 
     @abstractmethod

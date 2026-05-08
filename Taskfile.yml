@@ -1,0 +1,155 @@
+version: '3'
+
+vars:
+  PYTHON: python3
+  PYTEST: pytest
+  RUFF: ruff
+  MYPY: mypy
+  INTERROGATE: interrogate
+  NPM: npm
+
+tasks:
+  setup:
+    desc: Setup development environment
+    cmds:
+      - pip install -e ".[dev]"
+      - "{{.NPM}} install"
+
+  format:
+    desc: Format code
+    cmds:
+      - "{{.RUFF}} format ."
+
+  lint:
+    desc: Lint code
+    cmds:
+      - "{{.RUFF}} check ."
+      - "{{.NPM}} run lint"
+
+  typecheck:
+    desc: Typecheck code
+    cmds:
+      - "{{.MYPY}} ."
+      - "{{.NPM}} run build"
+
+  docstrings:
+    desc: Check docstrings
+    cmds:
+      - "{{.INTERROGATE}} -v ."
+
+  test:
+    desc: Run all tests
+    cmds:
+      - "{{.PYTEST}}"
+
+  test-unit:
+    desc: Run unit tests
+    cmds:
+      - "{{.PYTEST}} tests/unit"
+
+  test-integration:
+    desc: Run integration tests
+    cmds:
+      - "{{.PYTEST}} tests/integration"
+
+  test-snapshots:
+    desc: Run snapshot tests
+    cmds:
+      - "{{.PYTEST}} tests/integration -m snapshots"
+
+  test-frontend:
+    desc: Run frontend tests
+    cmds:
+      - "{{.NPM}} test"
+
+  build-frontend:
+    desc: Build frontend
+    cmds:
+      - "{{.NPM}} run build"
+
+  nix-check:
+    desc: Run Nix flake checks
+    cmds:
+      - nix flake check
+
+  validate:
+    desc: Run all quality gates
+    cmds:
+      - task: lint
+      - task: typecheck
+      - task: docstrings
+      - task: test
+      - task: nix-check
+
+  validate:quiet:
+    desc: Run all quality gates silently on success
+    cmds:
+      - task: _run_quiet
+        vars: {NAME: "lint", CMD: "task lint"}
+      - task: _run_quiet
+        vars: {NAME: "typecheck", CMD: "task typecheck"}
+      - task: _run_quiet
+        vars: {NAME: "docstrings", CMD: "task docstrings"}
+      - task: _run_quiet
+        vars: {NAME: "test", CMD: "task test"}
+      - task: _run_quiet
+        vars: {NAME: "nix-check", CMD: "task nix-check"}
+      - echo "Validation successful"
+
+  run-api:
+    desc: Run the API server
+    cmds:
+      - quota-tracker serve
+
+  run-daemon:
+    desc: Run the daemon
+    cmds:
+      - quota-tracker daemon
+
+  scan:
+    desc: Run a one-off scan
+    cmds:
+      - quota-tracker scan
+
+  probe:
+    desc: Run a one-off quota probe
+    cmds:
+      - quota-tracker probe
+
+  migrate:
+    desc: Run database migrations
+    cmds:
+      - quota-tracker migrate
+
+  install-user-service:
+    desc: Install the systemd user service
+    cmds:
+      - quota-tracker install-user-service
+
+  clean:
+    desc: Clean temporary files
+    cmds:
+      - find . -type d -name "__pycache__" -exec rm -rf {} +
+      - find . -type d -name ".pytest_cache" -exec rm -rf {} +
+      - find . -type d -name ".mypy_cache" -exec rm -rf {} +
+      - find . -type d -name ".ruff_cache" -exec rm -rf {} +
+      - rm -rf dist/
+      - rm -rf build/
+      - rm -rf frontend/dist/
+
+  _run_quiet:
+    internal: true
+    cmds:
+      - |
+        LOG=$(mktemp /tmp/task_XXXXXX.log)
+        if ! {{.CMD}} > $LOG 2>&1; then
+          EXIT_CODE=$?
+          echo "Task failed: {{.NAME}}"
+          echo "Exit code: $EXIT_CODE"
+          echo "Command: {{.CMD}}"
+          echo "--- First 120 lines of output ---"
+          head -n 120 $LOG
+          echo "---------------------------------"
+          echo "Full log: $LOG"
+          exit $EXIT_CODE
+        fi
