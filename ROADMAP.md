@@ -15,54 +15,54 @@ They prove where the data lives and how live quota probes work. The production i
 
 ## Non-Negotiable Implementation Decisions
 
-- [ ] Build a complete application, not a larger pile of audit scripts.
-- [ ] Use Python 3.12+ for the daemon, API, CLI, migrations, provider parsing, and quota probes.
-- [ ] Use FastAPI as the only HTTP framework.
-- [ ] Use SQLite as the only persistent database.
-- [ ] Use the Python standard `sqlite3` module and explicit SQL migrations for V1. Do not introduce an ORM.
-- [ ] Use React, TypeScript, Vite, and ECharts for the frontend.
-- [ ] Expose exactly one user-facing HTTP port in runtime mode.
-- [ ] Serve both `/api/...` JSON endpoints and the built React app from the same FastAPI process.
-- [ ] Do not run a separate frontend server in production.
-- [ ] The frontend must never read SQLite directly. It must call relative `/api/...` endpoints.
-- [ ] Store provider data in normalized common tables only. Do not create Gemini, Codex, or Copilot specific tables.
-- [ ] Do not store prompt text, assistant text, command text, or full conversation content in the database.
-- [ ] Store raw provider payloads only when they are quota/usage metadata and do not contain conversation content or secrets.
-- [ ] Never log, persist, or return OAuth tokens, GitHub tokens, cookies, bearer tokens, refresh tokens, or raw authorization headers.
-- [ ] Treat active quota probes as potentially billable or quota-consuming calls. They must be configurable and test-mocked by default.
-- [ ] All timestamps stored in SQLite must be UTC ISO 8601 strings.
-- [ ] All provider output must be normalized before storage.
+- [x] Build a complete application, not a larger pile of audit scripts.
+- [x] Use Python 3.12+ for the daemon, API, CLI, migrations, provider parsing, and quota probes.
+- [x] Use FastAPI as the only HTTP framework.
+- [x] Use SQLite as the only persistent database.
+- [x] Use the Python standard `sqlite3` module and explicit SQL migrations for V1. Do not introduce an ORM.
+- [x] Use React, TypeScript, Vite, and ECharts for the frontend.
+- [x] Expose exactly one user-facing HTTP port in runtime mode.
+- [x] Serve both `/api/...` JSON endpoints and the built React app from the same FastAPI process.
+- [x] Do not run a separate frontend server in production.
+- [x] The frontend must never read SQLite directly. It must call relative `/api/...` endpoints.
+- [x] Store provider data in normalized common tables only. Do not create Gemini, Codex, or Copilot specific tables.
+- [x] Do not store prompt text, assistant text, command text, or full conversation content in the database.
+- [x] Store raw provider payloads only when they are quota/usage metadata and do not contain conversation content or secrets.
+- [x] Never log, persist, or return OAuth tokens, GitHub tokens, cookies, bearer tokens, refresh tokens, or raw authorization headers.
+- [x] Treat active quota probes as potentially billable or quota-consuming calls. They must be configurable and test-mocked by default.
+- [x] All timestamps stored in SQLite must be UTC ISO 8601 strings.
+- [x] All provider output must be normalized before storage.
 
 ## Technical References From Existing Scripts
 
 ### Gemini
 
-- [ ] Use `gemini_local_audit.py` as the reference for local file discovery and quota probing.
-- [ ] Default home path: `~/.gemini`.
-- [ ] Local history paths to support:
+- [x] Use `gemini_local_audit.py` as the reference for local file discovery and quota probing.
+- [x] Default home path: `~/.gemini`.
+- [x] Local history paths to support:
   - `~/.gemini/tmp/**/chats/session-*.json`
   - `~/.gemini/tmp/**/chats/session-*.jsonl`
   - `~/.gemini/tmp/**/chats/*/*.json`
   - `~/.gemini/tmp/**/chats/*/*.jsonl`
-- [ ] Local config/auth files to inspect without leaking secrets:
+- [x] Local config/auth files to inspect without leaking secrets:
   - `~/.gemini/settings.json`
   - `~/.gemini/oauth_creds.json`
   - `~/.gemini/accounts.json`
   - `~/.gemini/projects.json`
-- [ ] Token fields to normalize:
+- [x] Token fields to normalize:
   - `input_tokens`
   - `output_tokens`
   - `cached_tokens`
   - `thoughts_tokens`
   - `tool_tokens`
   - `total_tokens`
-- [ ] Active quota probe:
+- [x] Active quota probe:
   - Use OAuth credentials from `oauth_creds.json`.
   - Refresh the access token when expired.
   - Call Code Assist `loadCodeAssist`.
   - Call Code Assist `retrieveUserQuota`.
   - Convert each returned bucket into a normalized quota snapshot with used percent, remaining percent, reset time, model id, token type, and raw metadata.
-- [ ] The Gemini fallback through interactive `/stats model` is allowed only as a secondary fallback when Code Assist quota probing fails and must be disabled in automated tests.
+- [x] The Gemini fallback through interactive `/stats model` is allowed only as a secondary fallback when Code Assist quota probing fails and must be disabled in automated tests.
 
 ### Codex
 

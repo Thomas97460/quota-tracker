@@ -2,7 +2,7 @@ version: '3'
 
 vars:
   PYTHON: python3
-  PYTEST: pytest
+  PYTEST: "{{.PYTHON}} -m pytest"
   RUFF: ruff
   MYPY: mypy
   INTERROGATE: interrogate
