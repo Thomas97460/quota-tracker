@@ -163,11 +163,11 @@ They prove where the data lives and how live quota probes work. The production i
   - [x] Default log directory: `~/.local/state/quota-tracker/logs`.
   - [x] Default web host: `127.0.0.1`.
   - [x] Default web port: `8787`.
-- [ ] Define the config file format.
-  - [ ] Store config as JSON at `~/.config/quota-tracker/config.json`.
-  - [ ] Include global daemon settings: active probe interval minutes, passive sync interval minutes, web host, web port, database path, log level.
-  - [ ] Include provider settings for `gemini`, `codex`, and `copilot`: enabled flag, home path, active probe enabled flag, passive sync enabled flag, provider-specific safe options.
-  - [ ] Include no secrets in config.
+- [x] Define the config file format.
+  - [x] Store config as JSON at `~/.config/quota-tracker/config.json`.
+  - [x] Include global daemon settings: active probe interval minutes, passive sync interval minutes, web host, web port, database path, log level.
+  - [x] Include provider settings for `gemini`, `codex`, and `copilot`: enabled flag, home path, active probe enabled flag, passive sync enabled flag, provider-specific safe options.
+  - [x] Include no secrets in config.
 - [ ] Implement structured logging.
   - [ ] Log provider id, operation name, outcome, elapsed time, and error summary.
   - [ ] Do not log secret values, raw cookies, raw tokens, or conversation content.
