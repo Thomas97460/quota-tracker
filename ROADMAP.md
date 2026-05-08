@@ -209,30 +209,30 @@ They prove where the data lives and how live quota probes work. The production i
 
 ### 3. Provider Contract And Normalization
 
-- [ ] Define one provider contract used by all providers.
-  - [ ] Each provider exposes metadata: id, display name, default home path, supported active probe, supported passive sync.
-  - [ ] Each provider can run a full passive scan.
-  - [ ] Each provider can run an incremental passive scan from stored high-water marks.
-  - [ ] Each provider can run an active quota probe if enabled and credentials are available.
-  - [ ] Each provider returns normalized records, not database writes.
-- [ ] Define normalized session records.
-  - [ ] Required fields: provider id, external session id, model name, project path, project name, created at, last seen at, metadata.
-  - [ ] Missing model name must be stored as `unknown`.
-  - [ ] Missing project path must be stored as `null`, not guessed.
-- [ ] Define normalized token usage records.
-  - [ ] Required fields: provider id, external session id, external event id, timestamp, model name, token counts, raw metadata.
-  - [ ] All absent token counts must become `0`.
-  - [ ] `total_tokens` must be provider-provided when available; otherwise compute from known token fields.
-- [ ] Define normalized quota records.
-  - [ ] Required fields: provider id, quota name, timestamp, used percent, remaining percent, window minutes, resets at, source, raw metadata.
-  - [ ] If only remaining percent is known, compute used percent as `100 - remaining_percent`.
-  - [ ] If only used percent is known, compute remaining percent as `100 - used_percent`.
-  - [ ] Clamp computed percentages to the `[0, 100]` range.
-- [ ] Define high-water mark rules.
-  - [ ] File-based sources track path, size, mtime, and last processed offset or last event timestamp.
-  - [ ] SQLite sources track database path and last processed row id or timestamp.
-  - [ ] Active probes track last successful probe timestamp per provider and quota name.
-  - [ ] Store high-water marks in provider `config` JSON or a generic sync-state JSON field. Do not create provider-specific tables.
+- [x] Define one provider contract used by all providers.
+  - [x] Each provider exposes metadata: id, display name, default home path, supported active probe, supported passive sync.
+  - [x] Each provider can run a full passive scan.
+  - [x] Each provider can run an incremental passive scan from stored high-water marks.
+  - [x] Each provider can run an active quota probe if enabled and credentials are available.
+  - [x] Each provider returns normalized records, not database writes.
+- [x] Define normalized session records.
+  - [x] Required fields: provider id, external session id, model name, project path, project name, created at, last seen at, metadata.
+  - [x] Missing model name must be stored as `unknown`.
+  - [x] Missing project path must be stored as `null`, not guessed.
+- [x] Define normalized token usage records.
+  - [x] Required fields: provider id, external session id, external event id, timestamp, model name, token counts, raw metadata.
+  - [x] All absent token counts must become `0`.
+  - [x] `total_tokens` must be provider-provided when available; otherwise compute from known token fields.
+- [x] Define normalized quota records.
+  - [x] Required fields: provider id, quota name, timestamp, used percent, remaining percent, window minutes, resets at, source, raw metadata.
+  - [x] If only remaining percent is known, compute used percent as `100 - remaining_percent`.
+  - [x] If only used percent is known, compute remaining percent as `100 - used_percent`.
+  - [x] Clamp computed percentages to the `[0, 100]` range.
+- [x] Define high-water mark rules.
+  - [x] File-based sources track path, size, mtime, and last processed offset or last event timestamp.
+  - [x] SQLite sources track database path and last processed row id or timestamp.
+  - [x] Active probes track last successful probe timestamp per provider and quota name.
+  - [x] Store high-water marks in provider `config` JSON or a generic sync-state JSON field. Do not create provider-specific tables.
 
 ### 4. Gemini Provider
 

@@ -19,6 +19,18 @@ class QuotaRecord:
     source: str
     raw_data: dict[str, Any] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        """Normalize used/remaining percentages."""
+        if self.used_percent is None and self.remaining_percent is not None:
+            self.used_percent = 100.0 - self.remaining_percent
+        elif self.remaining_percent is None and self.used_percent is not None:
+            self.remaining_percent = 100.0 - self.used_percent
+
+        if self.used_percent is not None:
+            self.used_percent = max(0.0, min(100.0, self.used_percent))
+        if self.remaining_percent is not None:
+            self.remaining_percent = max(0.0, min(100.0, self.remaining_percent))
+
 
 @dataclass
 class SessionRecord:
@@ -51,3 +63,43 @@ class TokenUsageRecord:
     tool_tokens: int = 0
     total_tokens: int = 0
     raw_data: dict[str, Any] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        """Compute total_tokens if not provided."""
+        if self.total_tokens == 0:
+            self.total_tokens = (
+                self.input_tokens
+                + self.output_tokens
+                + self.cached_tokens
+                + self.reasoning_tokens
+                + self.thoughts_tokens
+                + self.tool_tokens
+            )
+
+
+@dataclass
+class FileHighWaterMark:
+    """High-water mark for a file-based source."""
+
+    path: str
+    size: int
+    mtime: float
+    last_offset: int = 0
+    last_event_timestamp: datetime | None = None
+
+
+@dataclass
+class SQLiteHighWaterMark:
+    """High-water mark for a SQLite-based source."""
+
+    database_path: str
+    last_row_id: int | None = None
+    last_timestamp: datetime | None = None
+
+
+@dataclass
+class ProbeHighWaterMark:
+    """High-water mark for an active quota probe."""
+
+    last_success_timestamp: datetime
+    quota_name: str
