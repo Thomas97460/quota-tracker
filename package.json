@@ -16,13 +16,14 @@
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@go-task/cli": "^3.41.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^7.13.1",
     "@typescript-eslint/parser": "^7.13.1",
     "@vitejs/plugin-react": "^4.3.1",
-    "typescript": "^5.2.2",
-    "vite": "^5.3.1",
-    "@go-task/cli": "^3.41.0"
+    "eslint": "^8.57.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.3.1"
   }
 }
