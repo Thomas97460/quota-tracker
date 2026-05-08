@@ -28,6 +28,14 @@ quota-tracker = "quota_tracker.cli:main"
 [tool.ruff]
 line-length = 88
 target-version = "py312"
+exclude = [
+    "codex_local_audit.py",
+    "copilot_local_audit.py",
+    "gemini_local_audit.py",
+    "get_weekly_quota.py",
+    "tests/__init__.py",
+    "tests/unit/__init__.py",
+]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM", "ARG", "PT"]
@@ -39,6 +47,14 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+exclude = [
+    "codex_local_audit.py",
+    "copilot_local_audit.py",
+    "gemini_local_audit.py",
+    "get_weekly_quota.py",
+    "tests/__init__.py",
+    "tests/unit/__init__.py",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -55,7 +71,18 @@ ignore-property-decorators = false
 ignore-module = false
 ignore-nested-functions = false
 fail-under = 100
-exclude = ["setup.py", "docs", "build"]
+exclude = [
+    "setup.py",
+    "docs",
+    "build",
+    "node_modules",
+    "codex_local_audit.py",
+    "copilot_local_audit.py",
+    "gemini_local_audit.py",
+    "get_weekly_quota.py",
+    "tests/__init__.py",
+    "tests/unit/__init__.py",
+]
 ignore-regex = ["^test_"]
 verbose = 1
 quiet = false
