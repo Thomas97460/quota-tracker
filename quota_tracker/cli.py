@@ -4,6 +4,25 @@ import argparse
 import sys
 
 
+def init_db() -> None:
+    """Initialize the database and apply migrations."""
+    from quota_tracker.core.config import AppConfig
+    from quota_tracker.database import Database, apply_migrations
+    from quota_tracker.database.repositories import ProviderRepository
+
+    config = AppConfig.load()
+    db = Database(config.global_settings.database_path)
+    conn = db.connect()
+    try:
+        apply_migrations(conn)
+    finally:
+        conn.close()
+
+    # Initialize default providers
+    repo = ProviderRepository(db)
+    repo.initialize_default_providers()
+
+
 def main() -> None:
     """Main CLI function."""
     parser = argparse.ArgumentParser(prog="quota-tracker")
@@ -27,6 +46,13 @@ def main() -> None:
     if not args.command:
         parser.print_help()
         sys.exit(0)
+
+    # Automatically apply migrations for operational commands
+    if args.command in ["daemon", "serve", "scan", "probe", "migrate"]:
+        init_db()
+        if args.command == "migrate":
+            print("Migrations applied successfully.")
+            sys.exit(0)
 
     print(f"Command '{args.command}' is not yet implemented.")
     sys.exit(0)

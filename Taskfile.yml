@@ -96,6 +96,11 @@ tasks:
         vars: {NAME: "nix-check", CMD: "task nix-check"}
       - echo "Validation successful"
 
+  ci-quiet:
+    desc: Run all quality gates for CI
+    cmds:
+      - task: validate:quiet
+
 
   run-api:
     desc: Run the API server
