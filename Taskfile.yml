@@ -99,6 +99,8 @@ tasks:
   ci-quiet:
     desc: Run all quality gates for CI
     cmds:
+      - task: _run_quiet
+        vars: {NAME: "setup", CMD: "task setup"}
       - task: validate:quiet
 
 
