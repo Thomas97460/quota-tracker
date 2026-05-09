@@ -21,15 +21,17 @@ const providerLabels: Record<ProviderId, string> = {
   gemini: "Gemini",
   codex: "Codex",
   copilot: "Copilot",
+  claude: "Claude",
 }
 
 const providerColors: Record<ProviderId, string> = {
   gemini: "text-blue-400",
   codex: "text-emerald-400",
   copilot: "text-orange-400",
+  claude: "text-violet-400",
 }
 
-const VALID_PROVIDERS: ProviderId[] = ["gemini", "codex", "copilot"]
+const VALID_PROVIDERS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
 
 const SESSION_PAGE_SIZE = 10
 

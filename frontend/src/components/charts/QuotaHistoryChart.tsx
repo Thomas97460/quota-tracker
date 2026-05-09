@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts"
 import type { QuotaRow } from "../../types"
-import { formatTimeBucket } from "../../utils"
+import { chartTickInterval, formatTimeBucket } from "../../utils"
 
 interface QuotaHistoryChartProps {
   rows: QuotaRow[]
@@ -53,7 +53,7 @@ export function QuotaHistoryChart({ rows, className = "" }: QuotaHistoryChartPro
             tick={{ fill: "#94a3b8", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
-            interval="preserveStartEnd"
+            interval={chartTickInterval(data.length, 6)}
             tickFormatter={(v: string) => formatTimeBucket(v)}
           />
           <YAxis

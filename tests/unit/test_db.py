@@ -48,10 +48,10 @@ def test_migrations_idempotent_and_default_providers(tmp_path: Path) -> None:
         apply_migrations(conn)
         before = conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
         providers = conn.execute("SELECT id FROM providers ORDER BY id").fetchall()
-        assert [r[0] for r in providers] == ["codex", "copilot", "gemini"]
+        assert [r[0] for r in providers] == ["claude", "codex", "copilot", "gemini"]
         apply_migrations(conn)
         after = conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
-        assert before == after == 1
+        assert before == after == 2
     finally:
         conn.close()
 
@@ -147,13 +147,13 @@ def test_write_transaction_commit_and_rollback(tmp_path: Path) -> None:
 
         with pytest.raises(sqlite3.IntegrityError):
             with write_transaction(conn):
-                bad_insert_sql = (
+                dup_insert_sql = (
                     "INSERT INTO providers(id, enabled, config, created_at, updated_at) "
                     "VALUES (?, ?, ?, ?, ?)"
                 )
                 conn.execute(
-                    bad_insert_sql,
-                    ("invalid", 1, "{}", "x", "x"),
+                    dup_insert_sql,
+                    ("gemini", 1, "{}", "x", "x"),
                 )
     finally:
         conn.close()
@@ -184,7 +184,7 @@ def test_list_provider_health_sanitized_shape(tmp_path: Path) -> None:
     try:
         apply_migrations(conn)
         rows = list_provider_health(conn)
-        assert len(rows) == 3
+        assert len(rows) == 4
         first = rows[0]
         assert set(first.keys()) == {"id", "enabled", "config", "updated_at"}
         assert "home_path" in first["config"]
@@ -200,7 +200,7 @@ def test_provider_row_helpers(tmp_path: Path) -> None:
         assert get_provider_row(conn, "gemini") is not None
         assert get_provider_row(conn, "codex") is not None
         rows = list_provider_rows(conn)
-        assert len(rows) == 3
+        assert len(rows) == 4
         assert get_provider_row(conn, "gemini") is not None
         row = get_provider_row(conn, "gemini")
         assert row is not None

@@ -91,14 +91,16 @@ def test_run_install_preserves_db_and_creates_dirs(
 def test_interactive_prompts_and_bool_parser(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """New flow: 3 providers × (enable + home_path) + 3 daemon prompts + final confirm.
+    """New flow: 4 providers × (enable + home_path) + 3 daemon prompts + final confirm.
 
-    Providers: gemini (enabled=y), codex (enabled=n, no home prompt), copilot (enabled=y)
-    All providers detected so default_enabled=True for each.
+    Providers: gemini (enabled=y), codex (enabled=n, no home prompt), copilot (enabled=y),
+               claude (enabled=n, not detected → no home prompt)
+    gemini, codex, copilot detected; claude NOT detected (default_enabled=False).
     prompt order per provider: enable?, home_path (only if enabled)
     gemini:  enable=y  home=<path>
     codex:   enable=n  (no home prompt)
     copilot: enable=y  home=<path>
+    claude:  enable=n  (not detected, default=False → no home prompt)
     daemon:  web_host, web_port, sync_interval_minutes
     confirm: y
     """
@@ -107,6 +109,7 @@ def test_interactive_prompts_and_bool_parser(
     (tmp_path / ".gemini").mkdir()
     (tmp_path / ".codex").mkdir()
     (tmp_path / ".copilot").mkdir()
+    # .claude NOT created → claude not detected → default_enabled=False
 
     gemini_path = str(tmp_path / ".gemini")
     copilot_path = str(tmp_path / ".copilot")
@@ -118,6 +121,7 @@ def test_interactive_prompts_and_bool_parser(
             "n",          # enable codex (disabled → no home prompt)
             "y",          # enable copilot
             copilot_path, # copilot home path
+            "n",          # enable claude (not detected → no home prompt)
             "127.0.0.1",  # web host
             "9000",       # web port
             "5",          # sync interval minutes
@@ -131,6 +135,7 @@ def test_interactive_prompts_and_bool_parser(
     assert out.gemini.enabled is True
     assert out.codex.enabled is False
     assert out.copilot.enabled is True
+    assert out.claude.enabled is False
     assert out.daemon.web_port == 9000
 
     # _parse_bool falls back to default on invalid input
@@ -172,7 +177,7 @@ def test_interactive_undetected_provider(
 ) -> None:
     """Ensure error_mark branch runs when a provider is not detected."""
     monkeypatch.setenv("NO_COLOR", "1")
-    # Only gemini directory exists — codex and copilot are NOT detected
+    # Only gemini directory exists — codex, copilot, and claude are NOT detected
     (tmp_path / ".gemini").mkdir()
 
     answers = iter(
@@ -181,6 +186,7 @@ def test_interactive_undetected_provider(
             str(tmp_path / ".gemini"),    # gemini home path
             "n",                          # enable codex (not detected, default=False)
             "n",                          # enable copilot (not detected, default=False)
+            "n",                          # enable claude (not detected, default=False)
             "127.0.0.1",                  # web host
             "8787",                       # web port
             "5",                          # sync interval
@@ -194,6 +200,7 @@ def test_interactive_undetected_provider(
     assert out.gemini.enabled is True
     assert out.codex.enabled is False
     assert out.copilot.enabled is False
+    assert out.claude.enabled is False
 
 
 def test_interactive_decline_reruns_flow(
@@ -212,6 +219,7 @@ def test_interactive_decline_reruns_flow(
             str(tmp_path / ".gemini"),    # gemini home path
             "n",                          # codex
             "n",                          # copilot
+            "n",                          # claude
             "127.0.0.1",                  # web host
             "8787",                       # web port
             "5",                          # sync interval
@@ -221,6 +229,7 @@ def test_interactive_decline_reruns_flow(
             str(tmp_path / ".gemini"),    # gemini home path
             "n",                          # codex
             "n",                          # copilot
+            "n",                          # claude
             "127.0.0.1",                  # web host
             "9999",                       # web port (changed)
             "5",                          # sync interval

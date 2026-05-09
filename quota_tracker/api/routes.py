@@ -103,7 +103,7 @@ def register_routes(
     def patch_provider(provider_id: str, payload: ProviderPatchRequest) -> dict[str, Any]:
         """Patch one provider configuration in DB."""
 
-        if provider_id not in {"gemini", "codex", "copilot"}:
+        if provider_id not in {"gemini", "codex", "copilot", "claude"}:
             raise HTTPException(status_code=404, detail="provider not found")
         conn = connect_db(str(db_path))
         try:

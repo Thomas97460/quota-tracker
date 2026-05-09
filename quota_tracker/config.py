@@ -44,6 +44,7 @@ class AppConfig(BaseModel):
     gemini: ProviderConfig = Field(default_factory=lambda: ProviderConfig(home_path="~/.gemini"))
     codex: ProviderConfig = Field(default_factory=lambda: ProviderConfig(home_path="~/.codex"))
     copilot: ProviderConfig = Field(default_factory=lambda: ProviderConfig(home_path="~/.copilot"))
+    claude: ProviderConfig = Field(default_factory=lambda: ProviderConfig(home_path="~/.claude"))
 
 
 def default_config_json() -> str:

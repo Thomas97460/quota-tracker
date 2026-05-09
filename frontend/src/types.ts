@@ -1,4 +1,4 @@
-export type ProviderId = "gemini" | "codex" | "copilot"
+export type ProviderId = "gemini" | "codex" | "copilot" | "claude"
 
 export interface ProviderConfig {
   home_path: string
@@ -81,4 +81,5 @@ export interface ConfigShape {
   gemini:  { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
   codex:   { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
   copilot: { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
+  claude:  { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
 }

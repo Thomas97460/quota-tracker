@@ -21,15 +21,17 @@ const providerLabels: Record<ProviderId, string> = {
   gemini: "Gemini",
   codex: "Codex",
   copilot: "Copilot",
+  claude: "Claude",
 }
 
 const providerColors: Record<ProviderId, string> = {
   gemini: "text-blue-400",
   codex: "text-emerald-400",
   copilot: "text-orange-400",
+  claude: "text-violet-400",
 }
 
-const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot"]
+const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
 const PROJECT_PAGE_SIZE = 5
 const SESSION_PAGE_SIZE = 10
 
@@ -80,6 +82,7 @@ export function Overview(): React.JSX.Element {
     ...timeSeriesByProvider.gemini,
     ...timeSeriesByProvider.codex,
     ...timeSeriesByProvider.copilot,
+    ...timeSeriesByProvider.claude,
   ]
 
   const sessionsFiltered =

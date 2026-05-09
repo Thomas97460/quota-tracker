@@ -19,7 +19,7 @@ def test_provider_selector_and_reset_marks(tmp_path: Path) -> None:
     service = DaemonService(str(db_path))
     service.migrate_and_prepare()
 
-    assert service._provider_ids("all") == ["gemini", "codex", "copilot"]
+    assert service._provider_ids("all") == ["gemini", "codex", "copilot", "claude"]
     with pytest.raises(ValueError):
         service._provider_ids("x")
 
@@ -63,7 +63,7 @@ def test_tick_due_logic_and_scheduler_start_stop(
     conn = connect_db(str(db_path))
     try:
         apply_migrations(conn)
-        for provider in ("gemini", "codex", "copilot"):
+        for provider in ("gemini", "codex", "copilot", "claude"):
             row = get_provider_row(conn, provider)
             assert row is not None
             cfg = dict(row["config"])
@@ -266,6 +266,7 @@ def test_tick_disabled_provider_not_due(tmp_path: Path, monkeypatch: pytest.Monk
     service.set_provider_enabled("gemini", False)
     service.set_provider_enabled("codex", False)
     service.set_provider_enabled("copilot", False)
+    service.set_provider_enabled("claude", False)
     called: list[str] = []
     monkeypatch.setattr(
         service, "run_scan", lambda provider="all", full=False: called.append("scan")
@@ -302,7 +303,7 @@ def test_tick_due_thresholds_and_missing_provider_rows(
     )
     monkeypatch.setattr(service, "run_probe", lambda provider="all": calls.append("probe"))
     service.tick()
-    assert calls == ["scan", "probe", "probe", "probe"]
+    assert calls == ["scan", "probe", "probe", "probe", "probe"]
 
     service.set_provider_enabled("copilot", True)
     service.reset_high_water_marks("copilot")
@@ -323,7 +324,7 @@ def test_tick_not_due_when_recent_sync(tmp_path: Path, monkeypatch: pytest.Monke
     service.migrate_and_prepare()
     conn = connect_db(str(db_path))
     try:
-        for provider in ("gemini", "codex", "copilot"):
+        for provider in ("gemini", "codex", "copilot", "claude"):
             row = get_provider_row(conn, provider)
             assert row is not None
             cfg = dict(row["config"])

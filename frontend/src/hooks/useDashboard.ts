@@ -51,7 +51,7 @@ function buildQuery(params: Record<string, string | number | undefined>): string
   return `?${entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&")}`
 }
 
-const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot"]
+const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
 const PROJECT_PAGE_SIZE = 5
 
 function timeSeriesGroupByFor(range: Range): "hour" | "day" {
@@ -73,7 +73,7 @@ export function useDashboard(
   const [timeSeriesGroupBy, setTimeSeriesGroupBy] = useState<"hour" | "day">("hour")
   const [timeSeriesByProvider, setTimeSeriesByProvider] = useState<
     Record<ProviderId, UsageRow[]>
-  >({ gemini: [], codex: [], copilot: [] })
+  >({ gemini: [], codex: [], copilot: [], claude: [] })
   const [modelUsage, setModelUsage] = useState<UsageRow[]>([])
   const [providerTotals, setProviderTotals] = useState<UsageRow[]>([])
   const [projectUsage, setProjectUsage] = useState<ProjectUsageRow[]>([])
@@ -87,9 +87,10 @@ export function useDashboard(
     setLoading(true)
     try {
       const pId = providerId ?? "all"
+      await apiSend("POST", `/api/providers/${pId}/scan`, { full_rescan: false })
       await apiSend("POST", `/api/providers/${pId}/probe`)
     } catch (e) {
-      console.warn("Probe failed", e)
+      console.warn("Refresh failed", e)
     }
     setTick((t) => t + 1)
   }, [providerId])
@@ -193,14 +194,15 @@ export function useDashboard(
         }
 
         setProviderTotals(providerRes.items)
-        if (providerSeries.length === 3) {
+        if (providerSeries.length === 4) {
           setTimeSeriesByProvider({
             gemini: providerSeries[0].items,
             codex: providerSeries[1].items,
             copilot: providerSeries[2].items,
+            claude: providerSeries[3].items,
           })
         } else {
-          setTimeSeriesByProvider({ gemini: [], codex: [], copilot: [] })
+          setTimeSeriesByProvider({ gemini: [], codex: [], copilot: [], claude: [] })
         }
       })
       .catch((err: unknown) => {

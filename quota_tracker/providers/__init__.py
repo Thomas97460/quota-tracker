@@ -8,11 +8,13 @@ from quota_tracker.providers.base import (
     normalize_session,
     normalize_token_usage,
 )
+from quota_tracker.providers.claude_ai import ClaudeAiProvider
 from quota_tracker.providers.codex import CodexProvider
 from quota_tracker.providers.copilot import CopilotProvider
 from quota_tracker.providers.gemini import GeminiProvider
 
 __all__ = [
+    "ClaudeAiProvider",
     "CodexProvider",
     "CopilotProvider",
     "GeminiProvider",

@@ -24,6 +24,7 @@ from quota_tracker.db import (
 )
 from quota_tracker.logging import configure_logging, log_operation
 from quota_tracker.providers import (
+    ClaudeAiProvider,
     CodexProvider,
     CopilotProvider,
     GeminiProvider,
@@ -31,8 +32,8 @@ from quota_tracker.providers import (
 )
 
 LOGGER = logging.getLogger(__name__)
-PROVIDERS = ("gemini", "codex", "copilot")
-AUTO_PROBE_PROVIDERS = ("gemini", "codex", "copilot")
+PROVIDERS = ("gemini", "codex", "copilot", "claude")
+AUTO_PROBE_PROVIDERS = ("gemini", "codex", "copilot", "claude")
 
 
 @dataclass(frozen=True)
@@ -96,6 +97,8 @@ class DaemonService:
             return CodexProvider(home=home, include_archived=include_archived)
         if provider_id == "copilot":
             return CopilotProvider(home=home)
+        if provider_id == "claude":
+            return ClaudeAiProvider(home=home)
         raise ValueError(f"unsupported provider_id: {provider_id}")
 
     def _provider_ids(self, provider: str) -> list[str]:

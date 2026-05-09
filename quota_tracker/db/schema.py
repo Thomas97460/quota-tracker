@@ -11,7 +11,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-PROVIDERS = ("gemini", "codex", "copilot")
+PROVIDERS = ("gemini", "codex", "copilot", "claude")
 
 
 def utc_now_iso() -> str:
@@ -130,7 +130,24 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
               UNIQUE(provider_id, session_id, external_event_id)
             );
             """,
-        )
+        ),
+        (
+            "0002_providers_drop_id_check",
+            """
+            PRAGMA foreign_keys = OFF;
+            CREATE TABLE IF NOT EXISTS providers_new (
+              id TEXT PRIMARY KEY,
+              enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+              config TEXT NOT NULL,
+              created_at TEXT NOT NULL,
+              updated_at TEXT NOT NULL
+            );
+            INSERT OR IGNORE INTO providers_new SELECT * FROM providers;
+            DROP TABLE IF EXISTS providers;
+            ALTER TABLE providers_new RENAME TO providers;
+            PRAGMA foreign_keys = ON;
+            """,
+        ),
     ]
 
     for migration_id, sql in migrations:

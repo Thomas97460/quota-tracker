@@ -8,15 +8,17 @@ const providerLabels: Record<ProviderId, string> = {
   gemini: "Gemini",
   codex: "Codex",
   copilot: "Copilot",
+  claude: "Claude",
 }
 
 const providerColors: Record<ProviderId, string> = {
   gemini: "bg-blue-500",
   codex: "bg-emerald-500",
   copilot: "bg-orange-400",
+  claude: "bg-violet-500",
 }
 
-const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot"]
+const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
 
 const activeLinkClass =
   "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium bg-slate-700 text-violet-400"

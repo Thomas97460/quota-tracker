@@ -21,6 +21,7 @@ const PROVIDER_COLORS: Record<ProviderId, string> = {
   gemini: "#3b82f6",
   codex: "#10b981",
   copilot: "#f97316",
+  claude: "#8b5cf6",
 }
 
 export function ModelBarChart({ data, className = "" }: ModelBarChartProps): React.JSX.Element {

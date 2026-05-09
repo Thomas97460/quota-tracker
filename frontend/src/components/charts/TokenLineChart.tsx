@@ -9,7 +9,7 @@ import {
   YAxis,
 } from "recharts"
 import type { UsageRow } from "../../types"
-import { formatLargeNumber, formatTimeBucket } from "../../utils"
+import { chartTickInterval, formatLargeNumber, formatTimeBucket } from "../../utils"
 
 interface TokenLineChartProps {
   data: UsageRow[]
@@ -46,7 +46,7 @@ export function TokenLineChart({ data, className = "" }: TokenLineChartProps): R
             tick={{ fill: "#94a3b8", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
-            interval="preserveStartEnd"
+            interval={chartTickInterval(chartData.length, 8)}
             tickFormatter={(v: string) => formatTimeBucket(v)}
           />
           <YAxis

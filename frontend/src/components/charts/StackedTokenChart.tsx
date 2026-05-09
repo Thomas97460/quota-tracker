@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts"
 import type { ProviderId, UsageRow } from "../../types"
-import { formatLargeNumber, formatTimeBucket } from "../../utils"
+import { chartTickInterval, formatLargeNumber, formatTimeBucket } from "../../utils"
 
 export type StackMode = "provider" | "kind"
 
@@ -18,6 +18,7 @@ const PROVIDER_COLORS: Record<ProviderId, string> = {
   gemini: "#3b82f6",
   codex: "#10b981",
   copilot: "#f97316",
+  claude: "#8b5cf6",
 }
 
 const KIND_COLORS: Record<string, string> = {
@@ -51,12 +52,14 @@ function buildProviderRows(byProvider: Record<ProviderId, UsageRow[]>) {
     gemini: new Map(byProvider.gemini.map((r) => [r.bucket, r.total_tokens])),
     codex: new Map(byProvider.codex.map((r) => [r.bucket, r.total_tokens])),
     copilot: new Map(byProvider.copilot.map((r) => [r.bucket, r.total_tokens])),
+    claude: new Map(byProvider.claude.map((r) => [r.bucket, r.total_tokens])),
   }
   return buckets.map((bucket) => ({
     bucket,
     gemini: indexed.gemini.get(bucket) ?? 0,
     codex: indexed.codex.get(bucket) ?? 0,
     copilot: indexed.copilot.get(bucket) ?? 0,
+    claude: indexed.claude.get(bucket) ?? 0,
   }))
 }
 
@@ -95,7 +98,7 @@ export function StackedTokenChart({
 
   const series =
     mode === "provider"
-      ? (["gemini", "codex", "copilot"] as ProviderId[]).map((id) => ({
+      ? (["gemini", "codex", "copilot", "claude"] as ProviderId[]).map((id) => ({
           key: id,
           color: PROVIDER_COLORS[id],
         }))
@@ -114,7 +117,7 @@ export function StackedTokenChart({
             tick={{ fill: "#94a3b8", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
-            interval="preserveStartEnd"
+            interval={chartTickInterval(data.length, 8)}
             tickFormatter={(v: string) => formatTimeBucket(v)}
           />
           <YAxis

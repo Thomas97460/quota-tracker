@@ -10,9 +10,10 @@ const providerLabels: Record<ProviderId, string> = {
   gemini: "Gemini",
   codex: "Codex",
   copilot: "Copilot",
+  claude: "Claude",
 }
 
-const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot"]
+const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
 
 interface ProviderFormState {
   enabled: boolean
@@ -40,6 +41,7 @@ export function Settings(): React.JSX.Element {
     gemini:  { enabled: true, home_path: "~/.gemini" },
     codex:   { enabled: true, home_path: "~/.codex" },
     copilot: { enabled: true, home_path: "~/.copilot" },
+    claude:  { enabled: true, home_path: "~/.claude" },
   })
 
   const [actionBusy, setActionBusy] = useState<string | null>(null)

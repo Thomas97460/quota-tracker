@@ -31,12 +31,12 @@ class _FakeService:
         return None
 
     def run_scan(self, provider: str = "all", full: bool = False) -> _FakeSummary:
-        assert provider in {"all", "gemini", "codex", "copilot"}
+        assert provider in {"all", "gemini", "codex", "copilot", "claude"}
         assert isinstance(full, bool)
         return _FakeSummary()
 
     def run_probe(self, provider: str = "all") -> _FakeSummary:
-        assert provider in {"all", "gemini", "codex", "copilot"}
+        assert provider in {"all", "gemini", "codex", "copilot", "claude"}
         return _FakeSummary()
 
     def start_scheduler(self) -> None:
@@ -46,11 +46,11 @@ class _FakeService:
         return None
 
     def set_provider_enabled(self, provider_id: str, enabled: bool) -> None:
-        assert provider_id in {"gemini", "codex", "copilot"}
+        assert provider_id in {"gemini", "codex", "copilot", "claude"}
         assert enabled is True
 
     def reset_high_water_marks(self, provider_id: str) -> None:
-        assert provider_id in {"gemini", "codex", "copilot"}
+        assert provider_id in {"gemini", "codex", "copilot", "claude"}
 
 
 def test_cli_config_and_default(
@@ -212,7 +212,7 @@ def test_health_endpoint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Non
     assert payload["status"] == "ok"
     assert payload["database"]["migrated"] is True
     assert payload["scheduler"]["enabled"] is False
-    assert len(payload["providers"]) == 3
+    assert len(payload["providers"]) == 4
 
 
 def test_cli_migrate(

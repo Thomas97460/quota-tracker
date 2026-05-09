@@ -33,6 +33,11 @@ export function formatRelative(value: string | null | undefined): string {
 
 const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 
+export function chartTickInterval(pointCount: number, maxTicks = 6): number | "preserveStartEnd" {
+  if (pointCount <= maxTicks) return "preserveStartEnd"
+  return Math.ceil(pointCount / maxTicks) - 1
+}
+
 /**
  * Format a time bucket for chart axes/tooltips.
  *
@@ -46,14 +51,14 @@ export function formatTimeBucket(bucket: string): string {
   if (!bucket) return ""
 
   // day: 2026-05-08
-  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(bucket)) {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(bucket)) {
     const [, month, day] = bucket.split("-")
     const monthName = MONTH_NAMES[parseInt(month, 10) - 1]
     return `${monthName} ${day}`
   }
 
   // hour: 2026-05-08T22
-  if (/^\\d{4}-\\d{2}-\\d{2}T\\d{2}$/.test(bucket)) {
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}$/.test(bucket)) {
     const [datePart, hour] = bucket.split("T")
     const [, month, day] = datePart.split("-")
     const monthName = MONTH_NAMES[parseInt(month, 10) - 1]
@@ -61,7 +66,7 @@ export function formatTimeBucket(bucket: string): string {
   }
 
   // minute: 2026-05-08T22:15
-  if (/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(bucket)) {
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(bucket)) {
     const [datePart, hm] = bucket.split("T")
     const [, month, day] = datePart.split("-")
     const monthName = MONTH_NAMES[parseInt(month, 10) - 1]

@@ -48,7 +48,7 @@ print_banner() {
 
 # ── Step helpers ───────────────────────────────────────────────────────────────
 _STEP_CURRENT=0
-_STEP_TOTAL=4
+_STEP_TOTAL=8
 
 step() {
   _STEP_CURRENT=$(( _STEP_CURRENT + 1 ))
@@ -75,6 +75,12 @@ trap 'die "failed during: ${_LAST_STEP}"' ERR
 # ── Config ────────────────────────────────────────────────────────────────────
 REPO_SLUG="${REPO_SLUG:-collet/quota-tracker}"
 VERSION="${VERSION:-latest}"
+INSTALL_SOURCE="${INSTALL_SOURCE:-auto}"   # auto | release | local
+INTERACTIVE="${INTERACTIVE:-auto}"         # auto | 1 | 0
+AUTO_SCAN="${AUTO_SCAN:-1}"
+FULL_RESCAN="${FULL_RESCAN:-1}"
+RUN_PROBE="${RUN_PROBE:-0}"                # active probes can consume provider quota
+RESTART_SERVICE="${RESTART_SERVICE:-1}"
 TARGET_BIN_DIR="${HOME}/.local/bin"
 TARGET_BIN="${TARGET_BIN_DIR}/quota-tracker"
 ASSET_NAME="quota-tracker-linux-amd64"
@@ -87,18 +93,70 @@ else
   BASE_URL="https://github.com/${REPO_SLUG}/releases/download/${VERSION}"
 fi
 
+command_exists() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+systemctl_user() {
+  if ! command_exists systemctl; then
+    return 1
+  fi
+  systemctl --user "$@" >/dev/null 2>&1
+}
+
+local_checkout_available() {
+  [[ -f "pyproject.toml" && -d "quota_tracker" && -f "quota_tracker/cli.py" ]]
+}
+
 # ── Install ───────────────────────────────────────────────────────────────────
 print_banner
 
-# [1/4] Download release
-_LAST_STEP="Download release"
-step "Download release"
-printf "    ${DIM}from %s${R}\n" "${BASE_URL}"
-curl -fsSL "${BASE_URL}/${ASSET_NAME}" -o "${TMP_DIR}/${ASSET_NAME}"
-curl -fsSL "${BASE_URL}/${ASSET_NAME}.sha256" -o "${TMP_DIR}/${ASSET_NAME}.sha256"
-ok "Downloaded ${ASSET_NAME}"
+# [1/8] Prepare artifact
+_LAST_STEP="Prepare artifact"
+step "Prepare artifact"
+if [[ "${INSTALL_SOURCE}" == "auto" ]]; then
+  if local_checkout_available; then
+    INSTALL_SOURCE="local"
+  else
+    INSTALL_SOURCE="release"
+  fi
+fi
 
-# [2/4] Verify checksum
+case "${INSTALL_SOURCE}" in
+  local)
+    local_checkout_available || die "INSTALL_SOURCE=local requires running from the repository root"
+    command_exists uv || die "uv is required for local builds"
+    command_exists npm || die "npm is required for local frontend builds"
+    printf "    ${DIM}building from local checkout: %s${R}\n" "$(pwd)"
+    uv sync --extra dev
+    if [[ -f "frontend/package-lock.json" ]]; then
+      npm --prefix frontend ci
+    else
+      npm --prefix frontend install
+    fi
+    npm --prefix frontend run build
+    env -u PYTHONPATH uv run pyinstaller \
+      --noconfirm \
+      --onefile \
+      --name quota-tracker \
+      --add-data "frontend/dist:frontend/dist" \
+      quota_tracker/cli.py
+    cp "dist/quota-tracker" "${TMP_DIR}/${ASSET_NAME}"
+    (cd "${TMP_DIR}" && sha256sum "${ASSET_NAME}" > "${ASSET_NAME}.sha256")
+    ok "Built local ${ASSET_NAME}"
+    ;;
+  release)
+    printf "    ${DIM}from %s${R}\n" "${BASE_URL}"
+    curl -fsSL "${BASE_URL}/${ASSET_NAME}" -o "${TMP_DIR}/${ASSET_NAME}"
+    curl -fsSL "${BASE_URL}/${ASSET_NAME}.sha256" -o "${TMP_DIR}/${ASSET_NAME}.sha256"
+    ok "Downloaded ${ASSET_NAME}"
+    ;;
+  *)
+    die "INSTALL_SOURCE must be auto, release, or local"
+    ;;
+esac
+
+# [2/8] Verify checksum
 _LAST_STEP="Verify checksum"
 step "Verify checksum"
 (
@@ -107,7 +165,7 @@ step "Verify checksum"
 )
 ok "Checksum verified"
 
-# [3/4] Install binary
+# [3/8] Install binary
 _LAST_STEP="Install binary"
 step "Install binary"
 mkdir -p "${TARGET_BIN_DIR}"
@@ -122,17 +180,83 @@ ok "Installed to ${TARGET_BIN}"
 # Make sure the binary is on PATH for the rest of this script
 export PATH="${TARGET_BIN_DIR}:${PATH}"
 
-# [4/4] Configure and enable service
-_LAST_STEP="Configure & enable service"
-step "Configure & enable service"
-printf "    ${DIM}Running interactive installer …${R}\n"
-quota-tracker install --interactive
+# [4/8] Configure application
+_LAST_STEP="Configure application"
+step "Configure application"
+CONFIG_PATH="$(quota-tracker config-path)"
+if [[ "${INTERACTIVE}" == "auto" ]]; then
+  if [[ -f "${CONFIG_PATH}" ]]; then
+    INTERACTIVE="0"
+  else
+    INTERACTIVE="1"
+  fi
+fi
+if [[ "${INTERACTIVE}" == "1" ]]; then
+  printf "    ${DIM}Running interactive installer …${R}\n"
+  quota-tracker install --interactive --exec-path "${TARGET_BIN}"
+else
+  printf "    ${DIM}Existing config detected; refreshing service config non-interactively …${R}\n"
+  quota-tracker install --exec-path "${TARGET_BIN}"
+fi
 printf '\n'
-quota-tracker install-user-service
+
+# [5/8] Migrate database
+_LAST_STEP="Migrate database"
+step "Migrate database"
+printf "    ${DIM}Applying database migrations …${R}\n"
+quota-tracker migrate
+ok "Database migrated"
+
+# [6/8] Backfill local usage
+_LAST_STEP="Backfill local usage"
+step "Backfill local usage"
+if [[ "${AUTO_SCAN}" == "1" ]]; then
+  if [[ "${FULL_RESCAN}" == "1" ]]; then
+    quota-tracker scan --provider all --full
+    ok "Full local usage scan completed"
+  else
+    quota-tracker scan --provider all
+    ok "Incremental local usage scan completed"
+  fi
+else
+  warn "AUTO_SCAN=0; skipped local usage backfill"
+fi
+if [[ "${RUN_PROBE}" == "1" ]]; then
+  quota-tracker probe --provider all
+  ok "Active quota probe completed"
+else
+  warn "Skipped active quota probe by default; set RUN_PROBE=1 to refresh live quotas"
+fi
+
+# [7/8] Install and restart service
+_LAST_STEP="Install & restart service"
+step "Install & restart service"
+quota-tracker install-user-service --exec-path "${TARGET_BIN}"
 ok "Service installed and enabled"
+if [[ "${RESTART_SERVICE}" == "1" ]]; then
+  if systemctl_user daemon-reload; then
+    systemctl_user restart quota-tracker.service || warn "Could not restart user service"
+    ok "Service restart requested"
+  else
+    warn "systemd user session unavailable; service file was still written"
+  fi
+else
+  warn "RESTART_SERVICE=0; skipped service restart"
+fi
+
+# [8/8] Health check
+_LAST_STEP="Health check"
+step "Health check"
+if systemctl_user is-active --quiet quota-tracker.service; then
+  ok "quota-tracker.service is active"
+else
+  warn "Service is not active yet; inspect with: systemctl --user status quota-tracker.service"
+fi
 
 # ── Done ──────────────────────────────────────────────────────────────────────
 printf '\n'
 printf "  ${GREEN}${BOLD}Installation complete.${R}\n"
 printf "  ${DIM}Check status:${R}  systemctl --user status quota-tracker.service\n"
+WEB_PORT="$(quota-tracker config show | sed -n 's/.*"web_port": \\([0-9][0-9]*\\).*/\\1/p' | head -1)"
+printf "  ${DIM}Open UI:${R}       http://127.0.0.1:${WEB_PORT:-8787}\n"
 printf '\n'

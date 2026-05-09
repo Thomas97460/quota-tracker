@@ -35,5 +35,5 @@
     "tool_tokens",
     "total_tokens"
   ],
-  "config_top_keys": ["codex", "copilot", "daemon", "gemini"]
+  "config_top_keys": ["claude", "codex", "copilot", "daemon", "gemini"]
 }
