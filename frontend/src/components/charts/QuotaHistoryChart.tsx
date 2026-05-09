@@ -17,12 +17,14 @@ interface QuotaHistoryChartProps {
   className?: string
 }
 
-// Distinct colours for up to ~6 quota names
-const LINE_COLORS = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899"]
+// Distinct colours for up to ~6 quota names — using the design palette
+const LINE_COLORS = ["#F59E0B", "#A78BFA", "#4F8DF7", "#10B981", "#EF4444", "#EC4899"]
 
-export function QuotaHistoryChart({ rows, className = "" }: QuotaHistoryChartProps): React.JSX.Element {
+export function QuotaHistoryChart({
+  rows,
+  className = "",
+}: QuotaHistoryChartProps): React.JSX.Element {
   const { data, names } = useMemo(() => {
-    // Group rows by timestamp, spread quota_name values as columns
     const allNames = [...new Set(rows.map((r) => r.quota_name))].sort()
     const byTs = new Map<string, Record<string, number | null>>()
     for (const r of rows) {
@@ -37,20 +39,30 @@ export function QuotaHistoryChart({ rows, className = "" }: QuotaHistoryChartPro
 
   if (data.length === 0) {
     return (
-      <div className={`flex items-center justify-center h-56 text-slate-500 text-sm ${className}`}>
+      <div
+        className={className}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: 220,
+          color: "var(--fg-3)",
+          fontSize: 13,
+        }}
+      >
         No quota history data
       </div>
     )
   }
 
   return (
-    <div className={`w-full h-56 ${className}`}>
+    <div className={className} style={{ width: "100%", height: 220 }}>
       <ResponsiveContainer width="100%" height="100%">
         <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#1F232E" vertical={false} />
           <XAxis
             dataKey="bucket"
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            tick={{ fill: "#767B8A", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             interval={chartTickInterval(data.length, 6)}
@@ -58,7 +70,7 @@ export function QuotaHistoryChart({ rows, className = "" }: QuotaHistoryChartPro
           />
           <YAxis
             domain={[0, 100]}
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            tick={{ fill: "#767B8A", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             width={36}
@@ -66,17 +78,20 @@ export function QuotaHistoryChart({ rows, className = "" }: QuotaHistoryChartPro
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#1e293b",
-              border: "1px solid #334155",
+              backgroundColor: "#14171F",
+              border: "1px solid #1F232E",
               borderRadius: 8,
-              color: "#f1f5f9",
+              color: "#F4F5F8",
               fontSize: 12,
             }}
-            labelStyle={{ color: "#94a3b8" }}
+            labelStyle={{ color: "#767B8A" }}
             labelFormatter={(v: string) => formatTimeBucket(v)}
-            formatter={(value: number, name: string) => [`${value?.toFixed(1) ?? "n/a"}%`, name]}
+            formatter={(value: number, name: string) => [
+              `${value?.toFixed(1) ?? "n/a"}%`,
+              name,
+            ]}
           />
-          <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
+          <Legend wrapperStyle={{ fontSize: 11, color: "#767B8A" }} />
           {names.map((name, i) => (
             <Line
               key={name}

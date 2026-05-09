@@ -12,7 +12,6 @@ interface Slice {
   label: string
   value: number
   color: string
-  tailwind: string
 }
 
 function aggregate(rows: UsageRow[]): { total: number; slices: Slice[] } {
@@ -30,76 +29,96 @@ function aggregate(rows: UsageRow[]): { total: number; slices: Slice[] } {
   return {
     total,
     slices: [
-      { label: "Input",     value: sums.input,     color: "#8b5cf6", tailwind: "bg-violet-500" },
-      { label: "Output",    value: sums.output,    color: "#3b82f6", tailwind: "bg-blue-500" },
-      { label: "Cached",    value: sums.cached,    color: "#10b981", tailwind: "bg-emerald-500" },
-      { label: "Reasoning", value: sums.reasoning, color: "#f59e0b", tailwind: "bg-amber-500" },
-      { label: "Tool",      value: sums.tool,      color: "#ef4444", tailwind: "bg-red-500" },
+      { label: "Input", value: sums.input, color: "#8B5CF6" },
+      { label: "Output", value: sums.output, color: "#4F8DF7" },
+      { label: "Cached", value: sums.cached, color: "#10B981" },
+      { label: "Reasoning", value: sums.reasoning, color: "#F59E0B" },
+      { label: "Tool", value: sums.tool, color: "#EC4899" },
     ],
   }
 }
 
-export function TokenBreakdownPie({ rows, className = "" }: TokenBreakdownPieProps): React.JSX.Element {
+export function TokenBreakdownPie({
+  rows,
+  className = "",
+}: TokenBreakdownPieProps): React.JSX.Element {
   const { total, slices } = useMemo(() => aggregate(rows), [rows])
   const visible = slices.filter((s) => s.value > 0)
 
   if (total === 0) {
     return (
-      <div className={`text-sm text-slate-500 py-3 ${className}`}>
+      <div
+        className={className}
+        style={{ color: "var(--fg-3)", fontSize: 13, padding: "12px 0" }}
+      >
         No token data in selected range
       </div>
     )
   }
 
   return (
-    <div className={`flex flex-col gap-3 ${className}`}>
-      {/* Donut chart — innerRadius makes it a ring */}
-      <div className="w-full h-40">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={visible}
-              dataKey="value"
-              nameKey="label"
-              cx="50%"
-              cy="50%"
-              innerRadius="55%"
-              outerRadius="80%"
-              strokeWidth={0}
-              minAngle={4}
-            >
-              {visible.map((s) => (
-                <Cell key={s.label} fill={s.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: "#1e293b",
-                border: "1px solid #334155",
-                borderRadius: 8,
-                color: "#f1f5f9",
-                fontSize: 12,
-              }}
-              formatter={(value: number, name: string) => [
-                `${formatLargeNumber(value)} (${((value / total) * 100).toFixed(0)}%)`,
-                name,
-              ]}
-            />
-          </PieChart>
-        </ResponsiveContainer>
-      </div>
-      {/* Legend grid — same style as TokenBreakdown */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-3">
-        {visible.map((s) => (
-          <div key={s.label} className="flex items-center gap-2">
-            <span className={`h-2 w-2 rounded-full ${s.tailwind} shrink-0`} />
-            <span className="text-slate-400 truncate">{s.label}</span>
-            <span className="ml-1 flex items-baseline gap-1">
-              <span className="font-medium text-slate-200 tabular-nums">{formatLargeNumber(s.value)}</span>
-              <span className="text-slate-600 text-[10px] tabular-nums">{((s.value / total) * 100).toFixed(0)}%</span>
-            </span>
+    <div className={className}>
+      <div className="donut-layout">
+        <div className="donut-wrap">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={visible}
+                dataKey="value"
+                nameKey="label"
+                cx="50%"
+                cy="50%"
+                innerRadius="55%"
+                outerRadius="80%"
+                strokeWidth={0}
+                minAngle={4}
+              >
+                {visible.map((s) => (
+                  <Cell key={s.label} fill={s.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "#14171F",
+                  border: "1px solid #1F232E",
+                  borderRadius: 8,
+                  color: "#F4F5F8",
+                  fontSize: 12,
+                }}
+                formatter={(value: number, name: string) => [
+                  `${formatLargeNumber(value)} (${((value / total) * 100).toFixed(0)}%)`,
+                  name,
+                ]}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="donut-center">
+            <div style={{ textAlign: "center" }}>
+              <div className="v" style={{ fontSize: 15, fontWeight: 600, fontVariantNumeric: "tabular-nums", letterSpacing: "-0.02em" }}>
+                {formatLargeNumber(total)}
+              </div>
+              <div className="l" style={{ fontSize: 10, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
+                tokens
+              </div>
+            </div>
           </div>
-        ))}
+        </div>
+        <div className="token-list">
+          {visible.map((s) => (
+            <div
+              key={s.label}
+              className="token-list-row"
+              style={{ ["--c" as string]: s.color }}
+            >
+              <span className="dot"></span>
+              <span className="name" style={{ textTransform: "capitalize" }}>
+                {s.label}
+              </span>
+              <span className="v">{formatLargeNumber(s.value)}</span>
+              <span className="pct">{((s.value / total) * 100).toFixed(0)}%</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

@@ -1,12 +1,13 @@
 import React from "react"
 import type { ProviderId, QuotaRow } from "../../types"
 import { formatDate } from "../../utils"
-import { ProgressBar } from "./ProgressBar"
 
 interface QuotaPanelProps {
   providerId: ProviderId
   /** Already deduped to latest row per quota_name */
   latest: QuotaRow[]
+  /** CSS color value for the provider (e.g. "var(--gemini)") */
+  providerColor?: string
 }
 
 function inferredWindowMinutes(providerId: ProviderId, quotaName: string): number | null {
@@ -18,7 +19,6 @@ function inferredWindowMinutes(providerId: ProviderId, quotaName: string): numbe
     if (lower === "primary") return 60 * 5 // 5 hours
   }
   if (providerId === "copilot") {
-    // Copilot uses premium_interactions as a monthly-style bucket.
     if (lower.includes("premium_interactions") || lower.includes("premium-interactions")) {
       return 60 * 24 * 30
     }
@@ -60,6 +60,14 @@ export function filterCopilotQuotas(rows: QuotaRow[]): QuotaRow[] {
   )
 }
 
+/** Filter Claude quotas to only "weekly" and "5h" for the card display. Weekly first. */
+export function filterClaudeQuotas(rows: QuotaRow[]): QuotaRow[] {
+  const ORDER: Record<string, number> = { weekly: 0, "5h": 1 }
+  return rows
+    .filter((q) => q.quota_name === "weekly" || q.quota_name === "5h")
+    .sort((a, b) => (ORDER[a.quota_name] ?? 99) - (ORDER[b.quota_name] ?? 99))
+}
+
 // Gemini family order for display (most important first).
 const GEMINI_FAMILY_ORDER = ["pro", "flash", "flash-lite"] as const
 type GeminiFamily = (typeof GEMINI_FAMILY_ORDER)[number]
@@ -92,7 +100,6 @@ export function rollupGeminiQuotas(rows: QuotaRow[]): QuotaRow[] {
     const used = row.used_percent
     if (used === null) continue
     if (!prev || prev.used_percent === null || used > prev.used_percent) {
-      // Stamp a synthetic quota_name matching the family so displayLabel works simply.
       best[family] = { ...row, quota_name: family }
     }
   }
@@ -102,7 +109,8 @@ export function rollupGeminiQuotas(rows: QuotaRow[]): QuotaRow[] {
 /** Map raw quota_name to a human-friendly display label per provider. */
 export function displayLabel(providerId: ProviderId, quotaName: string): string {
   if (providerId === "copilot") {
-    if (quotaName.includes("premium_interactions") || quotaName.includes("premium-interactions")) return "Monthly"
+    if (quotaName.includes("premium_interactions") || quotaName.includes("premium-interactions"))
+      return "Monthly"
     if (quotaName.includes("monthly")) return "Monthly"
     if (quotaName.includes("weekly")) return "Weekly"
     return quotaName
@@ -116,12 +124,25 @@ export function displayLabel(providerId: ProviderId, quotaName: string): string 
     const label = GEMINI_FAMILY_LABEL[quotaName as GeminiFamily]
     return label ?? quotaName
   }
+  if (providerId === "claude") {
+    if (quotaName === "seven_day_omelette") return "Claude Design"
+    if (quotaName === "weekly") return "Weekly"
+    if (quotaName === "5h") return "5h"
+    return quotaName
+  }
   return quotaName
+}
+
+function statusFor(pct: number): "crit" | "warn" | "ok" {
+  if (pct >= 95) return "crit"
+  if (pct >= 70) return "warn"
+  return "ok"
 }
 
 export function QuotaPanel({
   providerId,
   latest,
+  providerColor,
 }: QuotaPanelProps): React.JSX.Element {
   let visible: QuotaRow[]
   if (providerId === "copilot") {
@@ -130,40 +151,68 @@ export function QuotaPanel({
     visible = rollupGeminiQuotas(latest)
   } else if (providerId === "codex") {
     visible = sortQuotasBiggestFirst(providerId, latest)
+  } else if (providerId === "claude") {
+    visible = filterClaudeQuotas(latest)
   } else {
     visible = latest
   }
 
   if (visible.length === 0) {
     return (
-      <div className="flex flex-col gap-2">
-        <p className="text-sm text-slate-500 py-2">No quota data</p>
+      <div className="quota-card-body">
+        <p style={{ color: "var(--fg-3)", fontSize: 12 }}>No quota data</p>
       </div>
     )
   }
 
+  const color = providerColor ?? "var(--accent)"
+
   return (
-    <div className="flex flex-col gap-3">
-      {visible.map((q) => (
-        <div key={q.quota_name}>
-          <div className="flex justify-between mb-1">
-            <span className="text-xs font-medium text-slate-300">
-              {displayLabel(providerId, q.quota_name)}
-            </span>
+    <div className="quota-card-body">
+      {visible.map((q) => {
+        const pct = q.used_percent ?? 0
+        const status = statusFor(pct)
+        const label = displayLabel(providerId, q.quota_name)
+        return (
+          <div key={q.quota_name}>
+            <div className="quota-row">
+              <div className="quota-row-label">{label}</div>
+              <div
+                className={`qbar${status === "crit" ? " crit" : status === "warn" ? " warn" : ""}`}
+                style={
+                  {
+                    "--w": pct + "%",
+                    "--c": color,
+                  } as React.CSSProperties
+                }
+              >
+                <i></i>
+              </div>
+              <div
+                className={`quota-row-pct${status === "crit" ? " crit" : status === "warn" ? " warn" : ""}`}
+              >
+                {q.used_percent !== null ? `${pct.toFixed(1)}%` : "n/a"}
+              </div>
+            </div>
+            <div className="quota-meta" style={{ marginTop: 4 }}>
+              <span></span>
+              {q.resets_at && (
+                <span
+                  className={
+                    status === "crit"
+                      ? "quota-meta-crit"
+                      : status === "warn"
+                        ? "quota-meta-warn"
+                        : ""
+                  }
+                >
+                  resets {formatDate(q.resets_at)}
+                </span>
+              )}
+            </div>
           </div>
-          <ProgressBar value={q.used_percent ?? 0} />
-          <div className="flex justify-between mt-1">
-            <span className="text-xs text-slate-500">
-              {q.used_percent !== null ? `${q.used_percent.toFixed(1)}% used` : "n/a"}
-            </span>
-            {q.resets_at && (
-              <span className="text-xs text-slate-600">
-                resets {formatDate(q.resets_at)}
-              </span>
-            )}
-          </div>
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

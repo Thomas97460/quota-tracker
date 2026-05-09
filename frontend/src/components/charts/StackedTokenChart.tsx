@@ -15,18 +15,18 @@ import { chartTickInterval, formatLargeNumber, formatTimeBucket } from "../../ut
 export type StackMode = "provider" | "kind"
 
 const PROVIDER_COLORS: Record<ProviderId, string> = {
-  gemini: "#3b82f6",
-  codex: "#10b981",
-  copilot: "#f97316",
-  claude: "#8b5cf6",
+  gemini: "#4F8DF7",
+  codex: "#10B981",
+  copilot: "#F59E0B",
+  claude: "#D97757",
 }
 
 const KIND_COLORS: Record<string, string> = {
-  input: "#8b5cf6",
-  output: "#3b82f6",
-  cached: "#10b981",
-  reasoning: "#f59e0b",
-  tool: "#ef4444",
+  input: "#8B5CF6",
+  output: "#4F8DF7",
+  cached: "#10B981",
+  reasoning: "#F59E0B",
+  tool: "#EC4899",
 }
 
 interface StackedTokenChartProps {
@@ -90,7 +90,17 @@ export function StackedTokenChart({
 
   if (data.length === 0) {
     return (
-      <div className={`flex items-center justify-center h-56 text-slate-500 text-sm ${className}`}>
+      <div
+        className={className}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: 240,
+          color: "var(--fg-3)",
+          fontSize: 13,
+        }}
+      >
         No token usage data
       </div>
     )
@@ -108,20 +118,20 @@ export function StackedTokenChart({
         }))
 
   return (
-    <div className={`w-full h-56 ${className}`}>
+    <div className={className} style={{ width: "100%", height: 240 }}>
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#1F232E" vertical={false} />
           <XAxis
             dataKey="bucket"
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            tick={{ fill: "#767B8A", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             interval={chartTickInterval(data.length, 8)}
             tickFormatter={(v: string) => formatTimeBucket(v)}
           />
           <YAxis
-            tick={{ fill: "#94a3b8", fontSize: 10 }}
+            tick={{ fill: "#767B8A", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v: number) => formatLargeNumber(v)}
@@ -129,17 +139,17 @@ export function StackedTokenChart({
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "#1e293b",
-              border: "1px solid #334155",
+              backgroundColor: "#14171F",
+              border: "1px solid #1F232E",
               borderRadius: 8,
-              color: "#f1f5f9",
+              color: "#F4F5F8",
               fontSize: 12,
             }}
-            labelStyle={{ color: "#94a3b8" }}
+            labelStyle={{ color: "#767B8A" }}
             labelFormatter={(v: string) => formatTimeBucket(v)}
             formatter={(value: number, name: string) => [formatLargeNumber(value), name]}
           />
-          <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
+          <Legend wrapperStyle={{ fontSize: 11, color: "#767B8A" }} />
           {series.map(({ key, color }) => (
             <Area
               key={key}
@@ -148,7 +158,7 @@ export function StackedTokenChart({
               stackId="1"
               stroke={color}
               fill={color}
-              fillOpacity={0.55}
+              fillOpacity={0.45}
               strokeWidth={1.5}
               dot={false}
               activeDot={{ r: 4, fill: color }}

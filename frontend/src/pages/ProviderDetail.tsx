@@ -1,44 +1,56 @@
-import { Activity, AlertCircle, RefreshCw, Zap } from "lucide-react"
 import React, { useState } from "react"
-import { useParams } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 import { ModelBarChart } from "../components/charts/ModelBarChart"
 import { QuotaHistoryChart } from "../components/charts/QuotaHistoryChart"
 import { StackedTokenChart } from "../components/charts/StackedTokenChart"
 import { TokenBreakdownPie } from "../components/charts/TokenBreakdownPie"
-import { Badge } from "../components/ui/Badge"
-import { Button } from "../components/ui/Button"
-import { Card } from "../components/ui/Card"
-import { MetricCard } from "../components/ui/MetricCard"
-import { QuotaPanel, rollupGeminiQuotas, displayLabel } from "../components/ui/QuotaPanel"
-import { RangePicker } from "../components/ui/RangePicker"
-import { Spinner } from "../components/ui/Spinner"
+import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, displayLabel } from "../components/ui/QuotaPanel"
 import type { Range } from "../hooks/useDashboard"
 import { useDashboard } from "../hooks/useDashboard"
+import { useProviders } from "../contexts/ProvidersContext"
 import type { ProviderId } from "../types"
 import { basename, formatDate, formatLargeNumber, formatRelative, latestQuotas } from "../utils"
 
-const providerLabels: Record<ProviderId, string> = {
+const PROVIDER_NAMES: Record<ProviderId, string> = {
   gemini: "Gemini",
   codex: "Codex",
   copilot: "Copilot",
   claude: "Claude",
 }
 
-const providerColors: Record<ProviderId, string> = {
-  gemini: "text-blue-400",
-  codex: "text-emerald-400",
-  copilot: "text-orange-400",
-  claude: "text-violet-400",
+const PROVIDER_LOGOS: Record<ProviderId, string> = {
+  gemini: "/logos/gemini.png",
+  codex: "/logos/codex.png",
+  copilot: "/logos/copilot.png",
+  claude: "/logos/claude-code.png",
+}
+
+const PROVIDER_COLOR_VARS: Record<ProviderId, string> = {
+  gemini: "var(--gemini)",
+  codex: "var(--codex)",
+  copilot: "var(--copilot)",
+  claude: "var(--claude)",
+}
+
+const PROVIDER_COLORS_HEX: Record<ProviderId, string> = {
+  gemini: "#4F8DF7",
+  codex: "#10B981",
+  copilot: "#F59E0B",
+  claude: "#D97757",
 }
 
 const VALID_PROVIDERS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
-
 const SESSION_PAGE_SIZE = 10
+
+function statusFor(pct: number): "crit" | "warn" | "ok" {
+  if (pct >= 95) return "crit"
+  if (pct >= 70) return "warn"
+  return "ok"
+}
 
 export function ProviderDetail(): React.JSX.Element {
   const { id } = useParams<{ id: string }>()
-  const [range, setRange] = useState<Range>("7d")
-  // Client-side session paging
+  const { range, setRange } = useProviders()
   const [sessionPage, setSessionPage] = useState(0)
   const [selectedModel, setSelectedModel] = useState<string>("all")
 
@@ -65,23 +77,32 @@ export function ProviderDetail(): React.JSX.Element {
     projectPageSize,
     setProjectPage,
     loading,
-    error,
     refresh,
   } = useDashboard(providerId ?? undefined, range, selectedModel)
 
   if (!providerId) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="flex flex-col items-center gap-2 text-slate-400">
-          <AlertCircle className="h-8 w-8" />
-          <p>Unknown provider: {id}</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "60vh" }}>
+        <div style={{ textAlign: "center", color: "var(--fg-3)" }}>
+          <p style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>Unknown provider</p>
+          <p style={{ fontSize: 14 }}>{id}</p>
         </div>
       </div>
     )
   }
 
+  const providerColor = PROVIDER_COLOR_VARS[providerId]
+  const providerColorHex = PROVIDER_COLORS_HEX[providerId]
   const provider = providers.find((p) => p.id === providerId)
   const latest = latestQuotas(quotas).filter((q) => q.provider_id === providerId)
+  const visibleLatest =
+    providerId === "claude"
+      ? filterClaudeQuotas(latest)
+      : providerId === "copilot"
+        ? filterCopilotQuotas(latest)
+        : providerId === "gemini"
+          ? rollupGeminiQuotas(latest)
+          : latest
   const totalTokens = timeSeries.reduce((s, r) => s + r.total_tokens, 0)
 
   let historyRows = quotaHistory.filter((q) => q.provider_id === providerId)
@@ -96,281 +117,422 @@ export function ProviderDetail(): React.JSX.Element {
       historyRows.push(...rollupGeminiQuotas(group))
     }
   }
-  
-  historyRows = historyRows.map(r => ({
+
+  if (providerId === "claude") {
+    historyRows = historyRows.filter((r) => r.quota_name !== "extra_usage")
+  }
+
+  historyRows = historyRows.map((r) => ({
     ...r,
-    quota_name: displayLabel(r.provider_id, r.quota_name)
+    quota_name: displayLabel(r.provider_id, r.quota_name),
   }))
 
-  // Session paging
   const sessionPageCount = Math.ceil(sessions.length / SESSION_PAGE_SIZE)
   const pagedSessions = sessions.slice(
     sessionPage * SESSION_PAGE_SIZE,
     (sessionPage + 1) * SESSION_PAGE_SIZE,
   )
 
+  // Compute worst quota pct for status badge
+  const worstPct = visibleLatest.length > 0 ? Math.max(...visibleLatest.map((q) => q.used_percent ?? 0)) : 0
+  const worstStatus = statusFor(worstPct)
+  const statusLabel =
+    worstStatus === "crit" ? "Quota hit" : worstStatus === "warn" ? "Approaching limit" : "Healthy"
+
   return (
-    <div className="flex flex-col gap-6 p-6 min-h-0 overflow-y-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 flex-wrap">
-        <div>
-          <h1 className={`text-xl font-semibold ${providerColors[providerId]}`}>
-            {providerLabels[providerId]}
-          </h1>
-          <div className="flex items-center gap-2 mt-1">
-            {provider && (
-              <Badge variant={provider.enabled ? "success" : "error"}>
-                {provider.enabled ? "Enabled" : "Disabled"}
-              </Badge>
-            )}
-            {provider && (
-              <span className="text-xs text-slate-500">
-                Updated {formatRelative(provider.updated_at)}
-              </span>
-            )}
-          </div>
-        </div>
-        <div className="flex items-center gap-3">
-          <RangePicker
-            range={range}
-            onRangeChange={handleRange}
-          />
-          <Button variant="ghost" size="sm" loading={loading} onClick={refresh}>
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-3 text-sm text-red-400">
-          {error}
-        </div>
-      )}
-
-      {loading && !providers.length && (
-        <div className="flex items-center justify-center py-20">
-          <Spinner size="lg" />
-        </div>
-      )}
-
-      {/* Row 1: Quotas · Tokens · Sessions */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card>
-          <h2 className="text-sm font-semibold text-slate-300 mb-3">Quotas</h2>
-          <QuotaPanel
-            providerId={providerId}
-            latest={latest}
-          />
-        </Card>
-        <MetricCard
-          label="Tokens"
-          value={formatLargeNumber(totalTokens)}
-          sub={`in range (${range})`}
-          icon={<Zap className="h-5 w-5" />}
-        />
-        <MetricCard
-          label="Sessions"
-          value={sessions.length}
-          icon={<Activity className="h-5 w-5" />}
-        />
-      </div>
-
-      {/* Row 2a: Quotas over time (full width) */}
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">
-          Quotas over time
-          <span className="ml-2 text-xs font-normal text-slate-500">used %</span>
-        </h2>
-        <QuotaHistoryChart rows={historyRows} />
-      </Card>
-
-      {/* Row 2b: Tokens over time (full width) */}
-      <Card>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold text-slate-300">
-            Tokens over time
-            <span className="ml-2 text-xs font-normal text-slate-500">
-              by kind · {timeSeriesGroupBy}
-            </span>
-          </h2>
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="text-xs bg-slate-800 border border-slate-700 text-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500"
-          >
-            <option value="all">All models</option>
-            {[...new Set(modelUsage.map((u) => u.bucket))].sort().map((model) => (
-              <option key={model} value={model}>
-                {model}
-              </option>
-            ))}
-          </select>
-        </div>
-        <StackedTokenChart rows={timeSeries} mode="kind" />
-      </Card>
-
-      {/* Row 3: Pie breakdown + Tokens by model */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-sm font-semibold text-slate-300">Token types</h2>
-            <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="text-xs bg-slate-800 border border-slate-700 text-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500"
+    <>
+      {/* Topbar */}
+      <div className="topbar">
+        <div className="topbar-crumb">
+          <Link to="/overview" className="crumb-pill">
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.6"
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <option value="all">All models</option>
-              {[...new Set(modelUsage.map((u) => u.bucket))].sort().map((model) => (
-                <option key={model} value={model}>
-                  {model}
-                </option>
-              ))}
-            </select>
-          </div>
-          <TokenBreakdownPie rows={timeSeries} />
-        </Card>
-        <Card>
-          <h2 className="text-sm font-semibold text-slate-300 mb-3">Tokens by model</h2>
-          <ModelBarChart data={modelUsage} />
-        </Card>
+              <rect x="3" y="3" width="7" height="7" rx="1.5" />
+              <rect x="14" y="3" width="7" height="7" rx="1.5" />
+              <rect x="3" y="14" width="7" height="7" rx="1.5" />
+              <rect x="14" y="14" width="7" height="7" rx="1.5" />
+            </svg>
+            Overview
+          </Link>
+          <span className="crumb-sep">/</span>
+          <span className="crumb-title" style={{ color: providerColor }}>
+            {PROVIDER_NAMES[providerId]}
+          </span>
+          <span
+            className={`crumb-status${worstStatus === "crit" ? " crit" : worstStatus === "warn" ? " warn" : ""}`}
+          >
+            <span className="dot" />
+            {statusLabel}
+          </span>
+        </div>
+        <div className="topbar-spacer" />
+        <div className="range-tabs">
+          {(["24h", "7d", "30d", "all"] as Range[]).map((r) => (
+            <button
+              key={r}
+              className={`range-tab${range === r ? " active" : ""}`}
+              onClick={() => handleRange(r)}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <button className="icon-btn" onClick={refresh}>
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={loading ? { animation: "spin 1s linear infinite" } : undefined}
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <polyline points="1 20 1 14 7 14" />
+            <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15" />
+          </svg>
+          Refresh
+        </button>
       </div>
 
-      {/* Row 4: Top projects with paging */}
-      {projectUsageTotal > 0 && (
-        <Card>
-          <h2 className="text-sm font-semibold text-slate-300 mb-3">
-            Top projects
-            <span className="ml-2 text-xs font-normal text-slate-500">
-              ({projectUsageTotal} total)
-            </span>
-          </h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+      <div className="page">
+        {/* Provider page head */}
+        <div className="provider-page-head" style={{ ["--c" as string]: providerColor }}>
+          <div
+            className="provider-page-mark"
+            style={{ background: `${providerColorHex}18` }}
+          >
+            <img
+              src={PROVIDER_LOGOS[providerId]}
+              alt={PROVIDER_NAMES[providerId]}
+              style={{ width: 52, height: 52, objectFit: "contain" }}
+            />
+          </div>
+          <div>
+            <div className="provider-page-title">
+              <span style={{ color: providerColor }}>{PROVIDER_NAMES[providerId]}</span>
+              <span
+                className={`crumb-status${worstStatus === "crit" ? " crit" : worstStatus === "warn" ? " warn" : ""}`}
+              >
+                <span className="dot"></span>
+                {statusLabel}
+              </span>
+            </div>
+            <div className="provider-page-sub">
+              {provider && (
+                <>
+                  <span>Updated {formatRelative(provider.updated_at)}</span>
+                  <span className="dim">·</span>
+                </>
+              )}
+              <span>{visibleLatest.length} quota{visibleLatest.length !== 1 ? "s" : ""}</span>
+              <span className="dim">·</span>
+              <span>{[...new Set(modelUsage.map((u) => u.bucket))].length} models</span>
+            </div>
+          </div>
+          <div className="provider-page-meta">
+            <div className="meta-stat">
+              <span className="meta-stat-label">Tokens · {range}</span>
+              <span className="meta-stat-value">{formatLargeNumber(totalTokens)}</span>
+            </div>
+            <div className="meta-stat">
+              <span className="meta-stat-label">Sessions · {range}</span>
+              <span className="meta-stat-value">{sessions.length}</span>
+            </div>
+            <div className="meta-stat">
+              <span className="meta-stat-label">Models · {range}</span>
+              <span className="meta-stat-value">{[...new Set(modelUsage.map((u) => u.bucket))].length}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Hero: quotas (big meters) + KPI stats */}
+        <div className="hero-provider">
+          <div className="hero-quota" style={{ ["--c" as string]: providerColor }}>
+            <div className="hero-quota-head">
+              <span className="hero-quota-title">Quotas</span>
+              <span className="hero-quota-sub">live · resets in local time</span>
+            </div>
+            <div className="hero-meters">
+              {visibleLatest.length === 0 ? (
+                <p style={{ color: "var(--fg-3)", fontSize: 13 }}>No quota data</p>
+              ) : (
+                visibleLatest.map((q) => {
+                  const pct = q.used_percent ?? 0
+                  const st = statusFor(pct)
+                  const label = displayLabel(providerId, q.quota_name)
+                  return (
+                    <div key={q.quota_name} className="hero-meter">
+                      <div className="hero-meter-head">
+                        <span className="hero-meter-name">{label}</span>
+                        <span
+                          className={`hero-meter-pct${st === "crit" ? " crit" : st === "warn" ? " warn" : ""}`}
+                        >
+                          {pct.toFixed(1)}%
+                        </span>
+                      </div>
+                      <div
+                        className={`qbar${st === "crit" ? " crit" : st === "warn" ? " warn" : ""}`}
+                        style={{
+                          ["--w" as string]: pct + "%",
+                          ["--c" as string]: providerColor,
+                        } as React.CSSProperties}
+                      >
+                        <i></i>
+                      </div>
+                      <div className="hero-meter-foot">
+                        <span>used</span>
+                        {q.resets_at && <span>resets {formatDate(q.resets_at)}</span>}
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+          <div className="hero-stats">
+            <div className="kpi">
+              <div className="kpi-label">
+                <span className="kpi-label-icon">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M13 2L3 14h7l-1 8 11-14h-8l1-6z"/>
+                  </svg>
+                </span>
+                Tokens
+              </div>
+              <div className="kpi-value">
+                <span>{formatLargeNumber(totalTokens)}</span>
+              </div>
+              <div className="kpi-foot">
+                <span>in {range}</span>
+              </div>
+            </div>
+            <div className="kpi">
+              <div className="kpi-label">
+                <span className="kpi-label-icon">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M22 12h-4l-3 9-6-18-3 9H2"/>
+                  </svg>
+                </span>
+                Sessions
+              </div>
+              <div className="kpi-value">
+                <span>{sessions.length}</span>
+              </div>
+              <div className="kpi-foot">
+                <span>in {range}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Quotas over time */}
+        <div className="card">
+          <div className="card-head">
+            <span className="card-title">Quotas over time</span>
+            <span className="card-sub">used %</span>
+          </div>
+          <div className="card-body">
+            <QuotaHistoryChart rows={historyRows} />
+          </div>
+        </div>
+
+        {/* Tokens over time (kind mode) */}
+        <div className="card">
+          <div className="card-head">
+            <span className="card-title">Tokens over time</span>
+            <span className="card-sub">by kind · {timeSeriesGroupBy}</span>
+            <div className="card-actions">
+              <select
+                className="select"
+                value={selectedModel}
+                onChange={(e) => setSelectedModel(e.target.value)}
+              >
+                <option value="all">All models</option>
+                {[...new Set(modelUsage.map((u) => u.bucket))].sort().map((model) => (
+                  <option key={model} value={model}>
+                    {model}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="card-body">
+            <StackedTokenChart rows={timeSeries} mode="kind" />
+          </div>
+        </div>
+
+        {/* Token types donut + Tokens by model (2-col) */}
+        <div className="grid-2eq">
+          <div className="card">
+            <div className="card-head">
+              <span className="card-title">Token types</span>
+            </div>
+            <div className="card-body">
+              <TokenBreakdownPie rows={timeSeries} />
+            </div>
+          </div>
+          <div className="card">
+            <div className="card-head">
+              <span className="card-title">Tokens by model</span>
+            </div>
+            <div className="card-body">
+              <ModelBarChart data={modelUsage} singleColor={providerColorHex} />
+            </div>
+          </div>
+        </div>
+
+        {/* Top projects */}
+        {projectUsageTotal > 0 && (
+          <div className="card">
+            <div className="card-head">
+              <span className="card-title">Top projects</span>
+              <span className="card-sub">{projectUsageTotal} total</span>
+            </div>
+            <table className="table">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Project</th>
-                  <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Sessions</th>
-                  <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Tokens</th>
+                <tr>
+                  <th>Project</th>
+                  <th className="num">Sessions</th>
+                  <th className="num">Tokens</th>
+                  <th className="num">Share</th>
                 </tr>
               </thead>
               <tbody>
                 {projectUsage.map((p, i) => {
-                  const name =
-                    p.project_name ?? basename(p.project_path) ?? "unknown"
+                  const name = p.project_name ?? basename(p.project_path) ?? "unknown"
+                  const totalProjTokens = projectUsage.reduce((s, x) => s + x.total_tokens, 0)
+                  const pct = totalProjTokens > 0 ? (p.total_tokens / totalProjTokens) * 100 : 0
                   return (
-                    <tr
-                      key={i}
-                      className="border-b border-slate-800 hover:bg-slate-800/40 transition-colors"
-                    >
+                    <tr key={i}>
                       <td
-                        className="py-2.5 px-3 text-slate-300 max-w-[220px] truncate"
+                        style={{ color: "var(--fg-1)", fontWeight: 500 }}
                         title={p.project_path ?? undefined}
                       >
                         {name}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-400">{p.session_count}</td>
-                      <td className="py-2.5 px-3 text-slate-400 font-mono text-xs">
-                        {formatLargeNumber(p.total_tokens)}
+                      <td className="num">{p.session_count}</td>
+                      <td className="num">{formatLargeNumber(p.total_tokens)}</td>
+                      <td className="num">
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+                          <div
+                            className="row-bar"
+                            style={{
+                              ["--w" as string]: pct + "%",
+                              ["--c" as string]: providerColor,
+                            }}
+                          >
+                            <i></i>
+                          </div>
+                          <span style={{ minWidth: 36 }}>{pct.toFixed(0)}%</span>
+                        </div>
                       </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
+            <div className="pager">
+              <button
+                className="pager-btn"
+                disabled={projectPage === 0}
+                onClick={() => setProjectPage(projectPage - 1)}
+              >
+                Prev
+              </button>
+              <span>Page {projectPage + 1}</span>
+              <button
+                className="pager-btn"
+                disabled={(projectPage + 1) * projectPageSize >= projectUsageTotal}
+                onClick={() => setProjectPage(projectPage + 1)}
+              >
+                Next
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-3 mt-3">
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={projectPage === 0}
-              onClick={() => setProjectPage(projectPage - 1)}
-            >
-              Prev
-            </Button>
-            <span className="text-xs text-slate-500">Page {projectPage + 1}</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={(projectPage + 1) * projectPageSize >= projectUsageTotal}
-              onClick={() => setProjectPage(projectPage + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </Card>
-      )}
+        )}
 
-      {/* Row 5: Sessions with client-side paging */}
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-300 mb-3">
-          Sessions
-          <span className="ml-2 text-xs font-normal text-slate-500">
-            Page {sessionPage + 1} of {Math.max(1, sessionPageCount)} · {sessions.length} sessions
-          </span>
-        </h2>
-        {sessions.length === 0 ? (
-          <p className="text-sm text-slate-500 py-4 text-center">No sessions in selected range</p>
-        ) : (
-          <>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+        {/* Sessions */}
+        <div className="card">
+          <div className="card-head">
+            <span className="card-title">Sessions</span>
+            <span className="card-sub">
+              Page {sessionPage + 1} of {Math.max(1, sessionPageCount)} · {sessions.length} sessions
+            </span>
+          </div>
+          {sessions.length === 0 ? (
+            <div style={{ padding: "24px 20px", textAlign: "center", color: "var(--fg-3)", fontSize: 13 }}>
+              No sessions for {PROVIDER_NAMES[providerId]} in this range
+            </div>
+          ) : (
+            <>
+              <table className="table">
                 <thead>
-                  <tr className="border-b border-slate-700">
-                    <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Project</th>
-                    <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Model</th>
-                    <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Created</th>
-                    <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Last seen</th>
+                  <tr>
+                    <th>Project</th>
+                    <th>Model</th>
+                    <th>Created</th>
+                    <th className="num">Last seen</th>
                   </tr>
                 </thead>
                 <tbody>
                   {pagedSessions.map((s) => (
-                    <tr
-                      key={s.id}
-                      className="border-b border-slate-800 hover:bg-slate-800/40 transition-colors"
-                    >
+                    <tr key={s.id}>
                       <td
-                        className="py-2.5 px-3 text-slate-300 max-w-[180px] truncate"
+                        style={{ color: "var(--fg-1)", fontWeight: 500, maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                         title={s.project_path ?? undefined}
                       >
                         {s.project_name ?? basename(s.project_path) ?? (
-                          <span className="text-slate-600">unknown</span>
+                          <span style={{ color: "var(--fg-4)" }}>unknown</span>
                         )}
                       </td>
-                      <td className="py-2.5 px-3 text-slate-400 font-mono text-xs">
-                        {s.model_name}
-                      </td>
-                      <td className="py-2.5 px-3 text-slate-500">{formatDate(s.created_at)}</td>
-                      <td className="py-2.5 px-3 text-slate-500">{formatRelative(s.last_seen_at)}</td>
+                      <td className="mono dim">{s.model_name}</td>
+                      <td className="dim">{formatDate(s.created_at)}</td>
+                      <td className="num dim">{formatRelative(s.last_seen_at)}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-            </div>
-            {sessionPageCount > 1 && (
-              <div className="flex items-center gap-3 mt-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={sessionPage === 0}
-                  onClick={() => setSessionPage((p) => p - 1)}
-                >
-                  Prev
-                </Button>
-                <span className="text-xs text-slate-500">Page {sessionPage + 1}</span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  disabled={sessionPage >= sessionPageCount - 1}
-                  onClick={() => setSessionPage((p) => p + 1)}
-                >
-                  Next
-                </Button>
-              </div>
-            )}
-          </>
-        )}
-      </Card>
-    </div>
+              {sessionPageCount > 1 && (
+                <div className="pager">
+                  <button
+                    className="pager-btn"
+                    disabled={sessionPage === 0}
+                    onClick={() => setSessionPage((p) => p - 1)}
+                  >
+                    Prev
+                  </button>
+                  <span>Page {sessionPage + 1} of {sessionPageCount}</span>
+                  <button
+                    className="pager-btn"
+                    disabled={sessionPage >= sessionPageCount - 1}
+                    onClick={() => setSessionPage((p) => p + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </>
   )
 }

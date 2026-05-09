@@ -1,8 +1,4 @@
 import React, { useEffect, useState } from "react"
-import { Badge } from "../components/ui/Badge"
-import { Button } from "../components/ui/Button"
-import { Card } from "../components/ui/Card"
-import { Spinner } from "../components/ui/Spinner"
 import { useConfig } from "../hooks/useConfig"
 import type { ProviderId, ProviderSummary } from "../types"
 
@@ -14,6 +10,13 @@ const providerLabels: Record<ProviderId, string> = {
 }
 
 const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
+
+const PROVIDER_COLOR_VARS: Record<ProviderId, string> = {
+  gemini: "var(--gemini)",
+  codex: "var(--codex)",
+  copilot: "var(--copilot)",
+  claude: "var(--claude)",
+}
 
 interface ProviderFormState {
   enabled: boolean
@@ -28,35 +31,37 @@ function providerToForm(p: ProviderSummary): ProviderFormState {
 }
 
 export function Settings(): React.JSX.Element {
-  const { config, providers, busy, updateConfig, updateProvider, scanProvider, reload } =
-    useConfig()
+  const { config, providers, busy, updateConfig, updateProvider, scanProvider } = useConfig()
 
-  // Single sync interval input
   const [syncMinutes, setSyncMinutes] = useState(5)
   const [daemonSaving, setDaemonSaving] = useState(false)
   const [daemonSaved, setDaemonSaved] = useState(false)
 
-  // Provider form states
   const [providerForms, setProviderForms] = useState<Record<ProviderId, ProviderFormState>>({
-    gemini:  { enabled: true, home_path: "~/.gemini" },
-    codex:   { enabled: true, home_path: "~/.codex" },
+    gemini: { enabled: true, home_path: "~/.gemini" },
+    codex: { enabled: true, home_path: "~/.codex" },
     copilot: { enabled: true, home_path: "~/.copilot" },
-    claude:  { enabled: true, home_path: "~/.claude" },
+    claude: { enabled: true, home_path: "~/.claude" },
   })
 
   const [actionBusy, setActionBusy] = useState<string | null>(null)
 
-  // Sync form from loaded config
   useEffect(() => {
     if (config) {
-      setSyncMinutes(config.daemon.sync_interval_minutes ?? config.daemon.passive_sync_interval_minutes ?? 5)
+      setSyncMinutes(
+        config.daemon.sync_interval_minutes ??
+          config.daemon.passive_sync_interval_minutes ??
+          5,
+      )
     }
   }, [config])
 
   useEffect(() => {
     if (providers.length > 0) {
       const next: Partial<Record<ProviderId, ProviderFormState>> = {}
-      providers.forEach((p) => { next[p.id] = providerToForm(p) })
+      providers.forEach((p) => {
+        next[p.id] = providerToForm(p)
+      })
       setProviderForms((prev) => ({ ...prev, ...next }))
     }
   }, [providers])
@@ -94,7 +99,7 @@ export function Settings(): React.JSX.Element {
   function setProviderField<K extends keyof ProviderFormState>(
     id: ProviderId,
     field: K,
-    value: ProviderFormState[K]
+    value: ProviderFormState[K],
   ): void {
     setProviderForms((prev) => ({
       ...prev,
@@ -104,110 +109,188 @@ export function Settings(): React.JSX.Element {
 
   if (!config && !busy) {
     return (
-      <div className="flex flex-col gap-6 p-6">
-        <div className="rounded-lg border border-red-700/40 bg-red-900/20 px-4 py-3 text-sm text-red-400">
+      <div style={{ padding: "22px 28px" }}>
+        <div
+          style={{
+            background: "color-mix(in oklab, var(--crit) 12%, transparent)",
+            border: "1px solid color-mix(in oklab, var(--crit) 28%, transparent)",
+            borderRadius: "var(--radius-2)",
+            padding: "12px 16px",
+            fontSize: 13,
+            color: "var(--crit)",
+          }}
+        >
           Failed to load configuration. Make sure the daemon is running.
         </div>
       </div>
     )
   }
 
+  const inputStyle: React.CSSProperties = {
+    background: "var(--bg-2)",
+    border: "1px solid var(--border-1)",
+    borderRadius: "var(--radius-1)",
+    padding: "8px 12px",
+    fontSize: 13,
+    color: "var(--fg-1)",
+    fontFamily: "inherit",
+    width: "100%",
+    outline: "none",
+  }
+
   return (
-    <div className="flex flex-col gap-6 p-6 min-h-0 overflow-y-auto">
-      <div>
-        <h1 className="text-xl font-semibold text-slate-100">Settings</h1>
-        <p className="text-sm text-slate-400 mt-0.5">Daemon and provider configuration</p>
+    <>
+      <div className="topbar">
+        <div className="topbar-crumb">
+          <span className="crumb-title">Settings</span>
+        </div>
       </div>
 
-      {/* Daemon settings */}
-      <Card>
-        <h2 className="text-sm font-semibold text-slate-300 mb-4">Daemon Settings</h2>
-        <div className="max-w-xs">
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs text-slate-400">Sync interval (minutes)</span>
-            <input
-              type="number"
-              min={1}
-              value={syncMinutes}
-              onChange={(e) => setSyncMinutes(Number(e.target.value))}
-              className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100
-                focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-            />
-          </label>
-        </div>
-        <div className="mt-4 flex items-center gap-3">
-          <Button variant="primary" size="sm" loading={daemonSaving} onClick={handleSaveDaemon}>
-            Save
-          </Button>
-          {daemonSaved && <span className="text-xs text-green-400">Saved!</span>}
-        </div>
-        {config && (
-          <div className="mt-4 pt-4 border-t border-slate-700 grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs text-slate-500">
-            <span>Host: <span className="text-slate-400">{config.daemon.web_host}:{config.daemon.web_port}</span></span>
-            <span>DB: <code className="text-slate-400">{config.daemon.database_path}</code></span>
-            <span>Log level: <span className="text-slate-400">{config.daemon.log_level}</span></span>
+      <div className="page">
+        <div className="page-head">
+          <div>
+            <div className="page-title">Settings</div>
+            <div className="page-sub">Daemon and provider configuration</div>
           </div>
-        )}
-      </Card>
+        </div>
 
-      {/* Provider sections */}
-      {PROVIDER_IDS.map((id) => {
-        const form = providerForms[id]
-        const isBusy = actionBusy !== null || busy
-        return (
-          <Card key={id}>
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-slate-300">{providerLabels[id]}</h2>
-              <Badge variant={form.enabled ? "success" : "default"}>
-                {form.enabled ? "Enabled" : "Disabled"}
-              </Badge>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mb-4">
-              <label className="flex flex-col gap-1.5">
-                <span className="text-xs text-slate-400">Home path</span>
+        {/* Daemon settings card */}
+        <div className="card">
+          <div className="card-head">
+            <span className="card-title">Daemon Settings</span>
+          </div>
+          <div className="card-body">
+            <div style={{ maxWidth: 320 }}>
+              <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span style={{ fontSize: 12, color: "var(--fg-3)" }}>
+                  Sync interval (minutes)
+                </span>
                 <input
-                  type="text"
-                  value={form.home_path}
-                  onChange={(e) => setProviderField(id, "home_path", e.target.value)}
-                  className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100
-                    focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
+                  type="number"
+                  min={1}
+                  value={syncMinutes}
+                  onChange={(e) => setSyncMinutes(Number(e.target.value))}
+                  style={inputStyle}
                 />
               </label>
             </div>
-
-            <div className="flex flex-wrap gap-4 mb-4">
-              <Toggle
-                label="Enabled"
-                checked={form.enabled}
-                onChange={(v) => setProviderField(id, "enabled", v)}
-              />
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                variant="primary"
-                size="sm"
-                loading={actionBusy === `save-${id}`}
-                disabled={isBusy && actionBusy !== `save-${id}`}
-                onClick={() => handleSaveProvider(id)}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 16 }}>
+              <button
+                className="icon-btn primary"
+                disabled={daemonSaving}
+                onClick={handleSaveDaemon}
               >
-                Save
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                loading={actionBusy === `sync-${id}`}
-                disabled={isBusy && actionBusy !== `sync-${id}`}
-                onClick={() => handleSync(id)}
-              >
-                Sync now
-              </Button>
+                {daemonSaving ? "Saving…" : "Save"}
+              </button>
+              {daemonSaved && (
+                <span style={{ fontSize: 12, color: "var(--ok)" }}>Saved!</span>
+              )}
             </div>
-          </Card>
-        )
-      })}
-    </div>
+            {config && (
+              <div
+                style={{
+                  marginTop: 16,
+                  paddingTop: 16,
+                  borderTop: "1px solid var(--border-1)",
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: 12,
+                  fontSize: 12,
+                  color: "var(--fg-3)",
+                }}
+              >
+                <span>
+                  Host:{" "}
+                  <span style={{ color: "var(--fg-2)" }}>
+                    {config.daemon.web_host}:{config.daemon.web_port}
+                  </span>
+                </span>
+                <span>
+                  DB:{" "}
+                  <code style={{ fontFamily: "var(--font-mono)", color: "var(--fg-2)" }}>
+                    {config.daemon.database_path}
+                  </code>
+                </span>
+                <span>
+                  Log level:{" "}
+                  <span style={{ color: "var(--fg-2)" }}>{config.daemon.log_level}</span>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Provider cards */}
+        {PROVIDER_IDS.map((id) => {
+          const form = providerForms[id]
+          const isBusy = actionBusy !== null || busy
+          const color = PROVIDER_COLOR_VARS[id]
+
+          return (
+            <div key={id} className="card">
+              <div className="card-head">
+                <span className="card-title" style={{ color }}>
+                  {providerLabels[id]}
+                </span>
+                <div className="card-actions">
+                  <span
+                    className={`tag${form.enabled ? " ok" : ""}`}
+                  >
+                    {form.enabled ? "Enabled" : "Disabled"}
+                  </span>
+                </div>
+              </div>
+              <div className="card-body">
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 16,
+                    maxWidth: 520,
+                    marginBottom: 16,
+                  }}
+                >
+                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <span style={{ fontSize: 12, color: "var(--fg-3)" }}>Home path</span>
+                    <input
+                      type="text"
+                      value={form.home_path}
+                      onChange={(e) => setProviderField(id, "home_path", e.target.value)}
+                      style={inputStyle}
+                    />
+                  </label>
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <Toggle
+                    label="Enabled"
+                    checked={form.enabled}
+                    onChange={(v) => setProviderField(id, "enabled", v)}
+                  />
+                </div>
+
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button
+                    className="icon-btn primary"
+                    disabled={isBusy && actionBusy !== `save-${id}`}
+                    onClick={() => handleSaveProvider(id)}
+                  >
+                    {actionBusy === `save-${id}` ? "Saving…" : "Save"}
+                  </button>
+                  <button
+                    className="icon-btn"
+                    disabled={isBusy && actionBusy !== `sync-${id}`}
+                    onClick={() => handleSync(id)}
+                  >
+                    {actionBusy === `sync-${id}` ? "Syncing…" : "Sync now"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </>
   )
 }
 
@@ -219,20 +302,46 @@ interface ToggleProps {
 
 function Toggle({ label, checked, onChange }: ToggleProps): React.JSX.Element {
   return (
-    <label className="flex items-center gap-2 cursor-pointer select-none">
+    <label
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        cursor: "pointer",
+        userSelect: "none",
+      }}
+    >
       <div
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 rounded-full transition-colors cursor-pointer
-          ${checked ? "bg-violet-600" : "bg-slate-600"}`}
+        style={{
+          position: "relative",
+          display: "inline-flex",
+          width: 36,
+          height: 20,
+          borderRadius: 99,
+          background: checked ? "var(--accent)" : "var(--border-2)",
+          cursor: "pointer",
+          transition: "background 120ms",
+          flexShrink: 0,
+        }}
       >
         <span
-          className={`inline-block h-4 w-4 mt-0.5 rounded-full bg-white shadow transition-transform
-            ${checked ? "translate-x-4" : "translate-x-0.5"}`}
+          style={{
+            position: "absolute",
+            top: 2,
+            left: checked ? 18 : 2,
+            width: 16,
+            height: 16,
+            borderRadius: 99,
+            background: "white",
+            transition: "left 120ms",
+            boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+          }}
         />
       </div>
-      <span className="text-sm text-slate-300">{label}</span>
+      <span style={{ fontSize: 13, color: "var(--fg-2)" }}>{label}</span>
     </label>
   )
 }
