@@ -1,4 +1,5 @@
 export function formatLargeNumber(value: number): string {
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`
   return String(value)
@@ -28,6 +29,56 @@ export function formatRelative(value: string | null | undefined): string {
   if (diffHrs < 24) return `${diffHrs}h ago`
   const diffDays = Math.floor(diffHrs / 24)
   return `${diffDays}d ago`
+}
+
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+/**
+ * Format a time bucket for chart axes/tooltips.
+ *
+ * Supports buckets like:
+ * - YYYY-MM-DD
+ * - YYYY-MM-DDTHH
+ * - YYYY-MM-DDTHH:MM
+ * - full ISO timestamps (with Z or +00:00 and optional milliseconds)
+ */
+export function formatTimeBucket(bucket: string): string {
+  if (!bucket) return ""
+
+  // day: 2026-05-08
+  if (/^\\d{4}-\\d{2}-\\d{2}$/.test(bucket)) {
+    const [, month, day] = bucket.split("-")
+    const monthName = MONTH_NAMES[parseInt(month, 10) - 1]
+    return `${monthName} ${day}`
+  }
+
+  // hour: 2026-05-08T22
+  if (/^\\d{4}-\\d{2}-\\d{2}T\\d{2}$/.test(bucket)) {
+    const [datePart, hour] = bucket.split("T")
+    const [, month, day] = datePart.split("-")
+    const monthName = MONTH_NAMES[parseInt(month, 10) - 1]
+    return `${monthName} ${day} ${hour}h`
+  }
+
+  // minute: 2026-05-08T22:15
+  if (/^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}$/.test(bucket)) {
+    const [datePart, hm] = bucket.split("T")
+    const [, month, day] = datePart.split("-")
+    const monthName = MONTH_NAMES[parseInt(month, 10) - 1]
+    return `${monthName} ${day} ${hm}`
+  }
+
+  // full ISO string -> local date formatting
+  const d = new Date(bucket)
+  if (!isNaN(d.getTime())) {
+    const monthName = MONTH_NAMES[d.getMonth()]
+    const day = String(d.getDate()).padStart(2, "0")
+    const hh = String(d.getHours()).padStart(2, "0")
+    const mm = String(d.getMinutes()).padStart(2, "0")
+    return `${monthName} ${day} ${hh}:${mm}`
+  }
+
+  return bucket
 }
 
 /** Return the last path segment (works for both / and \ separators). */

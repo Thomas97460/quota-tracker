@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,29 @@ _GROUP_BY_EXPR: dict[str, str] = {
     "day": "substr(timestamp, 1, 10)",
     "hour": "substr(timestamp, 1, 13)",
 }
+
+
+def _normalize_iso_param(value: str | None) -> str | None:
+    """Normalize ISO timestamps coming from the frontend for safe TEXT comparisons.
+
+    We store timestamps as TEXT (Python isoformat with +00:00). Some clients send RFC3339 "Z"
+    and/or milliseconds. String comparisons like `timestamp >= ?` can break if formats differ.
+    """
+
+    if not value:
+        return None
+    raw = value.strip()
+    if not raw:
+        return None
+    try:
+        # Accept "...Z" and milliseconds.
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+    except ValueError:
+        return raw
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=UTC)
+    dt = dt.astimezone(UTC).replace(microsecond=0)
+    return dt.isoformat()
 
 
 def _health_payload(db_path: Path, scheduler_enabled: bool) -> dict[str, object]:
@@ -143,6 +167,8 @@ def register_routes(
     ) -> dict[str, Any]:
         """Return filtered quota history."""
 
+        start = _normalize_iso_param(start)
+        end = _normalize_iso_param(end)
         if order not in ("asc", "desc"):
             raise HTTPException(status_code=400, detail="order must be 'asc' or 'desc'")
         conn = connect_db(str(db_path))
@@ -157,13 +183,13 @@ def register_routes(
                 query += " AND quota_name = ?"
                 params.append(quota_name)
             if start:
-                query += " AND timestamp >= ?"
+                query += " AND datetime(timestamp) >= datetime(?)"
                 params.append(start)
             if end:
-                query += " AND timestamp <= ?"
+                query += " AND datetime(timestamp) <= datetime(?)"
                 params.append(end)
             direction = "ASC" if order == "asc" else "DESC"
-            query += f" ORDER BY timestamp {direction} LIMIT ?"
+            query += f" ORDER BY datetime(timestamp) {direction} LIMIT ?"
             params.append(limit)
             rows = conn.execute(query, tuple(params)).fetchall()
             return {"items": [dict(row) for row in rows]}
@@ -180,6 +206,8 @@ def register_routes(
     ) -> dict[str, Any]:
         """Return token usage aggregated by project_path."""
 
+        start = _normalize_iso_param(start)
+        end = _normalize_iso_param(end)
         conn = connect_db(str(db_path))
         try:
             apply_migrations(conn)
@@ -189,10 +217,10 @@ def register_routes(
                 where += " AND t.provider_id = ?"
                 params.append(provider_id)
             if start:
-                where += " AND t.timestamp >= ?"
+                where += " AND datetime(t.timestamp) >= datetime(?)"
                 params.append(start)
             if end:
-                where += " AND t.timestamp <= ?"
+                where += " AND datetime(t.timestamp) <= datetime(?)"
                 params.append(end)
             count_row = conn.execute(
                 f"SELECT COUNT(DISTINCT s.project_path) "
@@ -202,7 +230,8 @@ def register_routes(
             total = count_row[0] if count_row else 0
             rows = conn.execute(
                 f"SELECT s.project_path, s.project_name, "
-                f"SUM(t.total_tokens) as total_tokens, COUNT(DISTINCT t.session_id) as session_count "
+                f"SUM(t.total_tokens) as total_tokens, "
+                f"COUNT(DISTINCT t.session_id) as session_count "
                 f"FROM token_usage_history t JOIN sessions s ON t.session_id = s.id {where} "
                 f"GROUP BY s.project_path "
                 f"ORDER BY total_tokens DESC LIMIT ? OFFSET ?",
@@ -225,6 +254,8 @@ def register_routes(
     ) -> dict[str, Any]:
         """Return filtered sessions."""
 
+        start = _normalize_iso_param(start)
+        end = _normalize_iso_param(end)
         conn = connect_db(str(db_path))
         try:
             apply_migrations(conn)
@@ -240,10 +271,10 @@ def register_routes(
                 query += " AND model_name = ?"
                 params.append(model_name)
             if start:
-                query += " AND last_seen_at >= ?"
+                query += " AND datetime(last_seen_at) >= datetime(?)"
                 params.append(start)
             if end:
-                query += " AND last_seen_at <= ?"
+                query += " AND datetime(last_seen_at) <= datetime(?)"
                 params.append(end)
             query += " ORDER BY last_seen_at DESC"
             rows = conn.execute(query, tuple(params)).fetchall()
@@ -261,6 +292,8 @@ def register_routes(
     ) -> dict[str, Any]:
         """Return aggregated token usage with optional time and model filters."""
 
+        start = _normalize_iso_param(start)
+        end = _normalize_iso_param(end)
         if group_by not in _GROUP_BY_EXPR:
             raise HTTPException(status_code=400, detail="invalid group_by")
         expr = _GROUP_BY_EXPR[group_by]
@@ -286,10 +319,10 @@ def register_routes(
                 query += " AND model_name = ?"
                 params.append(model_name)
             if start:
-                query += " AND timestamp >= ?"
+                query += " AND datetime(timestamp) >= datetime(?)"
                 params.append(start)
             if end:
-                query += " AND timestamp <= ?"
+                query += " AND datetime(timestamp) <= datetime(?)"
                 params.append(end)
             query += " GROUP BY bucket ORDER BY bucket"
             rows = conn.execute(query, tuple(params)).fetchall()

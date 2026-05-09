@@ -55,6 +55,7 @@ export function ProviderDetail(): React.JSX.Element {
     quotaHistory,
     sessions,
     timeSeries,
+    timeSeriesGroupBy,
     modelUsage,
     projectUsage,
     projectUsageTotal,
@@ -187,7 +188,9 @@ export function ProviderDetail(): React.JSX.Element {
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-slate-300">
             Tokens over time
-            <span className="ml-2 text-xs font-normal text-slate-500">by kind · hour</span>
+            <span className="ml-2 text-xs font-normal text-slate-500">
+              by kind · {timeSeriesGroupBy}
+            </span>
           </h2>
           <select
             value={selectedModel}
@@ -208,7 +211,21 @@ export function ProviderDetail(): React.JSX.Element {
       {/* Row 3: Pie breakdown + Tokens by model */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
-          <h2 className="text-sm font-semibold text-slate-300 mb-3">Token types</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-slate-300">Token types</h2>
+            <select
+              value={selectedModel}
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="text-xs bg-slate-800 border border-slate-700 text-slate-300 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500"
+            >
+              <option value="all">All models</option>
+              {[...new Set(modelUsage.map((u) => u.bucket))].sort().map((model) => (
+                <option key={model} value={model}>
+                  {model}
+                </option>
+              ))}
+            </select>
+          </div>
           <TokenBreakdownPie rows={timeSeries} />
         </Card>
         <Card>

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { apiGet } from "../api"
+import { apiGet, apiSend } from "../api"
 import type { ProjectUsageRow, ProviderId, ProviderSummary, QuotaRow, SessionRow, UsageRow } from "../types"
 
 export type Range = "24h" | "7d" | "30d" | "all"
@@ -13,6 +13,8 @@ interface DashboardState {
   sessions: SessionRow[]
   /** Time-series usage at the requested granularity, scoped to provider+range. */
   timeSeries: UsageRow[]
+  /** Effective group_by used for time series (hour/day). */
+  timeSeriesGroupBy: "hour" | "day"
   /** Per-provider time-series at the requested granularity (Overview only). */
   timeSeriesByProvider: Record<ProviderId, UsageRow[]>
   /** Per-model usage totals, scoped to provider+range. */
@@ -52,6 +54,12 @@ function buildQuery(params: Record<string, string | number | undefined>): string
 const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot"]
 const PROJECT_PAGE_SIZE = 5
 
+function timeSeriesGroupByFor(range: Range): "hour" | "day" {
+  // Heuristic to avoid overly spiky / crowded charts on long ranges.
+  if (range === "30d" || range === "all") return "day"
+  return "hour"
+}
+
 export function useDashboard(
   providerId: ProviderId | undefined,
   range: Range,
@@ -62,6 +70,7 @@ export function useDashboard(
   const [quotaHistory, setQuotaHistory] = useState<QuotaRow[]>([])
   const [sessions, setSessions] = useState<SessionRow[]>([])
   const [timeSeries, setTimeSeries] = useState<UsageRow[]>([])
+  const [timeSeriesGroupBy, setTimeSeriesGroupBy] = useState<"hour" | "day">("hour")
   const [timeSeriesByProvider, setTimeSeriesByProvider] = useState<
     Record<ProviderId, UsageRow[]>
   >({ gemini: [], codex: [], copilot: [] })
@@ -74,7 +83,16 @@ export function useDashboard(
   const [error, setError] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
 
-  const refresh = useCallback(() => setTick((t) => t + 1), [])
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    try {
+      const pId = providerId ?? "all"
+      await apiSend("POST", `/api/providers/${pId}/probe`)
+    } catch (e) {
+      console.warn("Probe failed", e)
+    }
+    setTick((t) => t + 1)
+  }, [providerId])
 
   // Main data fetch — re-runs when provider/range/granularity/tick changes.
   useEffect(() => {
@@ -86,23 +104,41 @@ export function useDashboard(
     const scope = { provider_id: providerId, start }
     // Apply model filter only to the time-series fetch.
     const modelName = modelFilter && modelFilter !== "all" ? modelFilter : undefined
+    const groupByTime = timeSeriesGroupByFor(range)
+    setTimeSeriesGroupBy(groupByTime)
+
+    const modelCalls: Promise<{ items: UsageRow[] }>[] = []
+    if (providerId) {
+      modelCalls.push(
+        apiGet<{ items: UsageRow[] }>(
+          `/api/token-usage${buildQuery({ ...scope, group_by: "model" })}`,
+        ),
+      )
+    } else {
+      // Overview: fetch per-provider model usage so we can keep provider identity for coloring.
+      for (const pid of PROVIDER_IDS) {
+        modelCalls.push(
+          apiGet<{ items: UsageRow[] }>(
+            `/api/token-usage${buildQuery({ provider_id: pid, start, group_by: "model" })}`,
+          ),
+        )
+      }
+    }
 
     const calls: Promise<unknown>[] = [
       apiGet<{ providers: ProviderSummary[] }>("/api/providers"),
       apiGet<{ items: QuotaRow[] }>(
         `/api/quotas${buildQuery({ provider_id: providerId, limit: 200 })}`,
       ),
-      // Chronological history for the chart (asc order)
+      // Fetch the newest points first, then sort ascending for chart rendering.
       apiGet<{ items: QuotaRow[] }>(
-        `/api/quotas${buildQuery({ provider_id: providerId, start, order: "asc", limit: 1000 })}`,
+        `/api/quotas${buildQuery({ provider_id: providerId, start, order: "desc", limit: 2000 })}`,
       ),
       apiGet<{ items: SessionRow[] }>(`/api/sessions${buildQuery(scope)}`),
       apiGet<{ items: UsageRow[] }>(
-        `/api/token-usage${buildQuery({ ...scope, model_name: modelName, group_by: "hour" })}`,
+        `/api/token-usage${buildQuery({ ...scope, model_name: modelName, group_by: groupByTime })}`,
       ),
-      apiGet<{ items: UsageRow[] }>(
-        `/api/token-usage${buildQuery({ ...scope, group_by: "model" })}`,
-      ),
+      ...modelCalls,
       apiGet<{ items: UsageRow[] }>(
         `/api/token-usage${buildQuery({ start, group_by: "provider" })}`,
       ),
@@ -113,7 +149,7 @@ export function useDashboard(
       for (const pid of PROVIDER_IDS) {
         calls.push(
           apiGet<{ items: UsageRow[] }>(
-            `/api/token-usage${buildQuery({ provider_id: pid, start, group_by: "hour" })}`,
+            `/api/token-usage${buildQuery({ provider_id: pid, start, group_by: groupByTime })}`,
           ),
         )
       }
@@ -122,31 +158,40 @@ export function useDashboard(
     Promise.all(calls)
       .then((results) => {
         if (cancelled) return
-        const [
-          provRes,
-          quotaRes,
-          quotaHistRes,
-          sessRes,
-          tsRes,
-          modelRes,
-          providerRes,
-          ...providerSeries
-        ] = results as [
+        const [provRes, quotaRes, quotaHistRes, sessRes, tsRes, ...rest] = results as [
           { providers: ProviderSummary[] },
           { items: QuotaRow[] },
           { items: QuotaRow[] },
           { items: SessionRow[] },
           { items: UsageRow[] },
-          { items: UsageRow[] },
-          { items: UsageRow[] },
-          ...{ items: UsageRow[] }[],
+          ...unknown[],
         ]
+        let idx = 0
+        const modelResults = rest.slice(idx, idx + modelCalls.length) as { items: UsageRow[] }[]
+        idx += modelCalls.length
+        const providerRes = rest[idx] as { items: UsageRow[] }
+        idx += 1
+        const providerSeries = rest.slice(idx) as { items: UsageRow[] }[]
+
         setProviders(provRes.providers)
         setQuotas(quotaRes.items)
-        setQuotaHistory(quotaHistRes.items)
+        setQuotaHistory([...quotaHistRes.items].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
         setSessions(sessRes.items)
         setTimeSeries(tsRes.items)
-        setModelUsage(modelRes.items)
+
+        if (providerId) {
+          const rows = modelResults[0]?.items ?? []
+          setModelUsage(rows.map((r) => ({ ...r, provider_id: providerId })))
+        } else {
+          const merged: UsageRow[] = []
+          for (let i = 0; i < PROVIDER_IDS.length; i++) {
+            const pid = PROVIDER_IDS[i]
+            const rows = modelResults[i]?.items ?? []
+            for (const row of rows) merged.push({ ...row, provider_id: pid })
+          }
+          setModelUsage(merged)
+        }
+
         setProviderTotals(providerRes.items)
         if (providerSeries.length === 3) {
           setTimeSeriesByProvider({
@@ -210,6 +255,7 @@ export function useDashboard(
     quotaHistory,
     sessions,
     timeSeries,
+    timeSeriesGroupBy,
     timeSeriesByProvider,
     modelUsage,
     providerTotals,

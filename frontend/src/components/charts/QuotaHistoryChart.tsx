@@ -10,6 +10,7 @@ import {
   YAxis,
 } from "recharts"
 import type { QuotaRow } from "../../types"
+import { formatTimeBucket } from "../../utils"
 
 interface QuotaHistoryChartProps {
   rows: QuotaRow[]
@@ -18,12 +19,6 @@ interface QuotaHistoryChartProps {
 
 // Distinct colours for up to ~6 quota names
 const LINE_COLORS = ["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#ec4899"]
-
-function formatTimestamp(iso: string): string {
-  const d = new Date(iso)
-  if (isNaN(d.getTime())) return iso
-  return new Intl.DateTimeFormat("en-US", { month: "short", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(d)
-}
 
 export function QuotaHistoryChart({ rows, className = "" }: QuotaHistoryChartProps): React.JSX.Element {
   const { data, names } = useMemo(() => {
@@ -36,7 +31,7 @@ export function QuotaHistoryChart({ rows, className = "" }: QuotaHistoryChartPro
     }
     const data = [...byTs.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([ts, vals]) => ({ label: formatTimestamp(ts), ...vals }))
+      .map(([ts, vals]) => ({ bucket: ts, ...vals }))
     return { data, names: allNames }
   }, [rows])
 
@@ -54,11 +49,12 @@ export function QuotaHistoryChart({ rows, className = "" }: QuotaHistoryChartPro
         <LineChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
           <XAxis
-            dataKey="label"
+            dataKey="bucket"
             tick={{ fill: "#94a3b8", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
+            tickFormatter={(v: string) => formatTimeBucket(v)}
           />
           <YAxis
             domain={[0, 100]}
@@ -77,6 +73,7 @@ export function QuotaHistoryChart({ rows, className = "" }: QuotaHistoryChartPro
               fontSize: 12,
             }}
             labelStyle={{ color: "#94a3b8" }}
+            labelFormatter={(v: string) => formatTimeBucket(v)}
             formatter={(value: number, name: string) => [`${value?.toFixed(1) ?? "n/a"}%`, name]}
           />
           <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />

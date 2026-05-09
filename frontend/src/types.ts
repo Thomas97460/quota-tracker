@@ -42,6 +42,8 @@ export interface SessionRow {
 /** Returned by /api/token-usage — bucket depends on group_by param */
 export interface UsageRow {
   bucket: string
+  /** Client-side only: present when the UI merges per-provider responses. */
+  provider_id?: ProviderId
   input_tokens: number
   output_tokens: number
   cached_tokens: number
@@ -56,6 +58,11 @@ export interface ProjectUsageRow {
   project_name: string | null
   total_tokens: number
   session_count: number
+}
+
+export interface ProjectUsageResponse {
+  items: ProjectUsageRow[]
+  total: number
 }
 
 export interface DaemonConfig {

@@ -91,7 +91,7 @@ def _run_interactive_flow(config: AppConfig, home: Path) -> AppConfig:
 
         if enabled:
             home_default = detected_home or provider_cfg.home_path
-            provider_cfg.home_path = _input_with_default(f"Home path", home_default)
+            provider_cfg.home_path = _input_with_default("Home path", home_default)
 
     # ── Step 3/3: Daemon settings ────────────────────────────────────────────
     ui.step(3, 3, "Daemon settings")

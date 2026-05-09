@@ -3,12 +3,13 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts"
-import type { UsageRow } from "../../types"
+import type { ProviderId, UsageRow } from "../../types"
 import { formatLargeNumber } from "../../utils"
 
 interface ModelBarChartProps {
@@ -16,16 +17,29 @@ interface ModelBarChartProps {
   className?: string
 }
 
+const PROVIDER_COLORS: Record<ProviderId, string> = {
+  gemini: "#3b82f6",
+  codex: "#10b981",
+  copilot: "#f97316",
+}
+
 export function ModelBarChart({ data, className = "" }: ModelBarChartProps): React.JSX.Element {
   const chartData = useMemo(
-    () =>
-      [...data]
+    () => {
+      const sliced = [...data]
         .sort((a, b) => b.total_tokens - a.total_tokens)
         .slice(0, 15)
-        .map((row) => ({
-          name: row.bucket,
+      const nameCounts = new Map<string, number>()
+      for (const row of sliced) nameCounts.set(row.bucket, (nameCounts.get(row.bucket) ?? 0) + 1)
+      return sliced.map((row) => ({
+        name:
+          row.provider_id && (nameCounts.get(row.bucket) ?? 0) > 1
+            ? `${row.provider_id}: ${row.bucket}`
+            : row.bucket,
           tokens: row.total_tokens,
-        })),
+          provider_id: row.provider_id,
+      }))
+    },
     [data]
   )
 
@@ -66,7 +80,16 @@ export function ModelBarChart({ data, className = "" }: ModelBarChartProps): Rea
             contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: 8, color: "#f1f5f9", fontSize: 12 }}
             formatter={(value: number) => [formatLargeNumber(value), "Tokens"]}
           />
-          <Bar dataKey="tokens" fill="#10b981" radius={[0, 4, 4, 0]} />
+          <Bar dataKey="tokens" radius={[0, 4, 4, 0]}>
+            {chartData.map((entry, index) => (
+              <Cell
+                key={index}
+                fill={
+                  entry.provider_id ? PROVIDER_COLORS[entry.provider_id as ProviderId] : "#10b981"
+                }
+              />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

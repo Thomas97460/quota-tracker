@@ -1,6 +1,7 @@
 """Gemini provider tests."""
 
 import json
+from hashlib import sha256
 from pathlib import Path
 from unittest.mock import patch
 
@@ -38,8 +39,67 @@ def test_gemini_passive_and_incremental(tmp_path: Path) -> None:
     assert len(full.token_usage) == 1
     assert full.token_usage[0]["input_tokens"] == 1
     assert full.parse_failures == 0
+    old_mark = {
+        str(f): {
+            "path": str(f),
+            "size": f.stat().st_size,
+            "mtime": f.stat().st_mtime,
+            "last_event_ts": None,
+        }
+    }
+    backfill = p.passive_scan_incremental(old_mark)
+    assert len(backfill.sessions) == 1
     inc = p.passive_scan_incremental(full.high_water_marks)
     assert len(inc.sessions) == 0
+
+
+def test_gemini_project_hash_to_path(tmp_path: Path) -> None:
+    """Gemini sessions should resolve projectHash to an absolute project_path."""
+    # Candidate path stored in trustedFolders/projects keys.
+    project_path = "/tmp/example-repo"
+    (tmp_path / "trustedFolders.json").write_text(json.dumps({project_path: "TRUST_FOLDER"}))
+    (tmp_path / "projects.json").write_text(
+        json.dumps({"projects": {project_path: "example-repo"}})
+    )
+
+    chats = tmp_path / "tmp" / "x" / "chats"
+    chats.mkdir(parents=True)
+    ph = sha256(project_path.encode("utf-8")).hexdigest()
+    f = chats / "s1.jsonl"
+    f.write_text(
+        json.dumps(
+            {
+                "sessionId": "sess-1",
+                "startTime": "2026-01-01T00:00:00+00:00",
+                "projectHash": ph,
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "gemini",
+                "id": "ev-1",
+                "timestamp": "2026-01-01T00:00:01+00:00",
+                "model": "gemini-2.5-pro",
+                "tokens": {"input": 1, "output": 2, "total": 3},
+            }
+        )
+        + "\n"
+    )
+    p = GeminiProvider(str(tmp_path))
+    out = p.passive_scan_full()
+    assert out.sessions[0].project_path == project_path
+    assert out.sessions[0].project_name == "example-repo"
+    old_mark = {
+        str(f): {
+            "path": str(f),
+            "size": f.stat().st_size,
+            "mtime": f.stat().st_mtime,
+            "last_event_ts": None,
+        }
+    }
+    backfill = p.passive_scan_incremental(old_mark)
+    assert backfill.sessions[0].project_path == project_path
 
 
 def test_gemini_json_chat_file(tmp_path: Path) -> None:
@@ -163,12 +223,25 @@ def test_gemini_edge_cases_in_scan(tmp_path: Path) -> None:
     # JSONL with non-dict record, non-gemini message, gemini with zero tokens
     f = chats / "edge.jsonl"
     f.write_text(
-        json.dumps({"sessionId": "edge", "startTime": "2026-01-01T00:00:00+00:00", "lastUpdated": "2026-01-01T01:00:00+00:00"})
+        json.dumps(
+            {
+                "sessionId": "edge",
+                "startTime": "2026-01-01T00:00:00+00:00",
+                "lastUpdated": "2026-01-01T01:00:00+00:00",
+            }
+        )
         + "\n"
         + "42\n"  # non-dict JSONL record
         + json.dumps({"type": "user", "timestamp": "2026-01-01T00:00:01+00:00", "content": "hi"})
         + "\n"  # non-gemini type
-        + json.dumps({"type": "gemini", "timestamp": "2026-01-01T00:00:02+00:00", "model": "gemini-2.5-pro", "tokens": {"total": 0}})
+        + json.dumps(
+            {
+                "type": "gemini",
+                "timestamp": "2026-01-01T00:00:02+00:00",
+                "model": "gemini-2.5-pro",
+                "tokens": {"total": 0},
+            }
+        )
         + "\n"  # gemini with total=0 — skip
     )
     # JSON with messages that is not a list
@@ -257,14 +330,41 @@ def test_gemini_active_probe_granular(tmp_path: Path) -> None:
     (tmp_path / "oauth_creds.json").write_text(json.dumps(creds))
     p = GeminiProvider(str(tmp_path))
     buckets = [
-        {"model_id": "gemini-2.5-pro", "token_type": "input", "remaining_percent": 70.0, "used_percent": 30.0, "reset_time": None},
-        {"model_id": "gemini-2.5-pro", "token_type": "output", "remaining_percent": 40.0, "used_percent": 60.0, "reset_time": None},
-        {"model_id": "gemini-2.0-flash", "token_type": "input", "remaining_percent": 80.0, "used_percent": 20.0, "reset_time": None},
-        {"model_id": "gemini-2.0-flash-lite", "token_type": "input", "remaining_percent": 50.0, "used_percent": 50.0, "reset_time": None},
+        {
+            "model_id": "gemini-2.5-pro",
+            "token_type": "input",
+            "remaining_percent": 70.0,
+            "used_percent": 30.0,
+            "reset_time": None,
+        },
+        {
+            "model_id": "gemini-2.5-pro",
+            "token_type": "output",
+            "remaining_percent": 40.0,
+            "used_percent": 60.0,
+            "reset_time": None,
+        },
+        {
+            "model_id": "gemini-2.0-flash",
+            "token_type": "input",
+            "remaining_percent": 80.0,
+            "used_percent": 20.0,
+            "reset_time": None,
+        },
+        {
+            "model_id": "gemini-2.0-flash-lite",
+            "token_type": "input",
+            "remaining_percent": 50.0,
+            "used_percent": 50.0,
+            "reset_time": None,
+        },
     ]
     with (
         patch("quota_tracker.providers.gemini._get_access_token", return_value="tok"),
-        patch("quota_tracker.providers.gemini.post_json", return_value={"cloudaicompanionProject": "proj"}),
+        patch(
+            "quota_tracker.providers.gemini.post_json",
+            return_value={"cloudaicompanionProject": "proj"},
+        ),
         patch("quota_tracker.providers.gemini._retrieve_quota_buckets", return_value=buckets),
     ):
         records = p.active_probe()

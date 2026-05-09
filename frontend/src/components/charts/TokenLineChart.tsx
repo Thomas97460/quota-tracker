@@ -9,26 +9,16 @@ import {
   YAxis,
 } from "recharts"
 import type { UsageRow } from "../../types"
-import { formatLargeNumber } from "../../utils"
+import { formatLargeNumber, formatTimeBucket } from "../../utils"
 
 interface TokenLineChartProps {
   data: UsageRow[]
   className?: string
 }
 
-function formatBucket(bucket: string): string {
-  // bucket is like "2024-01-15T14" for hour grouping
-  if (bucket.length === 13) {
-    const [datePart, hour] = bucket.split("T")
-    const [, month, day] = datePart.split("-")
-    return `${month}/${day} ${hour}h`
-  }
-  return bucket
-}
-
 export function TokenLineChart({ data, className = "" }: TokenLineChartProps): React.JSX.Element {
   const chartData = useMemo(
-    () => data.map((row) => ({ label: formatBucket(row.bucket), tokens: row.total_tokens })),
+    () => data.map((row) => ({ bucket: row.bucket, tokens: row.total_tokens })),
     [data]
   )
 
@@ -52,11 +42,12 @@ export function TokenLineChart({ data, className = "" }: TokenLineChartProps): R
           </defs>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
           <XAxis
-            dataKey="label"
+            dataKey="bucket"
             tick={{ fill: "#94a3b8", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
+            tickFormatter={(v: string) => formatTimeBucket(v)}
           />
           <YAxis
             tick={{ fill: "#94a3b8", fontSize: 10 }}
@@ -68,6 +59,7 @@ export function TokenLineChart({ data, className = "" }: TokenLineChartProps): R
           <Tooltip
             contentStyle={{ backgroundColor: "#1e293b", border: "1px solid #334155", borderRadius: 8, color: "#f1f5f9", fontSize: 12 }}
             labelStyle={{ color: "#94a3b8" }}
+            labelFormatter={(v: string) => formatTimeBucket(v)}
             formatter={(value: number) => [formatLargeNumber(value), "Tokens"]}
           />
           <Area

@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import shutil
-import sys
 
 import quota_tracker._ui as ui
-
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -135,7 +133,7 @@ def test_prompt_placeholder(monkeypatch, capsys) -> None:
     result = ui.prompt("Enter value", placeholder="e.g. foo")
     # No default means empty string fallback
     assert result == ""
-    out = capsys.readouterr()  # just ensure no crash
+    capsys.readouterr()  # just ensure no crash
 
 
 def test_prompt_placeholder_tty(monkeypatch, capsys) -> None:

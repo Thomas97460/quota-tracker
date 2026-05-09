@@ -54,6 +54,7 @@ _COPILOT_DEFAULT_API_URL = "https://api.githubcopilot.com"
 _COPILOT_PROBE_MODEL = "gpt-5-mini"
 _COPILOT_INTEGRATION_ID = "copilot-developer-cli"
 _COPILOT_API_VERSION = "2026-01-09"
+_PASSIVE_SCAN_MARK_VERSION = 2
 
 
 def _copilot_cli_version() -> str:
@@ -200,13 +201,25 @@ class CopilotProvider:
             st = p.stat()
             key = str(p)
             prev = hwm.get(key)
-            mark = {"path": key, "size": st.st_size, "mtime": st.st_mtime, "last_event_ts": None}
-            if prev and prev.get("size") == st.st_size and prev.get("mtime") == st.st_mtime:
+            mark = {
+                "path": key,
+                "size": st.st_size,
+                "mtime": st.st_mtime,
+                "last_event_ts": None,
+                "parser_version": _PASSIVE_SCAN_MARK_VERSION,
+            }
+            if (
+                prev
+                and prev.get("size") == st.st_size
+                and prev.get("mtime") == st.st_mtime
+                and prev.get("parser_version") == _PASSIVE_SCAN_MARK_VERSION
+            ):
                 marks[key] = mark
                 continue
             sid = p.parent.name
             models_seen: set[str] = set()
             current_model: str | None = None
+            cwd: str | None = None
             last_ts = None
             for index, line in enumerate(p.read_text(errors="replace").splitlines()):
                 if not line.strip():
@@ -217,6 +230,14 @@ class CopilotProvider:
                     failures += 1
                     continue
                 last_ts = ev.get("timestamp") or last_ts
+                if ev.get("type") == "session.start":
+                    data = ev.get("data")
+                    if isinstance(data, dict):
+                        ctx = data.get("context")
+                        if isinstance(ctx, dict):
+                            maybe = ctx.get("cwd") or ctx.get("gitRoot")
+                            if isinstance(maybe, str) and maybe.strip():
+                                cwd = maybe.strip()
                 m = ev.get("model") or ev.get("modelName")
                 if m:
                     current_model = str(m)
@@ -290,11 +311,11 @@ class CopilotProvider:
                     "copilot",
                     sid,
                     next(iter(models_seen), "unknown"),
-                    None,
-                    None,
+                    cwd,
+                    Path(cwd).name if cwd else None,
                     last_ts,
                     last_ts,
-                    {"models_seen": sorted(models_seen)},
+                    {"models_seen": sorted(models_seen), "source_file": key},
                 )
             )
             mark["last_event_ts"] = last_ts

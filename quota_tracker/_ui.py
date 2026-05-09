@@ -238,7 +238,7 @@ def confirm(question: str, default: bool = True) -> bool:
 
 def box(lines: list[str], title: str | None = None) -> None:
     """Print a rounded unicode box around the given lines."""
-    width = max((len(l) for l in lines), default=0) + 4
+    width = max((len(line) for line in lines), default=0) + 4
     if title:
         width = max(width, len(title) + 6)
 

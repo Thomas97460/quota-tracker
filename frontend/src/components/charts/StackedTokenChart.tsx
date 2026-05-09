@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts"
 import type { ProviderId, UsageRow } from "../../types"
-import { formatLargeNumber } from "../../utils"
+import { formatLargeNumber, formatTimeBucket } from "../../utils"
 
 export type StackMode = "provider" | "kind"
 
@@ -37,23 +37,6 @@ interface StackedTokenChartProps {
   className?: string
 }
 
-const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
-
-function formatBucket(bucket: string): string {
-  if (bucket.length === 13) {
-    const [datePart, hour] = bucket.split("T")
-    const [, month, day] = datePart.split("-")
-    const monthName = MONTH_NAMES[parseInt(month, 10) - 1]
-    return `${monthName} ${day} ${hour}h`
-  }
-  if (bucket.length === 10) {
-    const [, month, day] = bucket.split("-")
-    const monthName = MONTH_NAMES[parseInt(month, 10) - 1]
-    return `${monthName} ${day}`
-  }
-  return bucket
-}
-
 function unionBuckets(rowsByKey: Record<string, UsageRow[]>): string[] {
   const set = new Set<string>()
   for (const list of Object.values(rowsByKey)) {
@@ -70,7 +53,7 @@ function buildProviderRows(byProvider: Record<ProviderId, UsageRow[]>) {
     copilot: new Map(byProvider.copilot.map((r) => [r.bucket, r.total_tokens])),
   }
   return buckets.map((bucket) => ({
-    label: formatBucket(bucket),
+    bucket,
     gemini: indexed.gemini.get(bucket) ?? 0,
     codex: indexed.codex.get(bucket) ?? 0,
     copilot: indexed.copilot.get(bucket) ?? 0,
@@ -81,7 +64,7 @@ function buildKindRows(rows: UsageRow[]) {
   return [...rows]
     .sort((a, b) => a.bucket.localeCompare(b.bucket))
     .map((row) => ({
-      label: formatBucket(row.bucket),
+      bucket: row.bucket,
       input: row.input_tokens,
       output: row.output_tokens,
       cached: row.cached_tokens,
@@ -127,11 +110,12 @@ export function StackedTokenChart({
         <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
           <XAxis
-            dataKey="label"
+            dataKey="bucket"
             tick={{ fill: "#94a3b8", fontSize: 10 }}
             tickLine={false}
             axisLine={false}
             interval="preserveStartEnd"
+            tickFormatter={(v: string) => formatTimeBucket(v)}
           />
           <YAxis
             tick={{ fill: "#94a3b8", fontSize: 10 }}
@@ -149,6 +133,7 @@ export function StackedTokenChart({
               fontSize: 12,
             }}
             labelStyle={{ color: "#94a3b8" }}
+            labelFormatter={(v: string) => formatTimeBucket(v)}
             formatter={(value: number, name: string) => [formatLargeNumber(value), name]}
           />
           <Legend wrapperStyle={{ fontSize: 11, color: "#94a3b8" }} />
@@ -162,6 +147,8 @@ export function StackedTokenChart({
               fill={color}
               fillOpacity={0.55}
               strokeWidth={1.5}
+              dot={false}
+              activeDot={{ r: 4, fill: color }}
             />
           ))}
         </AreaChart>

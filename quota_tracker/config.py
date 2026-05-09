@@ -29,7 +29,7 @@ class DaemonConfig(BaseModel):
     """Global daemon settings."""
 
     sync_interval_minutes: int = 5
-    active_probe_interval_minutes: int = 60
+    active_probe_interval_minutes: int = 5
     passive_sync_interval_minutes: int = 15
     web_host: str = DEFAULT_WEB_HOST
     web_port: int = DEFAULT_WEB_PORT

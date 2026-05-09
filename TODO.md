@@ -9,5 +9,4 @@ If a request requires logic not present in those scripts, do **not** invent it â
 
 ## Needs R&D (not in audit scripts)
 
-- Copilot session project_path / cwd extraction
-- Gemini session project_path / cwd extraction
+N/A

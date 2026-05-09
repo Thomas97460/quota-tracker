@@ -13,6 +13,13 @@ def test_copilot_passive_and_incremental(tmp_path: Path) -> None:
     f.write_text(
         "\n".join(
             [
+                json.dumps(
+                    {
+                        "type": "session.start",
+                        "timestamp": "2026-01-01T00:00:00+00:00",
+                        "data": {"context": {"cwd": "/tmp/repo"}},
+                    }
+                ),
                 json.dumps({"timestamp": "2026-01-01T00:00:00+00:00", "model": "gpt-4.1"}),
                 json.dumps(
                     {"timestamp": "2026-01-01T00:01:00+00:00", "metrics": {"latencyMs": 12}}
@@ -64,6 +71,8 @@ def test_copilot_passive_and_incremental(tmp_path: Path) -> None:
     p = CopilotProvider(str(tmp_path))
     r1 = p.passive_scan_full()
     assert len(r1.sessions) == 1
+    assert r1.sessions[0].project_path == "/tmp/repo"
+    assert r1.sessions[0].project_name == "repo"
     assert len(r1.token_usage) == 3
     assert r1.token_usage[0]["provider_id"] == "copilot"
     assert r1.token_usage[0]["external_session_id"] == "abc"
@@ -75,6 +84,17 @@ def test_copilot_passive_and_incremental(tmp_path: Path) -> None:
     assert r1.token_usage[1]["total_tokens"] == 12
     assert r1.token_usage[2]["model_name"] == "gpt-5.3-codex"
     assert r1.token_usage[2]["total_tokens"] == 35
+    old_mark = {
+        str(f): {
+            "path": str(f),
+            "size": f.stat().st_size,
+            "mtime": f.stat().st_mtime,
+            "last_event_ts": None,
+        }
+    }
+    backfill = p.passive_scan_incremental(old_mark)
+    assert len(backfill.sessions) == 1
+    assert backfill.sessions[0].project_path == "/tmp/repo"
     r2 = p.passive_scan_incremental(r1.high_water_marks)
     assert len(r2.sessions) == 0
     assert len(r2.token_usage) == 0

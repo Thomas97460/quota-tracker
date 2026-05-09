@@ -31,6 +31,7 @@ _CODE_ASSIST_METADATA: dict[str, str] = {
 _OAUTH_CLIENT_ID = "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com"
 _OAUTH_CLIENT_SECRET = "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"
 _OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
+_PASSIVE_SCAN_MARK_VERSION = 2
 
 
 def _code_assist_url(method: str) -> str:
@@ -125,6 +126,49 @@ class GeminiProvider:
     def __init__(self, home: str):
         """Initialize provider with home path."""
         self.home = Path(home).expanduser()
+        self._project_hash_map: dict[str, str] | None = None
+
+    def _load_project_hash_map(self) -> dict[str, str]:
+        """Build a map from projectHash -> absolute project path.
+
+        Observed local shape: projectHash == sha256(path_string).hexdigest().
+        We load candidates from both trustedFolders.json and projects.json keys.
+        """
+
+        if self._project_hash_map is not None:
+            return self._project_hash_map
+        out: dict[str, str] = {}
+
+        def add_path(p: str) -> None:
+            s = str(p).strip()
+            if not s:
+                return
+            # Preserve exact string used by Gemini (usually absolute paths).
+            h = sha256(s.encode("utf-8")).hexdigest()
+            out[h] = s
+
+        trusted_path = self.home / "trustedFolders.json"
+        if trusted_path.exists():
+            try:
+                raw = json.loads(trusted_path.read_text(encoding="utf-8", errors="replace"))
+                if isinstance(raw, dict):
+                    for key in raw.keys():
+                        add_path(str(key))
+            except Exception:
+                pass
+
+        projects_path = self.home / "projects.json"
+        if projects_path.exists():
+            try:
+                raw = json.loads(projects_path.read_text(encoding="utf-8", errors="replace"))
+                if isinstance(raw, dict) and isinstance(raw.get("projects"), dict):
+                    for key in raw["projects"].keys():
+                        add_path(str(key))
+            except Exception:
+                pass
+
+        self._project_hash_map = out
+        return out
 
     def _discover_chat_files(self) -> list[Path]:
         """Discover supported Gemini chat JSON/JSONL files under home/tmp."""
@@ -172,7 +216,6 @@ class GeminiProvider:
         sid = path.stem
         project_hash = None
         start_time = None
-        last_updated = None
         messages: list[dict[str, Any]] = []
         failures = 0
         for line in path.read_text(errors="replace").splitlines():
@@ -190,14 +233,8 @@ class GeminiProvider:
                 sid = rec.get("sessionId") or sid
                 project_hash = rec.get("projectHash") or project_hash
                 start_time = rec.get("startTime") or start_time
-                lu = rec.get("lastUpdated")
-                if lu is not None:
-                    last_updated = lu
                 continue
             if "$set" in rec and isinstance(rec["$set"], dict):
-                lu = rec["$set"].get("lastUpdated")
-                if lu is not None:
-                    last_updated = lu
                 continue
             if rec.get("type"):
                 messages.append(rec)
@@ -206,6 +243,7 @@ class GeminiProvider:
     def _scan(self, high_water_marks: dict[str, Any] | None = None) -> PassiveSyncResult:
         """Run full or incremental scan depending on provided high-water marks."""
         high_water_marks = high_water_marks or {}
+        project_hash_map = self._load_project_hash_map()
         sessions = []
         usage: list[dict[str, Any]] = []
         failures = 0
@@ -219,8 +257,14 @@ class GeminiProvider:
                 "size": stat.st_size,
                 "mtime": stat.st_mtime,
                 "last_event_ts": None,
+                "parser_version": _PASSIVE_SCAN_MARK_VERSION,
             }
-            if prev and prev.get("size") == stat.st_size and prev.get("mtime") == stat.st_mtime:
+            if (
+                prev
+                and prev.get("size") == stat.st_size
+                and prev.get("mtime") == stat.st_mtime
+                and prev.get("parser_version") == _PASSIVE_SCAN_MARK_VERSION
+            ):
                 marks[key] = file_mark
                 continue
             if path.suffix == ".jsonl":
@@ -294,13 +338,14 @@ class GeminiProvider:
                     )
                 )
             model_name = max(models, key=lambda m: models[m]) if models else "unknown"
+            project_path = project_hash_map.get(project_hash) if project_hash else None
             sessions.append(
                 normalize_session(
                     provider_id="gemini",
                     external_session_id=sid,
                     model_name=model_name,
-                    project_path=None,
-                    project_name=None,
+                    project_path=project_path,
+                    project_name=Path(project_path).name if project_path else None,
                     created_at=start_time or last_ts,
                     last_seen_at=last_ts,
                     metadata={

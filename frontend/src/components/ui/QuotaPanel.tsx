@@ -9,6 +9,47 @@ interface QuotaPanelProps {
   latest: QuotaRow[]
 }
 
+function inferredWindowMinutes(providerId: ProviderId, quotaName: string): number | null {
+  const lower = quotaName.toLowerCase()
+
+  // Provider-specific known keys.
+  if (providerId === "codex") {
+    if (lower === "secondary") return 60 * 24 * 7 // weekly
+    if (lower === "primary") return 60 * 5 // 5 hours
+  }
+  if (providerId === "copilot") {
+    // Copilot uses premium_interactions as a monthly-style bucket.
+    if (lower.includes("premium_interactions") || lower.includes("premium-interactions")) {
+      return 60 * 24 * 30
+    }
+  }
+
+  // Generic inference from quota name.
+  if (lower.includes("month")) return 60 * 24 * 30
+  if (lower.includes("week")) return 60 * 24 * 7
+  if (lower.includes("day")) return 60 * 24
+  if (lower.includes("hour") || lower.includes("hr")) return 60
+  if (lower.includes("session")) return 0
+  return null
+}
+
+function sortQuotasBiggestFirst(providerId: ProviderId, rows: QuotaRow[]): QuotaRow[] {
+  const scored = rows.map((q, idx) => {
+    const win =
+      typeof q.window_minutes === "number"
+        ? q.window_minutes
+        : inferredWindowMinutes(providerId, q.quota_name)
+    return { q, idx, win }
+  })
+  scored.sort((a, b) => {
+    const aw = a.win ?? -1
+    const bw = b.win ?? -1
+    if (bw !== aw) return bw - aw
+    return a.idx - b.idx
+  })
+  return scored.map((s) => s.q)
+}
+
 /** Filter Copilot quotas to only premium_interactions and weekly keys. */
 export function filterCopilotQuotas(rows: QuotaRow[]): QuotaRow[] {
   return rows.filter(
@@ -68,7 +109,7 @@ export function displayLabel(providerId: ProviderId, quotaName: string): string 
   }
   if (providerId === "codex") {
     if (quotaName === "primary") return "5 hours"
-    if (quotaName === "secondary") return "Week"
+    if (quotaName === "secondary") return "Weekly"
     return quotaName
   }
   if (providerId === "gemini") {
@@ -84,9 +125,11 @@ export function QuotaPanel({
 }: QuotaPanelProps): React.JSX.Element {
   let visible: QuotaRow[]
   if (providerId === "copilot") {
-    visible = filterCopilotQuotas(latest)
+    visible = sortQuotasBiggestFirst(providerId, filterCopilotQuotas(latest))
   } else if (providerId === "gemini") {
     visible = rollupGeminiQuotas(latest)
+  } else if (providerId === "codex") {
+    visible = sortQuotasBiggestFirst(providerId, latest)
   } else {
     visible = latest
   }
