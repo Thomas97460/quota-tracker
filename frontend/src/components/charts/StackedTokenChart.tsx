@@ -1,16 +1,15 @@
-import React, { useMemo } from "react"
+import React, { useMemo, useState } from "react"
 import {
   Area,
   AreaChart,
   CartesianGrid,
-  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts"
 import type { ProviderId, UsageRow } from "../../types"
-import { chartTickInterval, formatLargeNumber, formatTimeBucket } from "../../utils"
+import { chartTickInterval, formatLargeNumber, formatTimeBucket, formatCost } from "../../utils"
 
 export type StackMode = "provider" | "kind"
 
@@ -36,6 +35,7 @@ interface StackedTokenChartProps {
   rows?: UsageRow[]
   mode: StackMode
   className?: string
+  displayMode?: "tokens" | "cost"
 }
 
 function unionBuckets(rowsByKey: Record<string, UsageRow[]>): string[] {
@@ -46,13 +46,14 @@ function unionBuckets(rowsByKey: Record<string, UsageRow[]>): string[] {
   return [...set].sort()
 }
 
-function buildProviderRows(byProvider: Record<ProviderId, UsageRow[]>) {
+function buildProviderRows(byProvider: Record<ProviderId, UsageRow[]>, mode: "tokens" | "cost") {
   const buckets = unionBuckets(byProvider)
+  const prop = mode === "cost" ? "estimated_cost" : "total_tokens"
   const indexed: Record<ProviderId, Map<string, number>> = {
-    gemini: new Map(byProvider.gemini.map((r) => [r.bucket, r.total_tokens])),
-    codex: new Map(byProvider.codex.map((r) => [r.bucket, r.total_tokens])),
-    copilot: new Map(byProvider.copilot.map((r) => [r.bucket, r.total_tokens])),
-    claude: new Map(byProvider.claude.map((r) => [r.bucket, r.total_tokens])),
+    gemini: new Map(byProvider.gemini.map((r) => [r.bucket, r[prop] ?? 0])),
+    codex: new Map(byProvider.codex.map((r) => [r.bucket, r[prop] ?? 0])),
+    copilot: new Map(byProvider.copilot.map((r) => [r.bucket, r[prop] ?? 0])),
+    claude: new Map(byProvider.claude.map((r) => [r.bucket, r[prop] ?? 0])),
   }
   return buckets.map((bucket) => ({
     bucket,
@@ -63,17 +64,29 @@ function buildProviderRows(byProvider: Record<ProviderId, UsageRow[]>) {
   }))
 }
 
-function buildKindRows(rows: UsageRow[]) {
+function buildKindRows(rows: UsageRow[], mode: "tokens" | "cost") {
   return [...rows]
     .sort((a, b) => a.bucket.localeCompare(b.bucket))
-    .map((row) => ({
-      bucket: row.bucket,
-      input: row.input_tokens,
-      output: row.output_tokens,
-      cached: row.cached_tokens,
-      reasoning: row.reasoning_tokens + row.thoughts_tokens,
-      tool: row.tool_tokens,
-    }))
+    .map((row) => {
+      if (mode === "cost") {
+        return {
+          bucket: row.bucket,
+          input: row.input_cost ?? 0,
+          output: row.output_cost ?? 0,
+          cached: row.cached_cost ?? 0,
+          reasoning: 0, // Costs aren't typically split for reasoning in pricing yet
+          tool: 0,
+        }
+      }
+      return {
+        bucket: row.bucket,
+        input: row.input_tokens,
+        output: row.output_tokens,
+        cached: row.cached_tokens,
+        reasoning: row.reasoning_tokens + row.thoughts_tokens,
+        tool: row.tool_tokens,
+      }
+    })
 }
 
 export function StackedTokenChart({
@@ -81,12 +94,24 @@ export function StackedTokenChart({
   rows,
   mode,
   className = "",
+  displayMode = "tokens",
 }: StackedTokenChartProps): React.JSX.Element {
+  const [hiddenSeries, setHiddenSeries] = useState<Set<string>>(new Set())
+
+  const toggleSeries = (key: string) => {
+    setHiddenSeries(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key)
+      else next.add(key)
+      return next
+    })
+  }
+
   const data = useMemo(() => {
-    if (mode === "provider" && byProvider) return buildProviderRows(byProvider)
-    if (mode === "kind" && rows) return buildKindRows(rows)
+    if (mode === "provider" && byProvider) return buildProviderRows(byProvider, displayMode)
+    if (mode === "kind" && rows) return buildKindRows(rows, displayMode)
     return []
-  }, [mode, byProvider, rows])
+  }, [mode, byProvider, rows, displayMode])
 
   if (data.length === 0) {
     return (
@@ -101,7 +126,7 @@ export function StackedTokenChart({
           fontSize: 13,
         }}
       >
-        No token usage data
+        No usage data
       </div>
     )
   }
@@ -117,55 +142,73 @@ export function StackedTokenChart({
           color: KIND_COLORS[key],
         }))
 
+  const formatter = displayMode === "cost" ? formatCost : formatLargeNumber
+
   return (
-    <div className={className} style={{ width: "100%", height: 240 }}>
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1F232E" vertical={false} />
-          <XAxis
-            dataKey="bucket"
-            tick={{ fill: "#767B8A", fontSize: 10 }}
-            tickLine={false}
-            axisLine={false}
-            interval={chartTickInterval(data.length, 8)}
-            tickFormatter={(v: string) => formatTimeBucket(v)}
-          />
-          <YAxis
-            tick={{ fill: "#767B8A", fontSize: 10 }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={(v: number) => formatLargeNumber(v)}
-            width={48}
-          />
-          <Tooltip
-            contentStyle={{
-              backgroundColor: "#14171F",
-              border: "1px solid #1F232E",
-              borderRadius: 8,
-              color: "#F4F5F8",
-              fontSize: 12,
-            }}
-            labelStyle={{ color: "#767B8A" }}
-            labelFormatter={(v: string) => formatTimeBucket(v)}
-            formatter={(value: number, name: string) => [formatLargeNumber(value), name]}
-          />
-          <Legend wrapperStyle={{ fontSize: 11, color: "#767B8A" }} />
-          {series.map(({ key, color }) => (
-            <Area
-              key={key}
-              type="monotone"
-              dataKey={key}
-              stackId="1"
-              stroke={color}
-              fill={color}
-              fillOpacity={0.45}
-              strokeWidth={1.5}
-              dot={false}
-              activeDot={{ r: 4, fill: color }}
+    <div className={className} style={{ width: "100%" }}>
+      <div style={{ width: "100%", height: 240 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#1F232E" vertical={false} />
+            <XAxis
+              dataKey="bucket"
+              tick={{ fill: "#767B8A", fontSize: 14, fontFamily: "Geist, sans-serif" }}
+              tickLine={false}
+              axisLine={false}
+              interval={chartTickInterval(data.length, 8)}
+              tickFormatter={(v: string) => formatTimeBucket(v)}
             />
-          ))}
-        </AreaChart>
-      </ResponsiveContainer>
+            <YAxis
+              tick={{ fill: "#767B8A", fontSize: 14, fontFamily: "Geist, sans-serif" }}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={(v: number) => formatter(v)}
+              width={65}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#14171F",
+                border: "1px solid #1F232E",
+                borderRadius: 8,
+                color: "#F4F5F8",
+                fontSize: 16,
+              }}
+              labelStyle={{ color: "#767B8A", fontSize: 15 }}
+              labelFormatter={(v: string) => formatTimeBucket(v)}
+              formatter={(value: number, name: string) => [formatter(value), name]}
+            />
+            {series.filter(s => !hiddenSeries.has(s.key)).map(({ key, color }) => (
+              <Area
+                key={key}
+                type="monotone"
+                dataKey={key}
+                stackId="1"
+                stroke={color}
+                fill={color}
+                fillOpacity={0.45}
+                strokeWidth={1.5}
+                dot={false}
+                activeDot={{ r: 4, fill: color }}
+              />
+            ))}
+          </AreaChart>
+        </ResponsiveContainer>
+      </div>
+      <div className="legend" style={{ justifyContent: "center", marginTop: 12 }}>
+        {series.map(({ key, color }) => {
+          const isHidden = hiddenSeries.has(key)
+          return (
+            <div
+              key={key}
+              className={`legend-item${isHidden ? " off" : ""}`}
+              onClick={() => toggleSeries(key)}
+            >
+              <span className="legend-swatch" style={{ ["--c" as string]: color }}></span>
+              <span style={{ textTransform: "capitalize" }}>{key}</span>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 import React, { useMemo } from "react"
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts"
 import type { UsageRow } from "../../types"
-import { formatLargeNumber } from "../../utils"
+import { formatLargeNumber, formatCost } from "../../utils"
 
 interface TokenBreakdownPieProps {
   rows: UsageRow[]
@@ -11,10 +11,11 @@ interface TokenBreakdownPieProps {
 interface Slice {
   label: string
   value: number
+  cost: number
   color: string
 }
 
-function aggregate(rows: UsageRow[]): { total: number; slices: Slice[] } {
+function aggregate(rows: UsageRow[]): { total: number; totalCost: number; slices: Slice[] } {
   const sums = rows.reduce(
     (acc, row) => ({
       input: acc.input + row.input_tokens,
@@ -22,18 +23,23 @@ function aggregate(rows: UsageRow[]): { total: number; slices: Slice[] } {
       cached: acc.cached + row.cached_tokens,
       reasoning: acc.reasoning + row.reasoning_tokens + row.thoughts_tokens,
       tool: acc.tool + row.tool_tokens,
+      inputCost: acc.inputCost + (row.input_cost ?? 0),
+      outputCost: acc.outputCost + (row.output_cost ?? 0),
+      cachedCost: acc.cachedCost + (row.cached_cost ?? 0),
     }),
-    { input: 0, output: 0, cached: 0, reasoning: 0, tool: 0 },
+    { input: 0, output: 0, cached: 0, reasoning: 0, tool: 0, inputCost: 0, outputCost: 0, cachedCost: 0 },
   )
   const total = sums.input + sums.output + sums.cached + sums.reasoning + sums.tool
+  const totalCost = sums.inputCost + sums.outputCost + sums.cachedCost
   return {
     total,
+    totalCost,
     slices: [
-      { label: "Input", value: sums.input, color: "#8B5CF6" },
-      { label: "Output", value: sums.output, color: "#4F8DF7" },
-      { label: "Cached", value: sums.cached, color: "#10B981" },
-      { label: "Reasoning", value: sums.reasoning, color: "#F59E0B" },
-      { label: "Tool", value: sums.tool, color: "#EC4899" },
+      { label: "Input", value: sums.input, cost: sums.inputCost, color: "#8B5CF6" },
+      { label: "Output", value: sums.output, cost: sums.outputCost, color: "#4F8DF7" },
+      { label: "Cached", value: sums.cached, cost: sums.cachedCost, color: "#10B981" },
+      { label: "Reasoning", value: sums.reasoning, cost: 0, color: "#F59E0B" },
+      { label: "Tool", value: sums.tool, cost: 0, color: "#EC4899" },
     ],
   }
 }
@@ -42,7 +48,7 @@ export function TokenBreakdownPie({
   rows,
   className = "",
 }: TokenBreakdownPieProps): React.JSX.Element {
-  const { total, slices } = useMemo(() => aggregate(rows), [rows])
+  const { total, totalCost, slices } = useMemo(() => aggregate(rows), [rows])
   const visible = slices.filter((s) => s.value > 0)
 
   if (total === 0) {
@@ -83,7 +89,7 @@ export function TokenBreakdownPie({
                   border: "1px solid #1F232E",
                   borderRadius: 8,
                   color: "#F4F5F8",
-                  fontSize: 12,
+                  fontSize: 16,
                 }}
                 formatter={(value: number, name: string) => [
                   `${formatLargeNumber(value)} (${((value / total) * 100).toFixed(0)}%)`,
@@ -100,6 +106,11 @@ export function TokenBreakdownPie({
               <div className="l" style={{ fontSize: 10, color: "var(--fg-3)", textTransform: "uppercase", letterSpacing: "0.08em", marginTop: 2 }}>
                 tokens
               </div>
+              {totalCost > 0 && (
+                <div style={{ marginTop: 2, fontSize: 12, color: "var(--ok)", fontWeight: 500 }}>
+                  ~{formatCost(totalCost)}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -114,7 +125,14 @@ export function TokenBreakdownPie({
               <span className="name" style={{ textTransform: "capitalize" }}>
                 {s.label}
               </span>
-              <span className="v">{formatLargeNumber(s.value)}</span>
+              <span className="v" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span>{formatLargeNumber(s.value)}</span>
+                {s.cost > 0 && (
+                  <span style={{ color: "var(--ok)", fontWeight: 500 }}>
+                    (~{formatCost(s.cost)})
+                  </span>
+                )}
+              </span>
               <span className="pct">{((s.value / total) * 100).toFixed(0)}%</span>
             </div>
           ))}

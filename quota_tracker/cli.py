@@ -48,10 +48,14 @@ def build_parser() -> argparse.ArgumentParser:
     config_set.add_argument("--log-level")
 
     scan = sub.add_parser("scan")
-    scan.add_argument("--provider", choices=["all", "gemini", "codex", "copilot", "claude"], default="all")
+    scan.add_argument(
+        "--provider", choices=["all", "gemini", "codex", "copilot", "claude"], default="all"
+    )
     scan.add_argument("--full", action="store_true")
     probe = sub.add_parser("probe")
-    probe.add_argument("--provider", choices=["all", "gemini", "codex", "copilot", "claude"], default="all")
+    probe.add_argument(
+        "--provider", choices=["all", "gemini", "codex", "copilot", "claude"], default="all"
+    )
     probe.add_argument("--dry-run", action="store_true")
     sub.add_parser("daemon")
     sub.add_parser("serve")

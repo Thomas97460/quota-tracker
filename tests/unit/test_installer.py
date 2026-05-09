@@ -116,16 +116,16 @@ def test_interactive_prompts_and_bool_parser(
 
     answers = iter(
         [
-            "y",          # enable gemini
+            "y",  # enable gemini
             gemini_path,  # gemini home path
-            "n",          # enable codex (disabled → no home prompt)
-            "y",          # enable copilot
-            copilot_path, # copilot home path
-            "n",          # enable claude (not detected → no home prompt)
+            "n",  # enable codex (disabled → no home prompt)
+            "y",  # enable copilot
+            copilot_path,  # copilot home path
+            "n",  # enable claude (not detected → no home prompt)
             "127.0.0.1",  # web host
-            "9000",       # web port
-            "5",          # sync interval minutes
-            "y",          # final confirm
+            "9000",  # web port
+            "5",  # sync interval minutes
+            "y",  # final confirm
         ]
     )
     monkeypatch.setattr("builtins.input", lambda prompt: next(answers))
@@ -172,9 +172,7 @@ def test_run_install_interactive_branch(tmp_path: Path, monkeypatch: pytest.Monk
     assert result["service_updated"] is True
 
 
-def test_interactive_undetected_provider(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_interactive_undetected_provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Ensure error_mark branch runs when a provider is not detected."""
     monkeypatch.setenv("NO_COLOR", "1")
     # Only gemini directory exists — codex, copilot, and claude are NOT detected
@@ -182,15 +180,15 @@ def test_interactive_undetected_provider(
 
     answers = iter(
         [
-            "y",                          # enable gemini
-            str(tmp_path / ".gemini"),    # gemini home path
-            "n",                          # enable codex (not detected, default=False)
-            "n",                          # enable copilot (not detected, default=False)
-            "n",                          # enable claude (not detected, default=False)
-            "127.0.0.1",                  # web host
-            "8787",                       # web port
-            "5",                          # sync interval
-            "y",                          # confirm
+            "y",  # enable gemini
+            str(tmp_path / ".gemini"),  # gemini home path
+            "n",  # enable codex (not detected, default=False)
+            "n",  # enable copilot (not detected, default=False)
+            "n",  # enable claude (not detected, default=False)
+            "127.0.0.1",  # web host
+            "8787",  # web port
+            "5",  # sync interval
+            "y",  # confirm
         ]
     )
     monkeypatch.setattr("builtins.input", lambda prompt: next(answers))
@@ -203,9 +201,7 @@ def test_interactive_undetected_provider(
     assert out.claude.enabled is False
 
 
-def test_interactive_decline_reruns_flow(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
+def test_interactive_decline_reruns_flow(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     """Declining the final confirm triggers a second pass."""
     monkeypatch.setenv("NO_COLOR", "1")
     (tmp_path / ".gemini").mkdir()
@@ -215,25 +211,25 @@ def test_interactive_decline_reruns_flow(
     answers = iter(
         [
             # first pass
-            "y",                          # enable gemini
-            str(tmp_path / ".gemini"),    # gemini home path
-            "n",                          # codex
-            "n",                          # copilot
-            "n",                          # claude
-            "127.0.0.1",                  # web host
-            "8787",                       # web port
-            "5",                          # sync interval
-            "n",                          # DECLINE → re-run
+            "y",  # enable gemini
+            str(tmp_path / ".gemini"),  # gemini home path
+            "n",  # codex
+            "n",  # copilot
+            "n",  # claude
+            "127.0.0.1",  # web host
+            "8787",  # web port
+            "5",  # sync interval
+            "n",  # DECLINE → re-run
             # second pass
-            "y",                          # enable gemini
-            str(tmp_path / ".gemini"),    # gemini home path
-            "n",                          # codex
-            "n",                          # copilot
-            "n",                          # claude
-            "127.0.0.1",                  # web host
-            "9999",                       # web port (changed)
-            "5",                          # sync interval
-            "y",                          # confirm
+            "y",  # enable gemini
+            str(tmp_path / ".gemini"),  # gemini home path
+            "n",  # codex
+            "n",  # copilot
+            "n",  # claude
+            "127.0.0.1",  # web host
+            "9999",  # web port (changed)
+            "5",  # sync interval
+            "y",  # confirm
         ]
     )
     monkeypatch.setattr("builtins.input", lambda prompt: next(answers))

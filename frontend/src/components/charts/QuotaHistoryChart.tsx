@@ -62,7 +62,7 @@ export function QuotaHistoryChart({
           <CartesianGrid strokeDasharray="3 3" stroke="#1F232E" vertical={false} />
           <XAxis
             dataKey="bucket"
-            tick={{ fill: "#767B8A", fontSize: 10 }}
+            tick={{ fill: "#767B8A", fontSize: 14, fontFamily: "Geist, sans-serif" }}
             tickLine={false}
             axisLine={false}
             interval={chartTickInterval(data.length, 6)}
@@ -70,10 +70,10 @@ export function QuotaHistoryChart({
           />
           <YAxis
             domain={[0, 100]}
-            tick={{ fill: "#767B8A", fontSize: 10 }}
+            tick={{ fill: "#767B8A", fontSize: 14, fontFamily: "Geist, sans-serif" }}
             tickLine={false}
             axisLine={false}
-            width={36}
+            width={65}
             tickFormatter={(v: number) => `${v}%`}
           />
           <Tooltip
@@ -82,16 +82,16 @@ export function QuotaHistoryChart({
               border: "1px solid #1F232E",
               borderRadius: 8,
               color: "#F4F5F8",
-              fontSize: 12,
+              fontSize: 16,
             }}
-            labelStyle={{ color: "#767B8A" }}
+            labelStyle={{ color: "#767B8A", fontSize: 15 }}
             labelFormatter={(v: string) => formatTimeBucket(v)}
             formatter={(value: number, name: string) => [
               `${value?.toFixed(1) ?? "n/a"}%`,
               name,
             ]}
           />
-          <Legend wrapperStyle={{ fontSize: 11, color: "#767B8A" }} />
+          <Legend wrapperStyle={{ fontSize: 15, color: "#767B8A", fontFamily: "Geist, sans-serif" }} />
           {names.map((name, i) => (
             <Line
               key={name}

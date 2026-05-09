@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,7 @@ from quota_tracker.api.schemas import (
     ProviderActionRequest,
     ProviderPatchRequest,
 )
-from quota_tracker.config import AppConfig, save_config
+from quota_tracker.config import AppConfig, ModelPricing, save_config
 from quota_tracker.daemon import DaemonService
 from quota_tracker.db import (
     apply_migrations,
@@ -30,6 +31,42 @@ _GROUP_BY_EXPR: dict[str, str] = {
     "day": "substr(timestamp, 1, 10)",
     "hour": "substr(timestamp, 1, 13)",
 }
+
+
+def _build_cost_exprs(pricing: dict[str, ModelPricing]) -> dict[str, str]:
+    """Build SQL expressions for total, input, output, and cached costs."""
+
+    cases_total = []
+    cases_input = []
+    cases_output = []
+    cases_cached = []
+    for key, p in pricing.items():
+        if ":" not in key:
+            continue
+        pid, model = key.split(":", 1)
+        m_esc = model.replace("'", "''")
+        p_esc = pid.replace("'", "''")
+        cond = f"WHEN provider_id = '{p_esc}' AND model_name = '{m_esc}' THEN "
+        cases_total.append(
+            f"{cond} (input_tokens * {p.input_1m} + "
+            f"cached_tokens * {p.cached_1m} + "
+            f"output_tokens * {p.output_1m}) / 1000000.0"
+        )
+        cases_input.append(f"{cond} (input_tokens * {p.input_1m}) / 1000000.0")
+        cases_output.append(f"{cond} (output_tokens * {p.output_1m}) / 1000000.0")
+        cases_cached.append(f"{cond} (cached_tokens * {p.cached_1m}) / 1000000.0")
+
+    def make_case(cases: list[str], alias: str) -> str:
+        if not cases:
+            return f"0.0 as {alias}"
+        return "SUM(CASE " + " ".join(cases) + f" ELSE 0.0 END) as {alias}"
+
+    return {
+        "estimated_cost": make_case(cases_total, "estimated_cost"),
+        "input_cost": make_case(cases_input, "input_cost"),
+        "output_cost": make_case(cases_output, "output_cost"),
+        "cached_cost": make_case(cases_cached, "cached_cost"),
+    }
 
 
 def _normalize_iso_param(value: str | None) -> str | None:
@@ -192,7 +229,18 @@ def register_routes(
             query += f" ORDER BY datetime(timestamp) {direction} LIMIT ?"
             params.append(limit)
             rows = conn.execute(query, tuple(params)).fetchall()
-            return {"items": [dict(row) for row in rows]}
+            items = []
+            for row in rows:
+                d = dict(row)
+                if d.get("raw_data"):
+                    try:
+                        d["raw_data"] = json.loads(d["raw_data"])
+                    except json.JSONDecodeError:
+                        d["raw_data"] = {}
+                else:
+                    d["raw_data"] = {}
+                items.append(d)
+            return {"items": items}
         finally:
             conn.close()
 
@@ -223,17 +271,23 @@ def register_routes(
                 where += " AND datetime(t.timestamp) <= datetime(?)"
                 params.append(end)
             count_row = conn.execute(
-                f"SELECT COUNT(DISTINCT s.project_path) "
+                f"SELECT COUNT(DISTINCT CASE WHEN s.project_name = 'repo' "
+                f"OR s.project_path LIKE '%/repo' THEN 'repo' ELSE s.project_path END) "
                 f"FROM token_usage_history t JOIN sessions s ON t.session_id = s.id {where}",
                 tuple(params),
             ).fetchone()
             total = count_row[0] if count_row else 0
             rows = conn.execute(
-                f"SELECT s.project_path, s.project_name, "
+                f"SELECT "
+                f"CASE WHEN s.project_name = 'repo' OR s.project_path LIKE '%/repo' "
+                f"THEN 'Multiple Repos' ELSE s.project_path END as project_path, "
+                f"CASE WHEN s.project_name = 'repo' OR s.project_path LIKE '%/repo' "
+                f"THEN 'repo' ELSE s.project_name END as project_name, "
                 f"SUM(t.total_tokens) as total_tokens, "
                 f"COUNT(DISTINCT t.session_id) as session_count "
                 f"FROM token_usage_history t JOIN sessions s ON t.session_id = s.id {where} "
-                f"GROUP BY s.project_path "
+                f"GROUP BY CASE WHEN s.project_name = 'repo' OR s.project_path LIKE '%/repo' "
+                f"THEN 'repo' ELSE s.project_path END "
                 f"ORDER BY total_tokens DESC LIMIT ? OFFSET ?",
                 tuple(params) + (limit, offset),
             ).fetchall()
@@ -297,6 +351,7 @@ def register_routes(
         if group_by not in _GROUP_BY_EXPR:
             raise HTTPException(status_code=400, detail="invalid group_by")
         expr = _GROUP_BY_EXPR[group_by]
+        costs = _build_cost_exprs(config.pricing)
         conn = connect_db(str(db_path))
         try:
             apply_migrations(conn)
@@ -308,7 +363,11 @@ def register_routes(
                 "SUM(reasoning_tokens) as reasoning_tokens, "
                 "SUM(thoughts_tokens) as thoughts_tokens, "
                 "SUM(tool_tokens) as tool_tokens, "
-                "SUM(total_tokens) as total_tokens "
+                "SUM(total_tokens) as total_tokens, "
+                f"{costs['estimated_cost']}, "
+                f"{costs['input_cost']}, "
+                f"{costs['output_cost']}, "
+                f"{costs['cached_cost']} "
                 "FROM token_usage_history WHERE 1=1"
             )
             params: list[Any] = []
@@ -362,5 +421,7 @@ def register_routes(
             config.daemon.database_path = payload.database_path
         if payload.log_level is not None:
             config.daemon.log_level = payload.log_level
+        if payload.pricing is not None:
+            config.pricing = payload.pricing
         save_config(config, config_path_str)
         return {"config": config.model_dump()}

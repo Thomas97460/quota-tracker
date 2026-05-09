@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from quota_tracker.config import ModelPricing
+
 
 class ProviderActionRequest(BaseModel):
     """Manual provider action payload."""
@@ -30,3 +32,4 @@ class ConfigPatchRequest(BaseModel):
     web_port: int | None = None
     database_path: str | None = None
     log_level: str | None = None
+    pricing: dict[str, ModelPricing] | None = None

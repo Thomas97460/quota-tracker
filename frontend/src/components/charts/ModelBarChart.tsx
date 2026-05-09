@@ -76,7 +76,7 @@ export function ModelBarChart({
           <CartesianGrid strokeDasharray="3 3" stroke="#1F232E" vertical horizontal={false} />
           <XAxis
             type="number"
-            tick={{ fill: "#767B8A", fontSize: 10 }}
+            tick={{ fill: "#767B8A", fontSize: 14, fontFamily: "Geist, sans-serif" }}
             tickLine={false}
             axisLine={false}
             tickFormatter={(v: number) => formatLargeNumber(v)}
@@ -84,7 +84,7 @@ export function ModelBarChart({
           <YAxis
             type="category"
             dataKey="name"
-            tick={{ fill: "#767B8A", fontSize: 10 }}
+            tick={{ fill: "#767B8A", fontSize: 14, fontFamily: "Geist, sans-serif" }}
             tickLine={false}
             axisLine={false}
             width={140}
@@ -96,7 +96,7 @@ export function ModelBarChart({
               border: "1px solid #1F232E",
               borderRadius: 8,
               color: "#F4F5F8",
-              fontSize: 12,
+              fontSize: 16,
             }}
             formatter={(value: number) => [formatLargeNumber(value), "Tokens"]}
           />

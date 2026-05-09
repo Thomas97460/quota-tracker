@@ -26,6 +26,7 @@ export interface QuotaRow {
   remaining_percent: number | null
   window_minutes: number | null
   resets_at: string | null
+  raw_data: Record<string, any>
 }
 
 export interface SessionRow {
@@ -51,6 +52,10 @@ export interface UsageRow {
   thoughts_tokens: number
   tool_tokens: number
   total_tokens: number
+  estimated_cost: number
+  input_cost: number
+  output_cost: number
+  cached_cost: number
 }
 
 export interface ProjectUsageRow {
@@ -76,10 +81,17 @@ export interface DaemonConfig {
   log_level: string
 }
 
+export interface ModelPricing {
+  input_1m: number
+  output_1m: number
+  cached_1m: number
+}
+
 export interface ConfigShape {
   daemon: DaemonConfig
   gemini:  { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
   codex:   { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
   copilot: { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
   claude:  { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
+  pricing: Record<string, ModelPricing>
 }

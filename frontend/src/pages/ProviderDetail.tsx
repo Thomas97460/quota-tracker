@@ -4,12 +4,12 @@ import { ModelBarChart } from "../components/charts/ModelBarChart"
 import { QuotaHistoryChart } from "../components/charts/QuotaHistoryChart"
 import { StackedTokenChart } from "../components/charts/StackedTokenChart"
 import { TokenBreakdownPie } from "../components/charts/TokenBreakdownPie"
-import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, displayLabel } from "../components/ui/QuotaPanel"
+import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, displayLabel, formatRequestQuota } from "../components/ui/QuotaPanel"
 import type { Range } from "../hooks/useDashboard"
 import { useDashboard } from "../hooks/useDashboard"
 import { useProviders } from "../contexts/ProvidersContext"
 import type { ProviderId } from "../types"
-import { basename, formatDate, formatLargeNumber, formatRelative, latestQuotas } from "../utils"
+import { basename, formatDate, formatLargeNumber, formatCost, formatRelative, latestQuotas } from "../utils"
 
 const PROVIDER_NAMES: Record<ProviderId, string> = {
   gemini: "Gemini",
@@ -40,7 +40,7 @@ const PROVIDER_COLORS_HEX: Record<ProviderId, string> = {
 }
 
 const VALID_PROVIDERS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
-const SESSION_PAGE_SIZE = 10
+const SESSION_PAGE_SIZE = 5
 
 function statusFor(pct: number): "crit" | "warn" | "ok" {
   if (pct >= 95) return "crit"
@@ -53,6 +53,7 @@ export function ProviderDetail(): React.JSX.Element {
   const { range, setRange } = useProviders()
   const [sessionPage, setSessionPage] = useState(0)
   const [selectedModel, setSelectedModel] = useState<string>("all")
+  const [chartMode, setChartMode] = useState<"tokens" | "cost">("tokens")
 
   const providerId: ProviderId | null = VALID_PROVIDERS.includes(id as ProviderId)
     ? (id as ProviderId)
@@ -104,6 +105,7 @@ export function ProviderDetail(): React.JSX.Element {
           ? rollupGeminiQuotas(latest)
           : latest
   const totalTokens = timeSeries.reduce((s, r) => s + r.total_tokens, 0)
+  const totalCost = timeSeries.reduce((s, r) => s + r.estimated_cost, 0)
 
   let historyRows = quotaHistory.filter((q) => q.provider_id === providerId)
   if (providerId === "gemini") {
@@ -271,6 +273,7 @@ export function ProviderDetail(): React.JSX.Element {
                   const pct = q.used_percent ?? 0
                   const st = statusFor(pct)
                   const label = displayLabel(providerId, q.quota_name)
+                  const reqStr = formatRequestQuota(q)
                   return (
                     <div key={q.quota_name} className="hero-meter">
                       <div className="hero-meter-head">
@@ -291,7 +294,7 @@ export function ProviderDetail(): React.JSX.Element {
                         <i></i>
                       </div>
                       <div className="hero-meter-foot">
-                        <span>used</span>
+                        <span>{reqStr || "used"}</span>
                         {q.resets_at && <span>resets {formatDate(q.resets_at)}</span>}
                       </div>
                     </div>
@@ -310,10 +313,25 @@ export function ProviderDetail(): React.JSX.Element {
                 </span>
                 Tokens
               </div>
-              <div className="kpi-value">
-                <span>{formatLargeNumber(totalTokens)}</span>
+              <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginTop: 6 }}>
+                <div className="kpi-value" style={{ marginTop: 0 }}>
+                  <span>{formatLargeNumber(totalTokens)}</span>
+                </div>
+                {totalCost > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span className="tabular" style={{ fontSize: 24, fontWeight: 600, color: "var(--ok)", letterSpacing: "-0.02em" }}>
+                      ~{formatCost(totalCost)}
+                    </span>
+                    <span className="info-tooltip-trigger" style={{ color: "var(--fg-3)", cursor: "help", display: "grid", placeItems: "center" }}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                      </svg>
+                      <span className="info-tooltip-bubble">Estimated token cost, not necessarily what you actually paid.</span>
+                    </span>
+                  </div>
+                )}
               </div>
-              <div className="kpi-foot">
+              <div className="kpi-foot" style={{ marginTop: totalCost > 0 ? 12 : 8 }}>
                 <span>in {range}</span>
               </div>
             </div>
@@ -353,114 +371,131 @@ export function ProviderDetail(): React.JSX.Element {
             <span className="card-title">Tokens over time</span>
             <span className="card-sub">by kind · {timeSeriesGroupBy}</span>
             <div className="card-actions">
-              <select
-                className="select"
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-              >
-                <option value="all">All models</option>
-                {[...new Set(modelUsage.map((u) => u.bucket))].sort().map((model) => (
-                  <option key={model} value={model}>
-                    {model}
-                  </option>
-                ))}
-              </select>
+              <div className="range-tabs" style={{ padding: 1 }}>
+                <button
+                  className={`range-tab${chartMode === "tokens" ? " active" : ""}`}
+                  onClick={() => setChartMode("tokens")}
+                  style={{ padding: "3px 8px", fontSize: 12 }}
+                >
+                  Tokens
+                </button>
+                <button
+                  className={`range-tab${chartMode === "cost" ? " active" : ""}`}
+                  onClick={() => setChartMode("cost")}
+                  style={{ padding: "3px 8px", fontSize: 12 }}
+                >
+                  Cost
+                </button>
+              </div>
             </div>
           </div>
           <div className="card-body">
-            <StackedTokenChart rows={timeSeries} mode="kind" />
+            <StackedTokenChart rows={timeSeries} mode="kind" displayMode={chartMode} />
           </div>
         </div>
 
-        {/* Token types donut + Tokens by model (2-col) */}
+        {/* Token types donut & Top projects (2-col) */}
         <div className="grid-2eq">
           <div className="card">
             <div className="card-head">
               <span className="card-title">Token types</span>
+              <div className="card-actions">
+                <select
+                  className="select"
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                >
+                  <option value="all">All models</option>
+                  {[...new Set(modelUsage.map((u) => u.bucket))].sort().map((model) => (
+                    <option key={model} value={model}>
+                      {model}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="card-body">
               <TokenBreakdownPie rows={timeSeries} />
             </div>
           </div>
-          <div className="card">
-            <div className="card-head">
-              <span className="card-title">Tokens by model</span>
-            </div>
-            <div className="card-body">
-              <ModelBarChart data={modelUsage} singleColor={providerColorHex} />
-            </div>
-          </div>
-        </div>
 
-        {/* Top projects */}
-        {projectUsageTotal > 0 && (
-          <div className="card">
-            <div className="card-head">
-              <span className="card-title">Top projects</span>
-              <span className="card-sub">{projectUsageTotal} total</span>
-            </div>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Project</th>
-                  <th className="num">Sessions</th>
-                  <th className="num">Tokens</th>
-                  <th className="num">Share</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projectUsage.map((p, i) => {
-                  const name = p.project_name ?? basename(p.project_path) ?? "unknown"
-                  const totalProjTokens = projectUsage.reduce((s, x) => s + x.total_tokens, 0)
-                  const pct = totalProjTokens > 0 ? (p.total_tokens / totalProjTokens) * 100 : 0
-                  return (
-                    <tr key={i}>
-                      <td
-                        style={{ color: "var(--fg-1)", fontWeight: 500 }}
-                        title={p.project_path ?? undefined}
-                      >
-                        {name}
-                      </td>
-                      <td className="num">{p.session_count}</td>
-                      <td className="num">{formatLargeNumber(p.total_tokens)}</td>
-                      <td className="num">
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-                          <div
-                            className="row-bar"
-                            style={{
-                              ["--w" as string]: pct + "%",
-                              ["--c" as string]: providerColor,
-                            }}
-                          >
-                            <i></i>
+          {projectUsageTotal > 0 ? (
+            <div className="card">
+              <div className="card-head">
+                <span className="card-title">Top projects</span>
+                <span className="card-sub">{projectUsageTotal} total</span>
+              </div>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Project</th>
+                    <th className="num">Sessions</th>
+                    <th className="num">Tokens</th>
+                    <th className="num">Share</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {projectUsage.map((p, i) => {
+                    const name = p.project_name ?? basename(p.project_path) ?? "unknown"
+                    const pct = totalTokens > 0 ? (p.total_tokens / totalTokens) * 100 : 0
+                    return (
+                      <tr key={i}>
+                        <td
+                          style={{ color: "var(--fg-1)", fontWeight: 500 }}
+                          title={p.project_path ?? undefined}
+                        >
+                          {name}
+                        </td>
+                        <td className="num">{p.session_count}</td>
+                        <td className="num">{formatLargeNumber(p.total_tokens)}</td>
+                        <td className="num">
+                          <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
+                            <div
+                              className="row-bar"
+                              style={{
+                                ["--w" as string]: pct + "%",
+                                ["--c" as string]: providerColor,
+                              }}
+                            >
+                              <i></i>
+                            </div>
+                            <span style={{ minWidth: 36 }}>{pct.toFixed(0)}%</span>
                           </div>
-                          <span style={{ minWidth: 36 }}>{pct.toFixed(0)}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-            <div className="pager">
-              <button
-                className="pager-btn"
-                disabled={projectPage === 0}
-                onClick={() => setProjectPage(projectPage - 1)}
-              >
-                Prev
-              </button>
-              <span>Page {projectPage + 1}</span>
-              <button
-                className="pager-btn"
-                disabled={(projectPage + 1) * projectPageSize >= projectUsageTotal}
-                onClick={() => setProjectPage(projectPage + 1)}
-              >
-                Next
-              </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              <div className="pager">
+                <button
+                  className="pager-btn"
+                  disabled={projectPage === 0}
+                  onClick={() => setProjectPage(projectPage - 1)}
+                >
+                  Prev
+                </button>
+                <span>Page {projectPage + 1}</span>
+                <button
+                  className="pager-btn"
+                  disabled={(projectPage + 1) * projectPageSize >= projectUsageTotal}
+                  onClick={() => setProjectPage(projectPage + 1)}
+                >
+                  Next
+                </button>
+              </div>
             </div>
-          </div>
-        )}
+          ) : (
+            <div className="card">
+              <div className="card-head">
+                <span className="card-title">Top projects</span>
+              </div>
+              <div style={{ padding: "24px 20px", color: "var(--fg-3)", fontSize: 13 }}>
+                No project data
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Sessions */}
         <div className="card">

@@ -5,6 +5,17 @@ export function formatLargeNumber(value: number): string {
   return String(value)
 }
 
+export function formatCost(value: number): string {
+  if (value === 0) return "$0.00"
+  if (value < 0.01) return `< $0.01`
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(value)
+}
+
 export function formatDate(value: string | null | undefined): string {
   if (!value) return "n/a"
   const d = new Date(value)

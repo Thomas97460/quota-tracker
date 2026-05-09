@@ -137,6 +137,7 @@ def test_passive_scan_incremental_skips_unchanged_file(tmp_path: Path) -> None:
 
 # ── _load_session_key_from_file ───────────────────────────────────────────────
 
+
 def test_load_session_key_from_file_missing(tmp_path: Path) -> None:
     assert _load_session_key_from_file(tmp_path) is None
 
@@ -167,6 +168,7 @@ def test_load_session_key_from_file_old_format_with_org_id(tmp_path: Path) -> No
 
 
 # ── _load_session_key_from_firefox ───────────────────────────────────────────
+
 
 def _make_firefox_cookies_db(tmp_path: Path, session_key: str | None) -> Path:
     """Create a minimal Firefox cookies.sqlite with an optional claude.ai sessionKey."""
@@ -207,10 +209,9 @@ def test_load_session_key_from_firefox_found(tmp_path: Path) -> None:
 
 # ── _load_session_key (combined) ─────────────────────────────────────────────
 
+
 def test_load_session_key_prefers_file_over_firefox(tmp_path: Path) -> None:
-    (tmp_path / "quota_tracker_creds.json").write_text(
-        json.dumps({"session_key": "sk-from-file"})
-    )
+    (tmp_path / "quota_tracker_creds.json").write_text(json.dumps({"session_key": "sk-from-file"}))
     _make_firefox_cookies_db(tmp_path, session_key="sk-from-firefox")
     with patch("quota_tracker.providers.claude_ai.Path.home", return_value=tmp_path):
         assert _load_session_key(tmp_path) == "sk-from-file"
@@ -228,6 +229,7 @@ def test_load_session_key_returns_none_when_nothing(tmp_path: Path) -> None:
 
 
 # ── _fetch_org_id ─────────────────────────────────────────────────────────────
+
 
 def test_fetch_org_id_success() -> None:
     # get_json wraps list responses as {"value": [...]}
@@ -253,6 +255,7 @@ def test_fetch_org_id_request_fails() -> None:
 
 # ── active_probe ──────────────────────────────────────────────────────────────
 
+
 def test_active_probe_no_credentials(tmp_path: Path) -> None:
     with patch("quota_tracker.providers.claude_ai.Path.home", return_value=tmp_path):
         provider = ClaudeAiProvider(home=str(tmp_path))
@@ -269,6 +272,7 @@ def test_active_probe_org_fetch_fails(tmp_path: Path) -> None:
 
 
 # ── _parse_usage_response ─────────────────────────────────────────────────────
+
 
 def test_parse_usage_response_real_format() -> None:
     """Parse the real API response observed from claude.ai."""

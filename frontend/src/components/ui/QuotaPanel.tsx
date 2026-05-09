@@ -139,6 +139,17 @@ function statusFor(pct: number): "crit" | "warn" | "ok" {
   return "ok"
 }
 
+export function formatRequestQuota(q: QuotaRow): string | null {
+  const rd = q.raw_data || {}
+  if (q.provider_id === "copilot" && rd.entitlement_requests !== undefined) {
+    const limit = Number(rd.entitlement_requests)
+    if (limit <= 0) return null
+    const used = Math.round(limit * ((q.used_percent ?? 0) / 100))
+    return `${used} / ${limit} requests`
+  }
+  return null
+}
+
 export function QuotaPanel({
   providerId,
   latest,
@@ -173,6 +184,7 @@ export function QuotaPanel({
         const pct = q.used_percent ?? 0
         const status = statusFor(pct)
         const label = displayLabel(providerId, q.quota_name)
+        const reqStr = formatRequestQuota(q)
         return (
           <div key={q.quota_name}>
             <div className="quota-row">
@@ -195,7 +207,7 @@ export function QuotaPanel({
               </div>
             </div>
             <div className="quota-meta" style={{ marginTop: 4 }}>
-              <span></span>
+              <span>{reqStr || ""}</span>
               {q.resets_at && (
                 <span
                   className={

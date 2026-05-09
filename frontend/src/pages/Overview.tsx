@@ -9,7 +9,7 @@ import { useDashboard } from "../hooks/useDashboard"
 import { useProjectUsage } from "../hooks/useProjectUsage"
 import { useProviders } from "../contexts/ProvidersContext"
 import type { ProviderId, QuotaRow } from "../types"
-import { basename, formatLargeNumber, formatRelative, latestQuotas } from "../utils"
+import { basename, formatLargeNumber, formatCost, formatRelative, latestQuotas } from "../utils"
 
 const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
 
@@ -43,7 +43,7 @@ const PROVIDER_COLORS_HEX: Record<ProviderId, string> = {
 }
 
 const PROJECT_PAGE_SIZE = 5
-const SESSION_PAGE_SIZE = 10
+const SESSION_PAGE_SIZE = 5
 
 function statusFor(pct: number): "crit" | "warn" | "ok" {
   if (pct >= 95) return "crit"
@@ -131,6 +131,7 @@ export function Overview(): React.JSX.Element {
   const navigate = useNavigate()
 
   const [pieProvider, setPieProvider] = useState<string>("all")
+  const [chartMode, setChartMode] = useState<"tokens" | "cost">("tokens")
   const [topProjectsProvider, setTopProjectsProvider] = useState<ProviderId | "all">("all")
   const [topProjectsPage, setTopProjectsPage] = useState(0)
   const [sessionsProvider, setSessionsProvider] = useState<ProviderId | "all">("all")
@@ -174,6 +175,7 @@ export function Overview(): React.JSX.Element {
   const latest = latestQuotas(quotas)
 
   const totalTokens = providerTotals.reduce((s, r) => s + r.total_tokens, 0)
+  const totalCost = providerTotals.reduce((s, r) => s + r.estimated_cost, 0)
   const enabledCount = providers.filter((p) => p.enabled).length || providers.length
 
   // Compute overall worst status for topbar badge
@@ -306,8 +308,8 @@ export function Overview(): React.JSX.Element {
             </div>
           </div>
 
-          {/* Tokens */}
-          <div className="kpi">
+          {/* Tokens (Combined) */}
+          <div className="kpi" style={{ gridColumn: "span 2" }}>
             <div className="kpi-label">
               <span className="kpi-label-icon">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
@@ -316,27 +318,26 @@ export function Overview(): React.JSX.Element {
               </span>
               Tokens
             </div>
-            <div className="kpi-value">
-              <span>{formatLargeNumber(totalTokens)}</span>
+            <div style={{ display: "flex", alignItems: "baseline", gap: 16, marginTop: 6 }}>
+              <div className="kpi-value" style={{ marginTop: 0 }}>
+                <span>{formatLargeNumber(totalTokens)}</span>
+              </div>
+              {totalCost > 0 && (
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span className="tabular" style={{ fontSize: 24, fontWeight: 600, color: "var(--ok)", letterSpacing: "-0.02em" }}>
+                    ~{formatCost(totalCost)}
+                  </span>
+                  <span className="info-tooltip-trigger" style={{ color: "var(--fg-3)", cursor: "help", display: "grid", placeItems: "center" }}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/>
+                    </svg>
+                    <span className="info-tooltip-bubble">Estimated token cost, not necessarily what you actually paid.</span>
+                  </span>
+                </div>
+              )}
             </div>
-            <div className="kpi-foot">
+            <div className="kpi-foot" style={{ marginBottom: 12 }}>
               <span>{range} · all providers</span>
-            </div>
-          </div>
-
-          {/* Per-provider breakdown */}
-          <div className="kpi">
-            <div className="kpi-label">
-              <span className="kpi-label-icon">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/><path d="M3 18l9 5 9-5"/>
-                </svg>
-              </span>
-              Per provider
-            </div>
-            <div className="kpi-value">
-              <span>{formatLargeNumber(totalTokens)}</span>
-              <span className="kpi-unit">tokens</span>
             </div>
             <div className="kpi-providers">
               {PROVIDER_IDS.map((id) => {
@@ -352,7 +353,12 @@ export function Overview(): React.JSX.Element {
                     <span className="dot"></span>
                     <span className="name">{PROVIDER_NAMES[id]}</span>
                     <span className="bar"><i></i></span>
-                    <span className="v">{formatLargeNumber(value)}</span>
+                    <span className="v" style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                      <span>{formatLargeNumber(value)}</span>
+                      {row && row.estimated_cost > 0 && (
+                        <span style={{ color: "var(--ok)" }}>(~{formatCost(row.estimated_cost)})</span>
+                      )}
+                    </span>
                   </div>
                 )
               })}
@@ -426,9 +432,27 @@ export function Overview(): React.JSX.Element {
             <div className="card-head">
               <span className="card-title">Tokens over time</span>
               <span className="card-sub">by provider · {timeSeriesGroupBy}</span>
+              <div className="card-actions">
+                <div className="range-tabs" style={{ padding: 1 }}>
+                  <button
+                    className={`range-tab${chartMode === "tokens" ? " active" : ""}`}
+                    onClick={() => setChartMode("tokens")}
+                    style={{ padding: "3px 8px", fontSize: 12 }}
+                  >
+                    Tokens
+                  </button>
+                  <button
+                    className={`range-tab${chartMode === "cost" ? " active" : ""}`}
+                    onClick={() => setChartMode("cost")}
+                    style={{ padding: "3px 8px", fontSize: 12 }}
+                  >
+                    Cost
+                  </button>
+                </div>
+              </div>
             </div>
             <div className="card-body">
-              <StackedTokenChart byProvider={timeSeriesByProvider} mode="provider" />
+              <StackedTokenChart byProvider={timeSeriesByProvider} mode="provider" displayMode={chartMode} />
             </div>
           </div>
           <div className="card">
@@ -519,7 +543,7 @@ export function Overview(): React.JSX.Element {
                   <tbody>
                     {topProjects.map((p, i) => {
                       const name = p.project_name ?? basename(p.project_path) ?? "unknown"
-                      const totalProjTokens = topProjects.reduce((s, x) => s + x.total_tokens, 0)
+                      const totalProjTokens = topProjectsProvider === "all" ? totalTokens : providerTotals.find(t => t.bucket === topProjectsProvider)?.total_tokens ?? 0
                       const pct = totalProjTokens > 0 ? (p.total_tokens / totalProjTokens) * 100 : 0
                       return (
                         <tr key={i}>

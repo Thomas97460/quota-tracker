@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react"
 import { useConfig } from "../hooks/useConfig"
-import type { ProviderId, ProviderSummary } from "../types"
+import type { ModelPricing, ProviderId, ProviderSummary } from "../types"
 
 const providerLabels: Record<ProviderId, string> = {
   gemini: "Gemini",
@@ -37,6 +37,11 @@ export function Settings(): React.JSX.Element {
   const [daemonSaving, setDaemonSaving] = useState(false)
   const [daemonSaved, setDaemonSaved] = useState(false)
 
+  const [pricing, setPricing] = useState<Record<string, ModelPricing>>({})
+  const [pricingSearch, setPricingSearch] = useState("")
+  const [pricingSaving, setPricingSaving] = useState(false)
+  const [pricingSaved, setPricingSaved] = useState(false)
+
   const [providerForms, setProviderForms] = useState<Record<ProviderId, ProviderFormState>>({
     gemini: { enabled: true, home_path: "~/.gemini" },
     codex: { enabled: true, home_path: "~/.codex" },
@@ -53,6 +58,7 @@ export function Settings(): React.JSX.Element {
           config.daemon.passive_sync_interval_minutes ??
           5,
       )
+      setPricing(config.pricing || {})
     }
   }, [config])
 
@@ -75,6 +81,25 @@ export function Settings(): React.JSX.Element {
     } finally {
       setDaemonSaving(false)
     }
+  }
+
+  async function handleSavePricing(): Promise<void> {
+    setPricingSaving(true)
+    try {
+      await updateConfig({ pricing })
+      setPricingSaved(true)
+      setTimeout(() => setPricingSaved(false), 2000)
+    } finally {
+      setPricingSaving(false)
+    }
+  }
+
+  function updatePricingField(key: string, field: keyof ModelPricing, value: string): void {
+    const num = parseFloat(value) || 0
+    setPricing((prev) => ({
+      ...prev,
+      [key]: { ...prev[key], [field]: num },
+    }))
   }
 
   async function handleSaveProvider(id: ProviderId): Promise<void> {
@@ -220,79 +245,165 @@ export function Settings(): React.JSX.Element {
           </div>
         </div>
 
-        {/* Provider cards */}
-        {PROVIDER_IDS.map((id) => {
-          const form = providerForms[id]
-          const isBusy = actionBusy !== null || busy
-          const color = PROVIDER_COLOR_VARS[id]
-
-          return (
-            <div key={id} className="card">
-              <div className="card-head">
-                <span className="card-title" style={{ color }}>
-                  {providerLabels[id]}
-                </span>
-                <div className="card-actions">
-                  <span
-                    className={`tag${form.enabled ? " ok" : ""}`}
-                  >
-                    {form.enabled ? "Enabled" : "Disabled"}
-                  </span>
-                </div>
-              </div>
-              <div className="card-body">
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 16,
-                    maxWidth: 520,
-                    marginBottom: 16,
-                  }}
-                >
-                  <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    <span style={{ fontSize: 12, color: "var(--fg-3)" }}>Home path</span>
-                    <input
-                      type="text"
-                      value={form.home_path}
-                      onChange={(e) => setProviderField(id, "home_path", e.target.value)}
-                      style={inputStyle}
-                    />
-                  </label>
-                </div>
-
-                <div style={{ marginBottom: 16 }}>
-                  <Toggle
-                    label="Enabled"
-                    checked={form.enabled}
-                    onChange={(v) => setProviderField(id, "enabled", v)}
-                  />
-                </div>
-
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button
-                    className="icon-btn primary"
-                    disabled={isBusy && actionBusy !== `save-${id}`}
-                    onClick={() => handleSaveProvider(id)}
-                  >
-                    {actionBusy === `save-${id}` ? "Saving…" : "Save"}
-                  </button>
-                  <button
-                    className="icon-btn"
-                    disabled={isBusy && actionBusy !== `sync-${id}`}
-                    onClick={() => handleSync(id)}
-                  >
-                    {actionBusy === `sync-${id}` ? "Syncing…" : "Sync now"}
-                  </button>
-                </div>
-              </div>
+        {/* Pricing card */}
+        <div className="card">
+          <div className="card-head">
+            <span className="card-title">Model Pricing</span>
+            <div className="card-actions">
+              <input
+                type="text"
+                placeholder="Filter models..."
+                className="select"
+                style={{ width: 180, height: 28, padding: "0 8px" }}
+                value={pricingSearch}
+                onChange={(e) => setPricingSearch(e.target.value)}
+              />
             </div>
-          )
-        })}
+          </div>
+          <div className="card-body" style={{ padding: 0 }}>
+            <div style={{ maxHeight: 400, overflowY: "auto" }}>
+              <table className="table" style={{ borderTop: "none" }}>
+                <thead>
+                  <tr style={{ position: "sticky", top: 0, background: "var(--bg-1)", zIndex: 10 }}>
+                    <th>Model Key</th>
+                    <th className="num">Input ($/1M)</th>
+                    <th className="num">Cached ($/1M)</th>
+                    <th className="num">Output ($/1M)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {Object.entries(pricing)
+                    .filter(([k]) => k.toLowerCase().includes(pricingSearch.toLowerCase()))
+                    .sort(([a], [b]) => a.localeCompare(b))
+                    .map(([key, p]) => (
+                      <tr key={key}>
+                        <td className="mono" style={{ fontSize: 11 }}>{key}</td>
+                        <td className="num">
+                          <input
+                            type="number"
+                            step="0.0001"
+                            value={p.input_1m}
+                            onChange={(e) => updatePricingField(key, "input_1m", e.target.value)}
+                            style={{ ...inputStyle, width: 75, textAlign: "right", padding: "4px 6px" }}
+                          />
+                        </td>
+                        <td className="num">
+                          <input
+                            type="number"
+                            step="0.0001"
+                            value={p.cached_1m}
+                            onChange={(e) => updatePricingField(key, "cached_1m", e.target.value)}
+                            style={{ ...inputStyle, width: 75, textAlign: "right", padding: "4px 6px" }}
+                          />
+                        </td>
+                        <td className="num">
+                          <input
+                            type="number"
+                            step="0.0001"
+                            value={p.output_1m}
+                            onChange={(e) => updatePricingField(key, "output_1m", e.target.value)}
+                            style={{ ...inputStyle, width: 75, textAlign: "right", padding: "4px 6px" }}
+                          />
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ padding: 16, borderTop: "1px solid var(--border-1)", display: "flex", alignItems: "center", gap: 12 }}>
+              <button
+                className="icon-btn primary"
+                disabled={pricingSaving}
+                onClick={handleSavePricing}
+              >
+                {pricingSaving ? "Saving…" : "Save Pricing"}
+              </button>
+              {pricingSaved && (
+                <span style={{ fontSize: 12, color: "var(--ok)" }}>Saved!</span>
+              )}
+              <span className="dim" style={{ fontSize: 11, marginLeft: "auto" }}>
+                Key format: <code>provider_id:model_name</code>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Provider cards */}
+        <div className="grid-2eq">
+          {PROVIDER_IDS.map((id) => {
+            const form = providerForms[id]
+            const isBusy = actionBusy !== null || busy
+            const color = PROVIDER_COLOR_VARS[id]
+
+            return (
+              <div key={id} className="card">
+                <div className="card-head">
+                  <span className="card-title" style={{ color }}>
+                    {providerLabels[id]}
+                  </span>
+                  <div className="card-actions">
+                    <span
+                      className={`tag${form.enabled ? " ok" : ""}`}
+                    >
+                      {form.enabled ? "Enabled" : "Disabled"}
+                    </span>
+                  </div>
+                </div>
+                <div className="card-body">
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr",
+                      gap: 16,
+                      marginBottom: 16,
+                    }}
+                  >
+                    <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                      <span style={{ fontSize: 12, color: "var(--fg-3)" }}>Home path</span>
+                      <input
+                        type="text"
+                        value={form.home_path}
+                        onChange={(e) => setProviderField(id, "home_path", e.target.value)}
+                        style={inputStyle}
+                      />
+                    </label>
+                  </div>
+
+                  <div style={{ marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                    <Toggle
+                      label="Enabled"
+                      checked={form.enabled}
+                      onChange={(v) => setProviderField(id, "enabled", v)}
+                    />
+                    <div style={{ display: "flex", gap: 8 }}>
+                      <button
+                        className="icon-btn"
+                        disabled={isBusy && actionBusy !== `sync-${id}`}
+                        onClick={() => handleSync(id)}
+                        style={{ padding: "4px 8px", fontSize: 12 }}
+                      >
+                        {actionBusy === `sync-${id}` ? "Syncing…" : "Sync"}
+                      </button>
+                      <button
+                        className="icon-btn primary"
+                        disabled={isBusy && actionBusy !== `save-${id}`}
+                        onClick={() => handleSaveProvider(id)}
+                        style={{ padding: "4px 8px", fontSize: 12 }}
+                      >
+                        {actionBusy === `save-${id}` ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
       </div>
     </>
   )
 }
+
 
 interface ToggleProps {
   label: string

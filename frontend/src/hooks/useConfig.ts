@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react"
 import { apiGet, apiSend } from "../api"
-import type { ConfigShape, ProviderId, ProviderSummary } from "../types"
+import type { ConfigShape, ModelPricing, ProviderId, ProviderSummary } from "../types"
 
 interface UseConfigReturn {
   config: ConfigShape | null
@@ -11,6 +11,7 @@ interface UseConfigReturn {
     // Deprecated — kept for back-compat if callers still use old field names
     active_probe_interval_minutes: number
     passive_sync_interval_minutes: number
+    pricing: Record<string, ModelPricing>
   }>) => Promise<void>
   updateProvider: (id: ProviderId, patch: { enabled?: boolean; home_path?: string }) => Promise<void>
   scanProvider: (id: ProviderId) => Promise<void>
@@ -46,7 +47,12 @@ export function useConfig(): UseConfigReturn {
   }, [tick])
 
   const updateConfig = useCallback(
-    async (patch: Partial<{ sync_interval_minutes: number; active_probe_interval_minutes: number; passive_sync_interval_minutes: number }>) => {
+    async (patch: Partial<{
+      sync_interval_minutes: number;
+      active_probe_interval_minutes: number;
+      passive_sync_interval_minutes: number;
+      pricing: Record<string, ModelPricing>;
+    }>) => {
       setBusy(true)
       try {
         const res = await apiSend<{ config: ConfigShape }>("PATCH", "/api/config", patch)

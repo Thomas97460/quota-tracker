@@ -30,7 +30,7 @@ BANNER_LINES = [
 # Primary: cyan (#00d7d7 → 256-color 44) + violet (#af87ff → 256-color 141)
 # Semantic: green=ok, amber=warn, red=err, dim-grey=hints
 
-_R = "\033[0m"           # reset
+_R = "\033[0m"  # reset
 _BOLD = "\033[1m"
 _DIM = "\033[2m"
 _CYAN = "\033[38;5;44m"
@@ -99,8 +99,11 @@ def error(s: str) -> str:
     return _c(_RED, s)
 
 
-def gradient(text: str, start_rgb: tuple[int, int, int] = _GRAD_START,
-             end_rgb: tuple[int, int, int] = _GRAD_END) -> str:
+def gradient(
+    text: str,
+    start_rgb: tuple[int, int, int] = _GRAD_START,
+    end_rgb: tuple[int, int, int] = _GRAD_END,
+) -> str:
     """Per-character gradient: 24-bit truecolor if available, else alternating 256-color.
 
     Returns plain text when not a TTY or NO_COLOR is set.
