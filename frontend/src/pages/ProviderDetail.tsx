@@ -383,7 +383,7 @@ export function ProviderDetail(): React.JSX.Element {
           </div>
         </div>
 
-        {/* Token types donut & Top projects (2-col) */}
+        {/* Token types donut & Top models (2-col) */}
         <div className="grid-2eq">
           <div className="card">
             <div className="card-head">
@@ -408,84 +408,48 @@ export function ProviderDetail(): React.JSX.Element {
             </div>
           </div>
 
-          {projectUsageTotal > 0 ? (
-            <div className="card">
-              <div className="card-head">
-                <span className="card-title">Top projects</span>
-                <span className="card-sub">{projectUsageTotal} total</span>
-              </div>
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Project</th>
-                    <th className="num">Sessions</th>
-                    <th className="num">Tokens</th>
-                    <th className="num">Share</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {projectUsage.map((p, i) => {
-                    const name = p.project_name ?? basename(p.project_path) ?? "unknown"
-                    const pct = projectUsageTokens > 0 ? (p.total_tokens / projectUsageTokens) * 100 : 0
-                    return (
-                      <tr key={i}>
-
-                        <td
-                          style={{ color: "var(--fg-1)", fontWeight: 500 }}
-                          title={p.project_path ?? undefined}
-                        >
-                          {name}
-                        </td>
-                        <td className="num">{p.session_count}</td>
-                        <td className="num">{formatLargeNumber(p.total_tokens)}</td>
-                        <td className="num">
-                          <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end" }}>
-                            <div
-                              className="row-bar"
-                              style={{
-                                ["--w" as string]: pct + "%",
-                                ["--c" as string]: providerColor,
-                              }}
-                            >
-                              <i></i>
-                            </div>
-                            <span style={{ minWidth: 36 }}>{pct.toFixed(0)}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-              <div className="pager">
-                <button
-                  className="pager-btn"
-                  disabled={projectPage === 0}
-                  onClick={() => setProjectPage(projectPage - 1)}
-                >
-                  Prev
-                </button>
-                <span>Page {projectPage + 1}</span>
-                <button
-                  className="pager-btn"
-                  disabled={(projectPage + 1) * projectPageSize >= projectUsageTotal}
-                  onClick={() => setProjectPage(projectPage + 1)}
-                >
-                  Next
-                </button>
-              </div>
+          <div className="card">
+            <div className="card-head">
+              <span className="card-title">Top models</span>
+              <span className="card-sub">
+                {[...new Set(modelUsage.map((u) => u.bucket))].length} model{modelUsage.length !== 1 ? "s" : ""}
+              </span>
             </div>
-          ) : (
-            <div className="card">
-              <div className="card-head">
-                <span className="card-title">Top projects</span>
-              </div>
-              <div style={{ padding: "24px 20px", color: "var(--fg-3)", fontSize: 13 }}>
-                No project data
-              </div>
+            <div className="card-body">
+              <ModelBarChart data={modelUsage} singleColor={providerColorHex} />
             </div>
-          )}
+          </div>
         </div>
+
+        {/* Top projects — compact strip */}
+        {projectUsageTotal > 0 && (
+          <div className="card">
+            <div className="card-head">
+              <span className="card-title">Top projects</span>
+              <span className="card-sub">{projectUsageTotal} total</span>
+            </div>
+            <div className="projects-strip">
+              {projectUsage.map((p, i) => {
+                const name = p.project_name ?? basename(p.project_path) ?? "unknown"
+                const pct = projectUsageTokens > 0 ? (p.total_tokens / projectUsageTokens) * 100 : 0
+                return (
+                  <div key={i} className="project-chip">
+                    <span className="project-chip-rank">#{i + 1}</span>
+                    <span className="project-chip-name" title={p.project_path ?? undefined}>{name}</span>
+                    <span className="project-chip-sep">·</span>
+                    <span className="project-chip-tokens">{formatLargeNumber(p.total_tokens)}</span>
+                    <div
+                      className="project-chip-bar"
+                      style={{ ["--w" as string]: pct + "%", ["--c" as string]: providerColor } as React.CSSProperties}
+                    >
+                      <i></i>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Sessions */}
         <div className="card">

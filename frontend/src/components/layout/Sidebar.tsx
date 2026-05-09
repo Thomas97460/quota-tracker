@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react"
 import { NavLink, useLocation } from "react-router-dom"
 import { useProviders } from "../../contexts/ProvidersContext"
+import { useVersion } from "../../hooks/useVersion"
 import { latestQuotas } from "../../utils"
 import type { ProviderId } from "../../types"
 import { rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas } from "../ui/QuotaPanel"
@@ -65,8 +66,7 @@ export function Sidebar(): React.JSX.Element {
   const location = useLocation()
   const latest = latestQuotas(quotas)
   const [theme, toggleTheme] = useTheme()
-
-  const activeProviders = providers.filter((p) => p.enabled).length || providers.length
+  const { current, updateAvailable, latestVersion, updating, triggerUpdate } = useVersion()
 
   return (
     <aside className="sidebar">
@@ -74,9 +74,21 @@ export function Sidebar(): React.JSX.Element {
         <div className="sidebar-brand-mark">
           <LogoMark />
         </div>
-        <div>
+        <div className="sidebar-brand-body">
           <div className="sidebar-brand-name">Quota Tracker</div>
-          <div className="sidebar-brand-sub">{activeProviders} providers active</div>
+          <div className="sidebar-brand-version-row">
+            {current && <span className="sidebar-brand-version">v{current}</span>}
+            {updateAvailable && !updating && (
+              <button
+                className="sidebar-update-btn"
+                onClick={triggerUpdate}
+                title={`Update to v${latestVersion}`}
+              >
+                ↑ v{latestVersion}
+              </button>
+            )}
+            {updating && <span className="sidebar-updating">restarting…</span>}
+          </div>
         </div>
       </div>
 

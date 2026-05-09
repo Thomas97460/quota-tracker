@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import json
+import subprocess
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import httpx
 from fastapi import FastAPI, HTTPException
 
+from quota_tracker import __version__
 from quota_tracker.api.schemas import (
     ConfigPatchRequest,
     ProviderActionRequest,
@@ -436,3 +439,38 @@ def register_routes(
             config.pricing = payload.pricing
         save_config(config, config_path_str)
         return {"config": config.model_dump()}
+
+    @app.get("/api/version")
+    async def get_version() -> dict[str, Any]:
+        """Return current version and latest available release from GitHub."""
+
+        latest: str | None = None
+        update_available = False
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                r = await client.get(
+                    "https://api.github.com/repos/Thomas97460/quota-tracker/releases/latest",
+                    headers={"Accept": "application/vnd.github+json"},
+                )
+                if r.status_code == 200:
+                    latest = r.json().get("tag_name", "").lstrip("v") or None
+                    if latest:
+                        update_available = latest != __version__
+        except Exception:
+            pass
+        return {"current": __version__, "latest": latest, "update_available": update_available}
+
+    @app.post("/api/update")
+    def trigger_update() -> dict[str, str]:
+        """Spawn install.sh in the background to update the binary and restart the service."""
+
+        subprocess.Popen(
+            [
+                "bash",
+                "-c",
+                "curl -fsSL https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/install.sh | bash",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        return {"status": "updating"}

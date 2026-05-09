@@ -119,15 +119,44 @@ a { color: inherit; text-decoration: none; }
   color: white;
   box-shadow: 0 2px 8px rgba(139, 92, 246, 0.25), inset 0 1px 0 rgba(255,255,255,0.2);
 }
+.sidebar-brand-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .sidebar-brand-name {
   font-size: 15px;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
-.sidebar-brand-sub {
-  font-size: 12px;
+.sidebar-brand-version-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+}
+.sidebar-brand-version {
+  font-size: 11px;
+  color: var(--fg-4);
+  font-family: var(--font-mono);
+}
+.sidebar-update-btn {
+  font-size: 10px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: 4px;
+  padding: 1px 5px;
+  cursor: pointer;
+  line-height: 1.6;
+  transition: background 120ms, color 120ms;
+}
+.sidebar-update-btn:hover {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  color: var(--accent-fg);
+}
+.sidebar-updating {
+  font-size: 11px;
   color: var(--fg-3);
-  margin-top: -1px;
+  font-style: italic;
 }
 
 .sidebar-section {
@@ -692,6 +721,65 @@ a { color: inherit; text-decoration: none; }
 }
 .pager-btn:hover { background: var(--bg-3); color: var(--fg-1); }
 .pager-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* === Projects strip === */
+.projects-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 10px 16px 16px;
+}
+.project-chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  background: var(--bg-2);
+  border: 1px solid var(--border-1);
+  border-radius: 7px;
+  flex: 1;
+  min-width: 160px;
+  max-width: 280px;
+  overflow: hidden;
+}
+.project-chip-rank {
+  font-size: 11px;
+  color: var(--fg-4);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+.project-chip-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-1);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.project-chip-sep { color: var(--fg-4); flex-shrink: 0; font-size: 12px; }
+.project-chip-tokens {
+  font-size: 12px;
+  color: var(--fg-3);
+  font-family: var(--font-mono);
+  flex-shrink: 0;
+}
+.project-chip-bar {
+  width: 36px;
+  height: 3px;
+  background: var(--bg-3);
+  border-radius: 2px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.project-chip-bar > i {
+  display: block;
+  height: 100%;
+  width: var(--w, 0%);
+  background: var(--c, var(--accent));
+  border-radius: 2px;
+}
 
 /* === Legend === */
 .legend { display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--fg-3); }
