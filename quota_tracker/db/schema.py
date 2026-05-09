@@ -156,8 +156,6 @@ def _ensure_default_providers(conn: sqlite3.Connection) -> None:
     for provider in PROVIDERS:
         default_config = {
             "home_path": f"~/.{provider}",
-            "active_probe_enabled": False,
-            "passive_sync_enabled": True,
             "high_water_marks": {},
             "safe_options": {},
         }

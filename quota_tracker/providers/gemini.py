@@ -122,39 +122,86 @@ class GeminiProvider:
 
     metadata = ProviderMetadata("gemini", "Gemini", "~/.gemini", True, True)
 
-    def __init__(self, home: str, active_probe_enabled: bool = False):
-        """Initialize provider with home path and active probe flag."""
+    def __init__(self, home: str):
+        """Initialize provider with home path."""
         self.home = Path(home).expanduser()
-        self.active_probe_enabled = active_probe_enabled
 
     def _discover_chat_files(self) -> list[Path]:
-        """Discover supported Gemini chat JSON/JSONL files."""
-        return sorted(
-            list(self.home.glob("**/chats/*.json")) + list(self.home.glob("**/chats/*.jsonl"))
-        )
+        """Discover supported Gemini chat JSON/JSONL files under home/tmp."""
+        base = self.home / "tmp"
+        if not base.exists():
+            return []
+        files: set[Path] = set()
+        for pattern in (
+            "**/chats/*.json",
+            "**/chats/*.jsonl",
+            "**/chats/*/*.json",
+            "**/chats/*/*.jsonl",
+        ):
+            files.update(base.glob(pattern))
+        return sorted(p for p in files if p.is_file())
 
-    def _parse_chat_file(self, path: Path) -> tuple[list[dict[str, Any]], int]:
-        """Parse one chat file and return events plus parse failure count."""
-        failures = 0
-        events: list[dict[str, Any]] = []
-        if path.suffix == ".jsonl":
-            for line in path.read_text(errors="replace").splitlines():
-                if not line.strip():
-                    continue
+    @staticmethod
+    def _tok_int(tokens: dict[str, Any], *keys: str) -> int:
+        """Return the first non-zero integer value for a set of token field aliases."""
+        for k in keys:
+            v = tokens.get(k)
+            if v is not None:
                 try:
-                    events.append(json.loads(line))
-                except json.JSONDecodeError:
-                    failures += 1
-        else:
+                    return int(v)
+                except (TypeError, ValueError):
+                    pass
+        return 0
+
+    def _parse_json_chat(
+        self, path: Path, obj: dict[str, Any]
+    ) -> tuple[str, str | None, str | None, list[dict[str, Any]], int]:
+        """Parse a JSON-format Gemini chat file."""
+        sid = obj.get("sessionId") or path.stem
+        project_hash = obj.get("projectHash")
+        start_time = obj.get("startTime")
+        messages = obj.get("messages")
+        if not isinstance(messages, list):
+            messages = []
+        return sid, project_hash, start_time, messages, 0
+
+    def _parse_jsonl_chat(
+        self, path: Path
+    ) -> tuple[str, str | None, str | None, list[dict[str, Any]], int]:
+        """Parse a JSONL-format Gemini chat file."""
+        sid = path.stem
+        project_hash = None
+        start_time = None
+        last_updated = None
+        messages: list[dict[str, Any]] = []
+        failures = 0
+        for line in path.read_text(errors="replace").splitlines():
+            line = line.strip()
+            if not line:
+                continue
             try:
-                data = json.loads(path.read_text(errors="replace"))
-                if isinstance(data, list):
-                    events.extend(data)
-                elif isinstance(data, dict):
-                    events.extend(data.get("events", []))
+                rec = json.loads(line)
             except json.JSONDecodeError:
                 failures += 1
-        return events, failures
+                continue
+            if not isinstance(rec, dict):
+                continue
+            if rec.get("sessionId") and rec.get("startTime"):
+                sid = rec.get("sessionId") or sid
+                project_hash = rec.get("projectHash") or project_hash
+                start_time = rec.get("startTime") or start_time
+                lu = rec.get("lastUpdated")
+                if lu is not None:
+                    last_updated = lu
+                continue
+            if "$set" in rec and isinstance(rec["$set"], dict):
+                lu = rec["$set"].get("lastUpdated")
+                if lu is not None:
+                    last_updated = lu
+                continue
+            if rec.get("type"):
+                messages.append(rec)
+        return sid, project_hash, start_time, messages, failures
 
     def _scan(self, high_water_marks: dict[str, Any] | None = None) -> PassiveSyncResult:
         """Run full or incremental scan depending on provided high-water marks."""
@@ -176,47 +223,88 @@ class GeminiProvider:
             if prev and prev.get("size") == stat.st_size and prev.get("mtime") == stat.st_mtime:
                 marks[key] = file_mark
                 continue
-            events, f = self._parse_chat_file(path)
+            if path.suffix == ".jsonl":
+                sid, project_hash, start_time, messages, f = self._parse_jsonl_chat(path)
+            else:
+                try:
+                    obj = json.loads(path.read_text(errors="replace"))
+                except json.JSONDecodeError:
+                    failures += 1
+                    marks[key] = file_mark
+                    continue
+                if not isinstance(obj, dict):
+                    failures += 1
+                    marks[key] = file_mark
+                    continue
+                sid, project_hash, start_time, messages, f = self._parse_json_chat(path, obj)
             failures += f
-            sid = path.stem
-            project_hash = None
-            cli_version = None
-            last_ts = None
-            for ev in events:
-                last_ts = ev.get("timestamp") or last_ts
-                project_hash = ev.get("project_hash") or project_hash
-                cli_version = ev.get("cli_version") or cli_version
-                tok = ev.get("tokens") or {}
-                if tok:
-                    eid = sha256(
-                        (key + str(ev.get("id") or ev.get("timestamp") or len(usage))).encode()
+            models: dict[str, int] = {}
+            seen_ids: set[str] = set()
+            last_ts = start_time
+            for message in messages:
+                if not isinstance(message, dict):
+                    continue
+                ts = message.get("timestamp")
+                if ts:
+                    last_ts = ts
+                if message.get("type") != "gemini":
+                    continue
+                model = message.get("model")
+                if isinstance(model, str) and model.strip():
+                    models[model] = models.get(model, 0) + 1
+                tokens = message.get("tokens") or {}
+                input_t = self._tok_int(tokens, "input_tokens", "input")
+                output_t = self._tok_int(tokens, "output_tokens", "output")
+                cached_t = self._tok_int(tokens, "cached_tokens", "cached")
+                thoughts_t = self._tok_int(tokens, "thoughts_tokens", "thoughts")
+                total_t = self._tok_int(tokens, "total_tokens", "total")
+                if total_t <= 0:
+                    continue
+                msg_id = message.get("id")
+                if isinstance(msg_id, str) and msg_id.strip():
+                    identity = msg_id
+                else:
+                    identity = sha256(
+                        "|".join(
+                            [
+                                str(message.get("timestamp") or ""),
+                                str(message.get("type") or ""),
+                                str(model or ""),
+                                json.dumps(tokens, sort_keys=True, ensure_ascii=True),
+                            ]
+                        ).encode("utf-8")
                     ).hexdigest()
-                    n = normalize_token_usage(
+                if identity in seen_ids:
+                    continue
+                seen_ids.add(identity)
+                eid = sha256((key + identity).encode()).hexdigest()
+                usage.append(
+                    normalize_token_usage(
                         provider_id="gemini",
                         external_session_id=sid,
                         external_event_id=eid,
-                        timestamp=ev.get("timestamp") or datetime.now(UTC).isoformat(),
-                        model_name=ev.get("model"),
-                        input_tokens=tok.get("input"),
-                        output_tokens=tok.get("output"),
-                        cached_tokens=tok.get("cached"),
-                        reasoning_tokens=tok.get("reasoning"),
-                        total_tokens=tok.get("total"),
-                        raw_metadata={"kind": ev.get("kind")},
+                        timestamp=message.get("timestamp") or datetime.now(UTC).isoformat(),
+                        model_name=model,
+                        input_tokens=input_t,
+                        output_tokens=output_t,
+                        cached_tokens=cached_t,
+                        thoughts_tokens=thoughts_t,
+                        total_tokens=total_t,
+                        raw_metadata={"kind": "gemini_message"},
                     )
-                    usage.append(n)
+                )
+            model_name = max(models, key=lambda m: models[m]) if models else "unknown"
             sessions.append(
                 normalize_session(
                     provider_id="gemini",
                     external_session_id=sid,
-                    model_name="unknown",
+                    model_name=model_name,
                     project_path=None,
                     project_name=None,
-                    created_at=last_ts,
+                    created_at=start_time or last_ts,
                     last_seen_at=last_ts,
                     metadata={
                         "project_hash": project_hash,
-                        "cli_version": cli_version,
                         "source_file": key,
                     },
                 )
@@ -235,8 +323,6 @@ class GeminiProvider:
 
     def active_probe(self) -> list[QuotaRecord]:
         """Run active Code Assist quota probe using local OAuth credentials."""
-        if not self.active_probe_enabled:
-            return []
         oauth_path = self.home / "oauth_creds.json"
         if not oauth_path.exists():
             return []
@@ -262,6 +348,7 @@ class GeminiProvider:
         except Exception:
             return []
         now = datetime.now(UTC).isoformat()
+        # Emit one row per (model_id, token_type) bucket; frontend rolls up to families.
         return [
             normalize_quota(
                 provider_id="gemini",

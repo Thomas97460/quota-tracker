@@ -2,8 +2,9 @@ export type ProviderId = "gemini" | "codex" | "copilot"
 
 export interface ProviderConfig {
   home_path: string
-  active_probe_enabled: boolean
-  passive_sync_enabled: boolean
+  // Deprecated — optional so older server shapes still parse
+  active_probe_enabled?: boolean
+  passive_sync_enabled?: boolean
   high_water_marks: Record<string, unknown>
   safe_options: Record<string, unknown>
 }
@@ -50,9 +51,18 @@ export interface UsageRow {
   total_tokens: number
 }
 
+export interface ProjectUsageRow {
+  project_path: string | null
+  project_name: string | null
+  total_tokens: number
+  session_count: number
+}
+
 export interface DaemonConfig {
-  active_probe_interval_minutes: number
-  passive_sync_interval_minutes: number
+  sync_interval_minutes: number
+  // Deprecated — kept for back-compat with older server responses
+  active_probe_interval_minutes?: number
+  passive_sync_interval_minutes?: number
   web_host: string
   web_port: number
   database_path: string
@@ -61,7 +71,7 @@ export interface DaemonConfig {
 
 export interface ConfigShape {
   daemon: DaemonConfig
-  gemini: { enabled: boolean; home_path: string; active_probe_enabled: boolean; passive_sync_enabled: boolean; safe_options: Record<string, unknown> }
-  codex:  { enabled: boolean; home_path: string; active_probe_enabled: boolean; passive_sync_enabled: boolean; safe_options: Record<string, unknown> }
-  copilot: { enabled: boolean; home_path: string; active_probe_enabled: boolean; passive_sync_enabled: boolean; safe_options: Record<string, unknown> }
+  gemini:  { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
+  codex:   { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
+  copilot: { enabled: boolean; home_path: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean; safe_options: Record<string, unknown> }
 }

@@ -51,7 +51,7 @@ TOKEN_FIELD_NAMES = (
 
 _COPILOT_GITHUB_USER_URL = "https://api.github.com/copilot_internal/user"
 _COPILOT_DEFAULT_API_URL = "https://api.githubcopilot.com"
-_COPILOT_WEEKLY_PROBE_MODEL = "claude-haiku-4.5"
+_COPILOT_PROBE_MODEL = "gpt-5-mini"
 _COPILOT_INTEGRATION_ID = "copilot-developer-cli"
 _COPILOT_API_VERSION = "2026-01-09"
 
@@ -180,10 +180,9 @@ class CopilotProvider:
 
     metadata = ProviderMetadata("copilot", "Copilot", "~/.copilot", True, True)
 
-    def __init__(self, home: str, active_probe_enabled: bool = False):
+    def __init__(self, home: str):
         """Initialize provider options."""
         self.home = Path(home).expanduser()
-        self.active_probe_enabled = active_probe_enabled
 
     def _event_files(self) -> list[Path]:
         """Discover Copilot session event files."""
@@ -367,8 +366,6 @@ class CopilotProvider:
 
     def active_probe(self) -> list[QuotaRecord]:
         """Run active weekly quota probe via Copilot chat completions API headers."""
-        if not self.active_probe_enabled:
-            return []
         token = _copilot_config_token(self.home)
         if not token:
             return []
@@ -391,7 +388,7 @@ class CopilotProvider:
                     "User-Agent": f"GitHubCopilotChat/{cli_version}",
                 },
                 body={
-                    "model": _COPILOT_WEEKLY_PROBE_MODEL,
+                    "model": _COPILOT_PROBE_MODEL,
                     "messages": [{"role": "user", "content": "Reply with ok."}],
                     "max_tokens": 1,
                     "stream": False,

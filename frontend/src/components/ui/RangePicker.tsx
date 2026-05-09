@@ -1,14 +1,11 @@
 import React from "react"
-import type { Granularity, Range } from "../../hooks/useDashboard"
+import type { Range } from "../../hooks/useDashboard"
 
 const RANGES: Range[] = ["24h", "7d", "30d", "all"]
-const GRANULARITIES: Granularity[] = ["hour", "day"]
 
 interface RangePickerProps {
   range: Range
-  granularity: Granularity
   onRangeChange: (r: Range) => void
-  onGranularityChange: (g: Granularity) => void
 }
 
 function pillClass(active: boolean): string {
@@ -20,9 +17,7 @@ function pillClass(active: boolean): string {
 
 export function RangePicker({
   range,
-  granularity,
   onRangeChange,
-  onGranularityChange,
 }: RangePickerProps): React.JSX.Element {
   return (
     <div className="flex items-center gap-2">
@@ -30,17 +25,6 @@ export function RangePicker({
         {RANGES.map((r) => (
           <button key={r} onClick={() => onRangeChange(r)} className={pillClass(range === r)}>
             {r}
-          </button>
-        ))}
-      </div>
-      <div className="flex overflow-hidden rounded-lg border border-slate-700">
-        {GRANULARITIES.map((g) => (
-          <button
-            key={g}
-            onClick={() => onGranularityChange(g)}
-            className={pillClass(granularity === g)}
-          >
-            {g}
           </button>
         ))}
       </div>

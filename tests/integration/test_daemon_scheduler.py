@@ -25,12 +25,23 @@ def _write_gemini_fixture(home: Path, *, input_tokens: int) -> None:
     (chats / "session-a.jsonl").write_text(
         json.dumps(
             {
+                "sessionId": "session-a",
+                "startTime": "2026-01-01T00:00:00+00:00",
+                "projectHash": "abc123",
+            }
+        )
+        + "\n"
+        + json.dumps(
+            {
+                "type": "gemini",
                 "id": "ev-1",
-                "timestamp": "2026-01-01T00:00:00+00:00",
+                "timestamp": "2026-01-01T00:00:01+00:00",
                 "model": "gemini-2.5-pro",
-                "tokens": {"input": input_tokens, "output": 2, "total": input_tokens + 2},
-                "project_hash": "abc123",
-                "cli_version": "0.40.1",
+                "tokens": {
+                    "input": input_tokens,
+                    "output": 2,
+                    "total": input_tokens + 2,
+                },
             }
         )
         + "\n"

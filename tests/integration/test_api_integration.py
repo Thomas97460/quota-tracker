@@ -157,6 +157,8 @@ def test_api_endpoints_and_static_fallback(tmp_path: Path, monkeypatch: pytest.M
     assert client.patch("/api/config", json={"web_port": 99999}).status_code == 400
     assert client.patch("/api/config", json={"active_probe_interval_minutes": 0}).status_code == 400
     assert client.patch("/api/config", json={"passive_sync_interval_minutes": 0}).status_code == 400
+    assert client.patch("/api/config", json={"sync_interval_minutes": 0}).status_code == 400
+    assert client.patch("/api/config", json={"sync_interval_minutes": 10}).status_code == 200
     assert (
         client.patch(
             "/api/config",
@@ -170,6 +172,26 @@ def test_api_endpoints_and_static_fallback(tmp_path: Path, monkeypatch: pytest.M
         ).status_code
         == 200
     )
+
+    assert client.get("/api/quotas", params={"order": "asc"}).status_code == 200
+    assert client.get("/api/quotas", params={"order": "bad"}).status_code == 400
+    assert client.get("/api/token-usage/by-project").status_code == 200
+    assert (
+        client.get(
+            "/api/token-usage/by-project",
+            params={
+                "provider_id": "codex",
+                "start": "2026-01-01T00:00:00+00:00",
+                "end": "2026-01-01T02:00:00+00:00",
+            },
+        ).status_code
+        == 200
+    )
+    by_project = client.get("/api/token-usage/by-project").json()
+    assert "items" in by_project
+    assert "total" in by_project
+    assert len(by_project["items"]) >= 1
+    assert by_project["items"][0]["project_path"] == "/tmp/p"
     assert "db2.sqlite3" in config_path.read_text()
     assert client.patch("/api/providers/unknown", json={"enabled": True}).status_code == 404
     assert client.get("/api/nope").status_code == 404

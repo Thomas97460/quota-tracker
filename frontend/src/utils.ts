@@ -30,6 +30,13 @@ export function formatRelative(value: string | null | undefined): string {
   return `${diffDays}d ago`
 }
 
+/** Return the last path segment (works for both / and \ separators). */
+export function basename(path: string | null | undefined): string | null {
+  if (!path) return null
+  const parts = path.replace(/\\/g, "/").split("/").filter(Boolean)
+  return parts[parts.length - 1] ?? null
+}
+
 /** Keep only the most-recent quota row per provider+name combination */
 export function latestQuotas<T extends { provider_id: string; quota_name: string; timestamp: string }>(rows: T[]): T[] {
   const byKey = new Map<string, T>()

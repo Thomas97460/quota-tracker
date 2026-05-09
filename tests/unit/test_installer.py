@@ -91,32 +91,55 @@ def test_run_install_preserves_db_and_creates_dirs(
 def test_interactive_prompts_and_bool_parser(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    cfg = AppConfig()
+    """New flow: 3 providers × (enable + home_path) + 3 daemon prompts + final confirm.
+
+    Providers: gemini (enabled=y), codex (enabled=n, no home prompt), copilot (enabled=y)
+    All providers detected so default_enabled=True for each.
+    prompt order per provider: enable?, home_path (only if enabled)
+    gemini:  enable=y  home=<path>
+    codex:   enable=n  (no home prompt)
+    copilot: enable=y  home=<path>
+    daemon:  web_host, web_port, sync_interval_minutes
+    confirm: y
+    """
+    monkeypatch.setenv("NO_COLOR", "1")
+
+    (tmp_path / ".gemini").mkdir()
+    (tmp_path / ".codex").mkdir()
+    (tmp_path / ".copilot").mkdir()
+
+    gemini_path = str(tmp_path / ".gemini")
+    copilot_path = str(tmp_path / ".copilot")
+
     answers = iter(
         [
-            "y",
-            str(tmp_path / ".gemini"),
-            "y",
-            str(tmp_path / ".codex"),
-            "n",
-            str(tmp_path / ".copilot"),
-            "",
-            "127.0.0.1",
-            "9000",
-            "20",
-            "10",
+            "y",          # enable gemini
+            gemini_path,  # gemini home path
+            "n",          # enable codex (disabled → no home prompt)
+            "y",          # enable copilot
+            copilot_path, # copilot home path
+            "127.0.0.1",  # web host
+            "9000",       # web port
+            "5",          # sync interval minutes
+            "y",          # final confirm
         ]
     )
     monkeypatch.setattr("builtins.input", lambda prompt: next(answers))
+
+    cfg = AppConfig()
     out = configure_interactively(cfg, tmp_path)
     assert out.gemini.enabled is True
     assert out.codex.enabled is False
+    assert out.copilot.enabled is True
     assert out.daemon.web_port == 9000
+
+    # _parse_bool falls back to default on invalid input
     monkeypatch.setattr("builtins.input", lambda prompt: "invalid")
     assert _parse_bool("x", True) is True
 
 
 def test_input_with_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("NO_COLOR", "1")
     monkeypatch.setattr("builtins.input", lambda prompt: "")
     assert _input_with_default("p", "d") == "d"
 
@@ -142,6 +165,73 @@ def test_run_install_interactive_branch(tmp_path: Path, monkeypatch: pytest.Monk
         cfg, home=home, interactive=True, enable_service=False, exec_path="/bin/qt"
     )
     assert result["service_updated"] is True
+
+
+def test_interactive_undetected_provider(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Ensure error_mark branch runs when a provider is not detected."""
+    monkeypatch.setenv("NO_COLOR", "1")
+    # Only gemini directory exists — codex and copilot are NOT detected
+    (tmp_path / ".gemini").mkdir()
+
+    answers = iter(
+        [
+            "y",                          # enable gemini
+            str(tmp_path / ".gemini"),    # gemini home path
+            "n",                          # enable codex (not detected, default=False)
+            "n",                          # enable copilot (not detected, default=False)
+            "127.0.0.1",                  # web host
+            "8787",                       # web port
+            "5",                          # sync interval
+            "y",                          # confirm
+        ]
+    )
+    monkeypatch.setattr("builtins.input", lambda prompt: next(answers))
+
+    cfg = AppConfig()
+    out = configure_interactively(cfg, tmp_path)
+    assert out.gemini.enabled is True
+    assert out.codex.enabled is False
+    assert out.copilot.enabled is False
+
+
+def test_interactive_decline_reruns_flow(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Declining the final confirm triggers a second pass."""
+    monkeypatch.setenv("NO_COLOR", "1")
+    (tmp_path / ".gemini").mkdir()
+
+    # First pass: decline
+    # Second pass: accept
+    answers = iter(
+        [
+            # first pass
+            "y",                          # enable gemini
+            str(tmp_path / ".gemini"),    # gemini home path
+            "n",                          # codex
+            "n",                          # copilot
+            "127.0.0.1",                  # web host
+            "8787",                       # web port
+            "5",                          # sync interval
+            "n",                          # DECLINE → re-run
+            # second pass
+            "y",                          # enable gemini
+            str(tmp_path / ".gemini"),    # gemini home path
+            "n",                          # codex
+            "n",                          # copilot
+            "127.0.0.1",                  # web host
+            "9999",                       # web port (changed)
+            "5",                          # sync interval
+            "y",                          # confirm
+        ]
+    )
+    monkeypatch.setattr("builtins.input", lambda prompt: next(answers))
+
+    cfg = AppConfig()
+    out = configure_interactively(cfg, tmp_path)
+    assert out.daemon.web_port == 9999
 
 
 def test_render_install_script_contains_oneliner_flow() -> None:

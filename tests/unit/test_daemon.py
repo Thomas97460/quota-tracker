@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -46,9 +48,7 @@ def test_tick_due_logic_and_scheduler_start_stop(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     db_path = tmp_path / "db.sqlite3"
-    service = DaemonService(
-        str(db_path), passive_sync_interval_minutes=15, active_probe_interval_minutes=60
-    )
+    service = DaemonService(str(db_path), sync_interval_minutes=15)
     service.migrate_and_prepare()
 
     calls: list[str] = []
@@ -58,6 +58,7 @@ def test_tick_due_logic_and_scheduler_start_stop(
     monkeypatch.setattr(service, "run_probe", lambda provider="all": calls.append("probe"))
     service.tick()
     assert "scan" in calls
+    assert "probe" in calls
 
     conn = connect_db(str(db_path))
     try:
@@ -67,10 +68,8 @@ def test_tick_due_logic_and_scheduler_start_stop(
             assert row is not None
             cfg = dict(row["config"])
             safe = dict(cfg.get("safe_options", {}))
-            safe["last_successful_scan_at"] = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
-            safe["last_successful_probe_at"] = datetime.now(UTC).isoformat()
+            safe["last_successful_sync_at"] = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
             cfg["safe_options"] = safe
-            cfg["active_probe_enabled"] = False
             update_provider_row(conn, provider, enabled=True, config=cfg)
         conn.commit()
     finally:
@@ -184,17 +183,6 @@ def test_run_scan_quotas_and_probe_failure_state(
     assert summary.sessions_upserted == 1
     assert summary.quota_rows_inserted == 1
 
-    conn = connect_db(str(db_path))
-    try:
-        row = get_provider_row(conn, "gemini")
-        assert row is not None
-        cfg = dict(row["config"])
-        cfg["active_probe_enabled"] = True
-        update_provider_row(conn, "gemini", enabled=True, config=cfg)
-        conn.commit()
-    finally:
-        conn.close()
-
     service.run_probe(provider="gemini")
     conn = connect_db(str(db_path))
     try:
@@ -228,13 +216,70 @@ def test_run_scan_inserts_quota_and_run_probe_skip(tmp_path: Path) -> None:
     assert probe.quota_rows_inserted == 0
 
 
+def test_run_scan_and_probe_skip_disabled_provider(tmp_path: Path) -> None:
+    db_path = tmp_path / "db.sqlite3"
+    service = DaemonService(str(db_path))
+    service.migrate_and_prepare()
+    service.set_provider_enabled("codex", False)
+    scan = service.run_scan(provider="codex", full=False)
+    assert scan.sessions_upserted == 0
+    probe = service.run_probe(provider="codex")
+    assert probe.quota_rows_inserted == 0
+
+
+def test_run_probe_inserts_quota_records(tmp_path: Path) -> None:
+    db_path = tmp_path / "db.sqlite3"
+    service = DaemonService(str(db_path))
+    service.migrate_and_prepare()
+    codex_home = tmp_path / "codex"
+    codex_home.mkdir()
+    auth = {"tokens": {"access_token": "tok-test"}}
+    (codex_home / "auth.json").write_text(json.dumps(auth))
+    conn = connect_db(str(db_path))
+    try:
+        row = get_provider_row(conn, "codex")
+        assert row is not None
+        cfg = dict(row["config"])
+        cfg["home_path"] = str(codex_home)
+        update_provider_row(conn, "codex", enabled=True, config=cfg)
+        conn.commit()
+    finally:
+        conn.close()
+    wham_response = {
+        "rate_limit": {
+            "primary_window": {
+                "used_percent": 5,
+                "limit_window_seconds": 18000,
+                "reset_at": 1778343402,
+            }
+        }
+    }
+    with patch("quota_tracker.providers.codex.get_json", return_value=wham_response):
+        probe = service.run_probe(provider="codex")
+    assert probe.quota_rows_inserted == 1
+
+
+def test_tick_disabled_provider_not_due(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    db_path = tmp_path / "db.sqlite3"
+    service = DaemonService(str(db_path), sync_interval_minutes=5)
+    service.migrate_and_prepare()
+    service.set_provider_enabled("gemini", False)
+    service.set_provider_enabled("codex", False)
+    service.set_provider_enabled("copilot", False)
+    called: list[str] = []
+    monkeypatch.setattr(
+        service, "run_scan", lambda provider="all", full=False: called.append("scan")
+    )
+    monkeypatch.setattr(service, "run_probe", lambda provider="all": called.append("probe"))
+    service.tick()
+    assert called == []
+
+
 def test_tick_due_thresholds_and_missing_provider_rows(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     db_path = tmp_path / "db.sqlite3"
-    service = DaemonService(
-        str(db_path), passive_sync_interval_minutes=15, active_probe_interval_minutes=60
-    )
+    service = DaemonService(str(db_path), sync_interval_minutes=15)
     service.migrate_and_prepare()
 
     conn = connect_db(str(db_path))
@@ -243,10 +288,8 @@ def test_tick_due_thresholds_and_missing_provider_rows(
         row = get_provider_row(conn, "gemini")
         assert row is not None
         cfg = dict(row["config"])
-        cfg["active_probe_enabled"] = True
         cfg["safe_options"] = {
-            "last_successful_scan_at": (now - timedelta(minutes=16)).isoformat(),
-            "last_successful_probe_at": (now - timedelta(minutes=61)).isoformat(),
+            "last_successful_sync_at": (now - timedelta(minutes=16)).isoformat(),
         }
         update_provider_row(conn, "gemini", enabled=True, config=cfg)
         conn.commit()
@@ -259,7 +302,7 @@ def test_tick_due_thresholds_and_missing_provider_rows(
     )
     monkeypatch.setattr(service, "run_probe", lambda provider="all": calls.append("probe"))
     service.tick()
-    assert calls == ["scan", "probe"]
+    assert calls == ["scan", "probe", "probe", "probe"]
 
     service.set_provider_enabled("copilot", True)
     service.reset_high_water_marks("copilot")
@@ -274,18 +317,18 @@ def test_start_scheduler_idempotent(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     service.stop_scheduler()
 
 
-def test_tick_probe_due_without_last_probe(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_tick_not_due_when_recent_sync(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     db_path = tmp_path / "db.sqlite3"
-    service = DaemonService(str(db_path))
+    service = DaemonService(str(db_path), sync_interval_minutes=60)
     service.migrate_and_prepare()
     conn = connect_db(str(db_path))
     try:
-        row = get_provider_row(conn, "gemini")
-        assert row is not None
-        cfg = dict(row["config"])
-        cfg["active_probe_enabled"] = True
-        cfg["safe_options"] = {"last_successful_scan_at": datetime.now(UTC).isoformat()}
-        update_provider_row(conn, "gemini", enabled=True, config=cfg)
+        for provider in ("gemini", "codex", "copilot"):
+            row = get_provider_row(conn, provider)
+            assert row is not None
+            cfg = dict(row["config"])
+            cfg["safe_options"] = {"last_successful_sync_at": datetime.now(UTC).isoformat()}
+            update_provider_row(conn, provider, enabled=True, config=cfg)
         conn.commit()
     finally:
         conn.close()
@@ -295,7 +338,7 @@ def test_tick_probe_due_without_last_probe(tmp_path: Path, monkeypatch: pytest.M
     )
     monkeypatch.setattr(service, "run_probe", lambda provider="all": called.append("probe"))
     service.tick()
-    assert "probe" in called
+    assert called == []
 
 
 def test_missing_provider_row_noop_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

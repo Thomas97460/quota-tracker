@@ -6,8 +6,13 @@ interface UseConfigReturn {
   config: ConfigShape | null
   providers: ProviderSummary[]
   busy: boolean
-  updateConfig: (patch: Partial<{ active_probe_interval_minutes: number; passive_sync_interval_minutes: number }>) => Promise<void>
-  updateProvider: (id: ProviderId, patch: { enabled?: boolean; home_path?: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean }) => Promise<void>
+  updateConfig: (patch: Partial<{
+    sync_interval_minutes: number
+    // Deprecated — kept for back-compat if callers still use old field names
+    active_probe_interval_minutes: number
+    passive_sync_interval_minutes: number
+  }>) => Promise<void>
+  updateProvider: (id: ProviderId, patch: { enabled?: boolean; home_path?: string }) => Promise<void>
   scanProvider: (id: ProviderId) => Promise<void>
   probeProvider: (id: ProviderId) => Promise<void>
   reload: () => void
@@ -41,7 +46,7 @@ export function useConfig(): UseConfigReturn {
   }, [tick])
 
   const updateConfig = useCallback(
-    async (patch: Partial<{ active_probe_interval_minutes: number; passive_sync_interval_minutes: number }>) => {
+    async (patch: Partial<{ sync_interval_minutes: number; active_probe_interval_minutes: number; passive_sync_interval_minutes: number }>) => {
       setBusy(true)
       try {
         const res = await apiSend<{ config: ConfigShape }>("PATCH", "/api/config", patch)
@@ -54,10 +59,7 @@ export function useConfig(): UseConfigReturn {
   )
 
   const updateProvider = useCallback(
-    async (
-      id: ProviderId,
-      patch: { enabled?: boolean; home_path?: string; active_probe_enabled?: boolean; passive_sync_enabled?: boolean }
-    ) => {
+    async (id: ProviderId, patch: { enabled?: boolean; home_path?: string }) => {
       setBusy(true)
       try {
         await apiSend("PATCH", `/api/providers/${id}`, patch)

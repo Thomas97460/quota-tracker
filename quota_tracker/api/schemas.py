@@ -23,6 +23,7 @@ class ProviderPatchRequest(BaseModel):
 class ConfigPatchRequest(BaseModel):
     """Global config patch payload."""
 
+    sync_interval_minutes: int | None = None
     active_probe_interval_minutes: int | None = None
     passive_sync_interval_minutes: int | None = None
     web_host: str | None = None

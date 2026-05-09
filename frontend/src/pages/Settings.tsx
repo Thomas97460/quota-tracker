@@ -17,34 +17,29 @@ const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot"]
 interface ProviderFormState {
   enabled: boolean
   home_path: string
-  passive_sync_enabled: boolean
-  active_probe_enabled: boolean
 }
 
 function providerToForm(p: ProviderSummary): ProviderFormState {
   return {
     enabled: p.enabled,
     home_path: p.config.home_path,
-    passive_sync_enabled: p.config.passive_sync_enabled,
-    active_probe_enabled: p.config.active_probe_enabled,
   }
 }
 
 export function Settings(): React.JSX.Element {
-  const { config, providers, busy, updateConfig, updateProvider, scanProvider, probeProvider } =
+  const { config, providers, busy, updateConfig, updateProvider, scanProvider, reload } =
     useConfig()
 
-  // Daemon interval form state
-  const [probeMinutes, setProbeMinutes] = useState(60)
-  const [syncMinutes, setSyncMinutes] = useState(15)
+  // Single sync interval input
+  const [syncMinutes, setSyncMinutes] = useState(5)
   const [daemonSaving, setDaemonSaving] = useState(false)
   const [daemonSaved, setDaemonSaved] = useState(false)
 
   // Provider form states
   const [providerForms, setProviderForms] = useState<Record<ProviderId, ProviderFormState>>({
-    gemini: { enabled: true, home_path: "~/.gemini", passive_sync_enabled: true, active_probe_enabled: false },
-    codex:  { enabled: true, home_path: "~/.codex",  passive_sync_enabled: true, active_probe_enabled: false },
-    copilot: { enabled: true, home_path: "~/.copilot", passive_sync_enabled: true, active_probe_enabled: false },
+    gemini:  { enabled: true, home_path: "~/.gemini" },
+    codex:   { enabled: true, home_path: "~/.codex" },
+    copilot: { enabled: true, home_path: "~/.copilot" },
   })
 
   const [actionBusy, setActionBusy] = useState<string | null>(null)
@@ -52,8 +47,7 @@ export function Settings(): React.JSX.Element {
   // Sync form from loaded config
   useEffect(() => {
     if (config) {
-      setProbeMinutes(config.daemon.active_probe_interval_minutes)
-      setSyncMinutes(config.daemon.passive_sync_interval_minutes)
+      setSyncMinutes(config.daemon.sync_interval_minutes ?? config.daemon.passive_sync_interval_minutes ?? 5)
     }
   }, [config])
 
@@ -68,10 +62,7 @@ export function Settings(): React.JSX.Element {
   async function handleSaveDaemon(): Promise<void> {
     setDaemonSaving(true)
     try {
-      await updateConfig({
-        active_probe_interval_minutes: probeMinutes,
-        passive_sync_interval_minutes: syncMinutes,
-      })
+      await updateConfig({ sync_interval_minutes: syncMinutes })
       setDaemonSaved(true)
       setTimeout(() => setDaemonSaved(false), 2000)
     } finally {
@@ -83,30 +74,16 @@ export function Settings(): React.JSX.Element {
     const form = providerForms[id]
     setActionBusy(`save-${id}`)
     try {
-      await updateProvider(id, {
-        enabled: form.enabled,
-        home_path: form.home_path,
-        passive_sync_enabled: form.passive_sync_enabled,
-        active_probe_enabled: form.active_probe_enabled,
-      })
+      await updateProvider(id, { enabled: form.enabled, home_path: form.home_path })
     } finally {
       setActionBusy(null)
     }
   }
 
-  async function handleScan(id: ProviderId): Promise<void> {
-    setActionBusy(`scan-${id}`)
+  async function handleSync(id: ProviderId): Promise<void> {
+    setActionBusy(`sync-${id}`)
     try {
       await scanProvider(id)
-    } finally {
-      setActionBusy(null)
-    }
-  }
-
-  async function handleProbe(id: ProviderId): Promise<void> {
-    setActionBusy(`probe-${id}`)
-    try {
-      await probeProvider(id)
     } finally {
       setActionBusy(null)
     }
@@ -143,20 +120,9 @@ export function Settings(): React.JSX.Element {
       {/* Daemon settings */}
       <Card>
         <h2 className="text-sm font-semibold text-slate-300 mb-4">Daemon Settings</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg">
+        <div className="max-w-xs">
           <label className="flex flex-col gap-1.5">
-            <span className="text-xs text-slate-400">Active probe interval (minutes)</span>
-            <input
-              type="number"
-              min={1}
-              value={probeMinutes}
-              onChange={(e) => setProbeMinutes(Number(e.target.value))}
-              className="rounded-lg border border-slate-600 bg-slate-900 px-3 py-2 text-sm text-slate-100
-                focus:outline-none focus:ring-2 focus:ring-violet-500 focus:border-transparent"
-            />
-          </label>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-xs text-slate-400">Passive sync interval (minutes)</span>
+            <span className="text-xs text-slate-400">Sync interval (minutes)</span>
             <input
               type="number"
               min={1}
@@ -214,23 +180,7 @@ export function Settings(): React.JSX.Element {
                 checked={form.enabled}
                 onChange={(v) => setProviderField(id, "enabled", v)}
               />
-              <Toggle
-                label="Passive sync"
-                checked={form.passive_sync_enabled}
-                onChange={(v) => setProviderField(id, "passive_sync_enabled", v)}
-              />
-              <Toggle
-                label="Active probe"
-                checked={form.active_probe_enabled}
-                onChange={(v) => setProviderField(id, "active_probe_enabled", v)}
-              />
             </div>
-
-            {form.active_probe_enabled && (
-              <p className="text-xs text-amber-400 mb-4">
-                Active probes may consume provider quota.
-              </p>
-            )}
 
             <div className="flex flex-wrap gap-2">
               <Button
@@ -245,20 +195,11 @@ export function Settings(): React.JSX.Element {
               <Button
                 variant="ghost"
                 size="sm"
-                loading={actionBusy === `scan-${id}`}
-                disabled={isBusy && actionBusy !== `scan-${id}`}
-                onClick={() => handleScan(id)}
+                loading={actionBusy === `sync-${id}`}
+                disabled={isBusy && actionBusy !== `sync-${id}`}
+                onClick={() => handleSync(id)}
               >
-                Scan
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                loading={actionBusy === `probe-${id}`}
-                disabled={isBusy && actionBusy !== `probe-${id}`}
-                onClick={() => handleProbe(id)}
-              >
-                Probe
+                Sync now
               </Button>
             </div>
           </Card>

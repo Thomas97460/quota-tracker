@@ -110,11 +110,8 @@ def test_copilot_header_parsing_full_and_weekly_only() -> None:
 
 
 def test_copilot_active_probe_paths(tmp_path: Path) -> None:
-    p = CopilotProvider(str(tmp_path), active_probe_enabled=False)
-    assert p.active_probe() == []
-
-    p2 = CopilotProvider(str(tmp_path), active_probe_enabled=True)
-    assert p2.active_probe() == []  # no config.json
+    p = CopilotProvider(str(tmp_path))
+    assert p.active_probe() == []  # no config.json
 
     (tmp_path / "config.json").write_text("{}")
-    assert p2.active_probe() == []  # config exists but no copilotTokens
+    assert p.active_probe() == []  # config exists but no copilotTokens

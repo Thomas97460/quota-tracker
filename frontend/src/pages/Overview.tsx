@@ -7,14 +7,14 @@ import { Badge } from "../components/ui/Badge"
 import { Button } from "../components/ui/Button"
 import { Card } from "../components/ui/Card"
 import { MetricCard } from "../components/ui/MetricCard"
-import { ProgressBar } from "../components/ui/ProgressBar"
+import { QuotaPanel } from "../components/ui/QuotaPanel"
 import { RangePicker } from "../components/ui/RangePicker"
 import { Spinner } from "../components/ui/Spinner"
-import { TokenBreakdown } from "../components/ui/TokenBreakdown"
-import type { Granularity, Range } from "../hooks/useDashboard"
+import { TokenBreakdownPie } from "../components/charts/TokenBreakdownPie"
+import type { Range } from "../hooks/useDashboard"
 import { useDashboard } from "../hooks/useDashboard"
 import type { ProviderId } from "../types"
-import { formatDate, formatLargeNumber, formatRelative, latestQuotas } from "../utils"
+import { formatLargeNumber, formatRelative, latestQuotas } from "../utils"
 
 const providerLabels: Record<ProviderId, string> = {
   gemini: "Gemini",
@@ -30,13 +30,8 @@ const providerColors: Record<ProviderId, string> = {
 
 const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot"]
 
-function defaultGranularity(range: Range): Granularity {
-  return range === "24h" ? "hour" : "day"
-}
-
 export function Overview(): React.JSX.Element {
   const [range, setRange] = useState<Range>("7d")
-  const [granularity, setGranularity] = useState<Granularity>(defaultGranularity("7d"))
   const {
     providers,
     quotas,
@@ -47,11 +42,10 @@ export function Overview(): React.JSX.Element {
     loading,
     error,
     refresh,
-  } = useDashboard(undefined, range, granularity)
+  } = useDashboard(undefined, range)
 
   const handleRange = (next: Range) => {
     setRange(next)
-    setGranularity(defaultGranularity(next))
   }
 
   const latest = latestQuotas(quotas)
@@ -80,9 +74,7 @@ export function Overview(): React.JSX.Element {
         <div className="flex items-center gap-3">
           <RangePicker
             range={range}
-            granularity={granularity}
             onRangeChange={handleRange}
-            onGranularityChange={setGranularity}
           />
           <Button variant="ghost" size="sm" loading={loading} onClick={refresh}>
             <RefreshCw className="h-3.5 w-3.5" />
@@ -155,28 +147,7 @@ export function Overview(): React.JSX.Element {
                     Details &rarr;
                   </Link>
                 </div>
-                {rows.length === 0 ? (
-                  <p className="text-xs text-slate-500">No quota data</p>
-                ) : (
-                  <div className="flex flex-col gap-3">
-                    {rows.map((q) => (
-                      <div key={q.quota_name}>
-                        <div className="flex justify-between mb-1">
-                          <span className="text-xs text-slate-400">{q.quota_name}</span>
-                          {q.resets_at && (
-                            <span className="text-xs text-slate-600">
-                              resets {formatDate(q.resets_at)}
-                            </span>
-                          )}
-                        </div>
-                        <ProgressBar
-                          value={q.used_percent ?? 0}
-                          label={q.used_percent !== null ? undefined : "n/a"}
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <QuotaPanel providerId={id} latest={rows} />
               </Card>
             ))}
           </div>
@@ -188,14 +159,14 @@ export function Overview(): React.JSX.Element {
           <h2 className="text-sm font-semibold text-slate-300 mb-3">
             Tokens over time
             <span className="ml-2 text-xs font-normal text-slate-500">
-              by provider · {granularity}
+              by provider · hour
             </span>
           </h2>
           <StackedTokenChart byProvider={timeSeriesByProvider} mode="provider" />
         </Card>
         <Card>
-          <h2 className="text-sm font-semibold text-slate-300 mb-3">Token breakdown</h2>
-          <TokenBreakdown rows={allTimeSeries} />
+          <h2 className="text-sm font-semibold text-slate-300 mb-3">Token types</h2>
+          <TokenBreakdownPie rows={allTimeSeries} />
         </Card>
       </div>
 
@@ -214,8 +185,6 @@ export function Overview(): React.JSX.Element {
                   Provider
                 </th>
                 <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Status</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Sync</th>
-                <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">Probe</th>
                 <th className="text-left py-2 px-3 text-xs font-medium text-slate-400">
                   Last updated
                 </th>
@@ -238,16 +207,6 @@ export function Overview(): React.JSX.Element {
                   <td className="py-2.5 px-3">
                     <Badge variant={p.enabled ? "success" : "error"}>
                       {p.enabled ? "Enabled" : "Disabled"}
-                    </Badge>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <Badge variant={p.config.passive_sync_enabled ? "info" : "default"}>
-                      {p.config.passive_sync_enabled ? "On" : "Off"}
-                    </Badge>
-                  </td>
-                  <td className="py-2.5 px-3">
-                    <Badge variant={p.config.active_probe_enabled ? "info" : "default"}>
-                      {p.config.active_probe_enabled ? "On" : "Off"}
                     </Badge>
                   </td>
                   <td className="py-2.5 px-3 text-slate-400">{formatRelative(p.updated_at)}</td>

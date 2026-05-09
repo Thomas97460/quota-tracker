@@ -138,10 +138,13 @@ def register_routes(
         quota_name: str | None = None,
         start: str | None = None,
         end: str | None = None,
-        limit: int = 100,
+        limit: int = 1000,
+        order: str = "desc",
     ) -> dict[str, Any]:
         """Return filtered quota history."""
 
+        if order not in ("asc", "desc"):
+            raise HTTPException(status_code=400, detail="order must be 'asc' or 'desc'")
         conn = connect_db(str(db_path))
         try:
             apply_migrations(conn)
@@ -159,10 +162,56 @@ def register_routes(
             if end:
                 query += " AND timestamp <= ?"
                 params.append(end)
-            query += " ORDER BY timestamp DESC LIMIT ?"
+            direction = "ASC" if order == "asc" else "DESC"
+            query += f" ORDER BY timestamp {direction} LIMIT ?"
             params.append(limit)
             rows = conn.execute(query, tuple(params)).fetchall()
             return {"items": [dict(row) for row in rows]}
+        finally:
+            conn.close()
+
+    @app.get("/api/token-usage/by-project")
+    def token_usage_by_project(
+        provider_id: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int = 10,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """Return token usage aggregated by project_path."""
+
+        conn = connect_db(str(db_path))
+        try:
+            apply_migrations(conn)
+            where = "WHERE s.project_path IS NOT NULL"
+            params: list[Any] = []
+            if provider_id:
+                where += " AND t.provider_id = ?"
+                params.append(provider_id)
+            if start:
+                where += " AND t.timestamp >= ?"
+                params.append(start)
+            if end:
+                where += " AND t.timestamp <= ?"
+                params.append(end)
+            count_row = conn.execute(
+                f"SELECT COUNT(DISTINCT s.project_path) "
+                f"FROM token_usage_history t JOIN sessions s ON t.session_id = s.id {where}",
+                tuple(params),
+            ).fetchone()
+            total = count_row[0] if count_row else 0
+            rows = conn.execute(
+                f"SELECT s.project_path, s.project_name, "
+                f"SUM(t.total_tokens) as total_tokens, COUNT(DISTINCT t.session_id) as session_count "
+                f"FROM token_usage_history t JOIN sessions s ON t.session_id = s.id {where} "
+                f"GROUP BY s.project_path "
+                f"ORDER BY total_tokens DESC LIMIT ? OFFSET ?",
+                tuple(params) + (limit, offset),
+            ).fetchall()
+            return {
+                "items": [dict(row) for row in rows],
+                "total": total,
+            }
         finally:
             conn.close()
 
@@ -258,6 +307,10 @@ def register_routes(
     def patch_config(payload: ConfigPatchRequest) -> dict[str, Any]:
         """Patch and persist global config."""
 
+        if payload.sync_interval_minutes is not None:
+            if payload.sync_interval_minutes <= 0:
+                raise HTTPException(status_code=400, detail="invalid sync interval")
+            config.daemon.sync_interval_minutes = payload.sync_interval_minutes
         if payload.active_probe_interval_minutes is not None:
             if payload.active_probe_interval_minutes <= 0:
                 raise HTTPException(status_code=400, detail="invalid active interval")

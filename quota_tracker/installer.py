@@ -6,6 +6,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
+from quota_tracker import _ui as ui
 from quota_tracker.config import AppConfig, save_config
 from quota_tracker.paths import DEFAULT_CONFIG_DIR, DEFAULT_LOG_DIR
 
@@ -22,22 +23,15 @@ def detect_provider_homes(home: Path) -> dict[str, str]:
 
 
 def _input_with_default(prompt: str, default: str) -> str:
-    """Read user input with fallback default value."""
+    """Read user input with fallback default value (thin wrapper over ui.prompt)."""
 
-    raw = input(f"{prompt} [{default}]: ").strip()
-    return raw if raw else default
+    return ui.prompt(prompt, default=default)
 
 
 def _parse_bool(prompt: str, default: bool) -> bool:
-    """Read boolean prompt with y/n values."""
+    """Read boolean prompt with y/n values (thin wrapper over ui.confirm)."""
 
-    default_text = "y" if default else "n"
-    value = input(f"{prompt} [y/n, default={default_text}]: ").strip().lower()
-    if value not in {"", "y", "n"}:
-        return default
-    if value == "":
-        return default
-    return value == "y"
+    return ui.confirm(prompt, default=default)
 
 
 def merge_config(base: AppConfig, updates: dict[str, object]) -> AppConfig:
@@ -69,30 +63,74 @@ def merge_config(base: AppConfig, updates: dict[str, object]) -> AppConfig:
     return base
 
 
-def configure_interactively(config: AppConfig, home: Path) -> AppConfig:
-    """Prompt user for interactive installer configuration."""
+def _run_interactive_flow(config: AppConfig, home: Path) -> AppConfig:
+    """Execute one pass of the interactive configuration prompts."""
 
     detected = detect_provider_homes(home)
-    enable_all = _parse_bool("Enable all detected providers", True)
+
+    # ── Step 1/3: Detect providers ──────────────────────────────────────────
+    ui.step(1, 3, "Detect providers")
     for provider in ("gemini", "codex", "copilot"):
         provider_cfg = getattr(config, provider)
-        detected_home = detected.get(provider, provider_cfg.home_path)
-        provider_cfg.home_path = _input_with_default(f"{provider} home path", detected_home)
-        default_enabled = enable_all and provider in detected
-        provider_cfg.enabled = _parse_bool(f"Enable {provider}", default_enabled)
+        if provider in detected:
+            ui.success_check(f"{provider:<8}  {detected[provider]:<20}  found")
+        else:
+            ui.error_mark(f"{provider:<8}  {provider_cfg.home_path:<20}  not found")
 
+    # ── Step 2/3: Configure providers ───────────────────────────────────────
+    ui.step(2, 3, "Configure providers")
+    for provider in ("gemini", "codex", "copilot"):
+        provider_cfg = getattr(config, provider)
+        detected_home = detected.get(provider)
+        default_enabled = detected_home is not None
+
+        print(f"\n  {ui.violet('→')} {ui.bold(provider)}" if ui._is_tty() else f"\n  → {provider}")
+
+        enabled = _parse_bool(f"Enable {provider}", default_enabled)
+        provider_cfg.enabled = enabled
+
+        if enabled:
+            home_default = detected_home or provider_cfg.home_path
+            provider_cfg.home_path = _input_with_default(f"Home path", home_default)
+
+    # ── Step 3/3: Daemon settings ────────────────────────────────────────────
+    ui.step(3, 3, "Daemon settings")
     config.daemon.web_host = _input_with_default("Web host", config.daemon.web_host)
     config.daemon.web_port = int(_input_with_default("Web port", str(config.daemon.web_port)))
-    config.daemon.active_probe_interval_minutes = int(
-        _input_with_default(
-            "Active probe interval minutes", str(config.daemon.active_probe_interval_minutes)
-        )
+    config.daemon.sync_interval_minutes = int(
+        _input_with_default("Sync interval (min)", str(config.daemon.sync_interval_minutes))
     )
-    config.daemon.passive_sync_interval_minutes = int(
-        _input_with_default(
-            "Passive sync interval minutes", str(config.daemon.passive_sync_interval_minutes)
-        )
-    )
+
+    # ── Summary box ──────────────────────────────────────────────────────────
+    print()
+    summary_lines = []
+    for provider in ("gemini", "codex", "copilot"):
+        pcfg = getattr(config, provider)
+        state = "enabled" if pcfg.enabled else "disabled"
+        summary_lines.append(f"{provider:<8}  {state:<8}  {pcfg.home_path}")
+    summary_lines.append("")
+    summary_lines.append(f"host     {config.daemon.web_host}:{config.daemon.web_port}")
+    summary_lines.append(f"sync     every {config.daemon.sync_interval_minutes} min")
+    ui.box(summary_lines, title="Configuration summary")
+
+    return config
+
+
+def configure_interactively(config: AppConfig, home: Path) -> AppConfig:
+    """Prompt user for interactive installer configuration (with summary + confirmation)."""
+
+    ui.banner()
+    config = _run_interactive_flow(config, home)
+
+    print()
+    ok = ui.confirm("Continue with this config?", default=True)
+    if not ok:
+        print()
+        ui.warn_mark("Re-running configuration from the top …")
+        config = _run_interactive_flow(config, home)
+        print()
+        ui.confirm("Continue with this config?", default=True)
+
     return config
 
 

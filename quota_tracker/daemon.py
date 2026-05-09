@@ -32,6 +32,7 @@ from quota_tracker.providers import (
 
 LOGGER = logging.getLogger(__name__)
 PROVIDERS = ("gemini", "codex", "copilot")
+AUTO_PROBE_PROVIDERS = ("gemini", "codex", "copilot")
 
 
 @dataclass(frozen=True)
@@ -52,6 +53,7 @@ class DaemonService:
     def __init__(
         self,
         db_path: str,
+        sync_interval_minutes: int = 5,
         passive_sync_interval_minutes: int = 15,
         active_probe_interval_minutes: int = 60,
         log_level: str = "INFO",
@@ -59,8 +61,7 @@ class DaemonService:
         """Initialize daemon service settings."""
 
         self.db_path = db_path
-        self.passive_sync_interval_minutes = passive_sync_interval_minutes
-        self.active_probe_interval_minutes = active_probe_interval_minutes
+        self.sync_interval_minutes = sync_interval_minutes
         configure_logging(log_level)
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -78,8 +79,7 @@ class DaemonService:
                 {
                     "operation": "startup",
                     "db_path": self.db_path,
-                    "passive_sync_interval_minutes": self.passive_sync_interval_minutes,
-                    "active_probe_interval_minutes": self.active_probe_interval_minutes,
+                    "sync_interval_minutes": self.sync_interval_minutes,
                 },
                 ensure_ascii=True,
             )
@@ -89,16 +89,13 @@ class DaemonService:
         """Build one provider instance from persisted provider config."""
 
         home = str(config.get("home_path", f"~/.{provider_id}"))
-        active_enabled = bool(config.get("active_probe_enabled", False))
         if provider_id == "gemini":
-            return GeminiProvider(home=home, active_probe_enabled=active_enabled)
+            return GeminiProvider(home=home)
         if provider_id == "codex":
             include_archived = bool(config.get("safe_options", {}).get("include_archived", True))
-            return CodexProvider(
-                home=home, active_probe_enabled=active_enabled, include_archived=include_archived
-            )
+            return CodexProvider(home=home, include_archived=include_archived)
         if provider_id == "copilot":
-            return CopilotProvider(home=home, active_probe_enabled=active_enabled)
+            return CopilotProvider(home=home)
         raise ValueError(f"unsupported provider_id: {provider_id}")
 
     def _provider_ids(self, provider: str) -> list[str]:
@@ -117,7 +114,7 @@ class DaemonService:
 
         config = dict(row["config"])
         safe = dict(config.get("safe_options", {}))
-        safe["last_successful_scan_at"] = datetime.now(UTC).isoformat()
+        safe["last_successful_sync_at"] = datetime.now(UTC).isoformat()
         safe["last_parse_failures"] = parse_failures
         config["safe_options"] = safe
         config["high_water_marks"] = marks
@@ -158,7 +155,7 @@ class DaemonService:
             rows = {row["id"]: row for row in list_provider_rows(conn)}
             for provider_id in selected:
                 row = rows[provider_id]
-                if not row["enabled"] or not row["config"].get("passive_sync_enabled", True):
+                if not row["enabled"]:
                     continue
                 started = time.time()
                 try:
@@ -246,7 +243,7 @@ class DaemonService:
             rows = {row["id"]: row for row in list_provider_rows(conn)}
             for provider_id in selected:
                 row = rows[provider_id]
-                if not row["enabled"] or not row["config"].get("active_probe_enabled", False):
+                if not row["enabled"]:
                     continue
                 started = time.time()
                 try:
@@ -288,36 +285,28 @@ class DaemonService:
             conn.close()
 
     def tick(self) -> None:
-        """Run one scheduler tick using configured intervals."""
+        """Run one scheduler tick using configured interval."""
 
         conn = connect_db(self.db_path)
-        due_scan = False
-        due_probe = False
+        due = False
         try:
             apply_migrations(conn)
             now = datetime.now(UTC)
             for row in list_provider_rows(conn):
+                if not row["enabled"]:
+                    continue
                 safe = row["config"].get("safe_options", {})
-                last_scan = safe.get("last_successful_scan_at")
-                last_probe = safe.get("last_successful_probe_at")
-                if row["enabled"] and row["config"].get("passive_sync_enabled", True):
-                    if not last_scan:
-                        due_scan = True
-                    else:
-                        delta = now - datetime.fromisoformat(last_scan)
-                        if delta.total_seconds() >= self.passive_sync_interval_minutes * 60:
-                            due_scan = True
-                if row["enabled"] and row["config"].get("active_probe_enabled", False):
-                    if not last_probe:
-                        due_probe = True
-                    else:
-                        delta = now - datetime.fromisoformat(last_probe)
-                        if delta.total_seconds() >= self.active_probe_interval_minutes * 60:
-                            due_probe = True
-            if due_scan:
+                last_sync = safe.get("last_successful_sync_at")
+                if not last_sync:
+                    due = True
+                else:
+                    delta = now - datetime.fromisoformat(last_sync)
+                    if delta.total_seconds() >= self.sync_interval_minutes * 60:
+                        due = True
+            if due:
                 self.run_scan(provider="all", full=False)
-            if due_probe:
-                self.run_probe(provider="all")
+                for pid in AUTO_PROBE_PROVIDERS:
+                    self.run_probe(provider=pid)
         finally:
             conn.close()
 

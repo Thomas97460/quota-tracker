@@ -17,6 +17,23 @@ from quota_tracker.providers.base import (
     normalize_session,
     normalize_token_usage,
 )
+from quota_tracker.providers.http import get_json
+
+_WHAM_URL = "https://chatgpt.com/backend-api/wham/usage"
+_WHAM_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+)
+
+
+def _epoch_to_iso(value: Any) -> str | None:
+    """Convert a Unix epoch integer (seconds) to an ISO 8601 string, or return None."""
+    if value is None:
+        return None
+    try:
+        return datetime.fromtimestamp(int(value), tz=UTC).isoformat()
+    except (TypeError, ValueError, OSError):
+        return None
 
 
 class CodexProvider:
@@ -24,13 +41,10 @@ class CodexProvider:
 
     metadata = ProviderMetadata("codex", "Codex", "~/.codex", True, True)
 
-    def __init__(
-        self, home: str, active_probe_enabled: bool = False, include_archived: bool = True
-    ):
+    def __init__(self, home: str, include_archived: bool = True):
         """Initialize provider options."""
 
         self.home = Path(home).expanduser()
-        self.active_probe_enabled = active_probe_enabled
         self.include_archived = include_archived
 
     def _session_files(self) -> list[Path]:
@@ -61,6 +75,7 @@ class CodexProvider:
             sid = p.stem
             cli_version = None
             model = "unknown"
+            cwd = None
             last_ts = None
             for index, line in enumerate(p.read_text(errors="replace").splitlines()):
                 if not line.strip():
@@ -75,13 +90,11 @@ class CodexProvider:
                 last_ts = ev.get("timestamp") or last_ts
                 if et == "session_meta":
                     cli_version = (ev.get("cli") or {}).get("version")
+                    cwd = payload.get("cwd") or cwd
                 if et == "turn_context":
-                    model = (ev.get("model") or model) or "unknown"
+                    model = (payload.get("model") or model) or "unknown"
                 usage_payload = self._token_count_usage(ev, payload)
                 if usage_payload:
-                    limit_name = (payload.get("rate_limits") or {}).get("limit_name")
-                    if limit_name:
-                        model = str(limit_name)
                     eid = sha256(
                         (key + str(ev.get("id") or ev.get("timestamp")) + str(index)).encode()
                     ).hexdigest()
@@ -105,6 +118,9 @@ class CodexProvider:
                 for qn in ("primary", "secondary"):
                     if qn in rate:
                         item = rate[qn]
+                        if not isinstance(item, dict):
+                            continue
+                        resets_at_iso = _epoch_to_iso(item.get("resets_at"))
                         quotas.append(
                             normalize_quota(
                                 "codex",
@@ -115,16 +131,17 @@ class CodexProvider:
                                 used_percent=item.get("used_percent"),
                                 remaining_percent=item.get("remaining_percent"),
                                 window_minutes=item.get("window_minutes"),
-                                resets_at=item.get("resets_at"),
+                                resets_at=resets_at_iso,
                             )
                         )
+            project_name = Path(cwd).name if cwd else None
             sessions.append(
                 normalize_session(
                     "codex",
                     sid,
                     model,
-                    None,
-                    None,
+                    cwd,
+                    project_name,
                     last_ts,
                     last_ts,
                     {"cli_version": cli_version, "source_file": key},
@@ -175,16 +192,54 @@ class CodexProvider:
         return self._scan(high_water_marks)
 
     def active_probe(self) -> list[QuotaRecord]:
-        """Run active WHAM-style quota probe when enabled and auth is available."""
+        """Probe the WHAM endpoint for live Codex rate-limit data."""
 
-        if not self.active_probe_enabled:
+        auth_path = self.home / "auth.json"
+        if not auth_path.exists():
             return []
-        auth = self.home / "auth.json"
-        if not auth.exists():
+        try:
+            auth = json.loads(auth_path.read_text(encoding="utf-8", errors="replace"))
+        except Exception:
+            return []
+        access_token = (auth.get("tokens") or {}).get("access_token") or ""
+        if not isinstance(access_token, str) or not access_token:
+            return []
+        try:
+            data = get_json(
+                _WHAM_URL,
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "User-Agent": _WHAM_USER_AGENT,
+                    "Accept": "*/*",
+                },
+            )
+        except Exception:
+            return []
+        rate_limit = data.get("rate_limit")
+        if not isinstance(rate_limit, dict):
             return []
         now = datetime.now(UTC).isoformat()
-        return [
-            normalize_quota(
-                "codex", "primary", now, "active_probe", {"source": "wham"}, remaining_percent=50.0
+        records: list[QuotaRecord] = []
+        for window_name in ("primary", "secondary"):
+            window = rate_limit.get(f"{window_name}_window")
+            if not isinstance(window, dict):
+                continue
+            used_pct = window.get("used_percent")
+            limit_secs = window.get("limit_window_seconds")
+            reset_at = window.get("reset_at")
+            records.append(
+                normalize_quota(
+                    "codex",
+                    window_name,
+                    now,
+                    "active_probe",
+                    {"window": window_name, "limit_window_seconds": limit_secs},
+                    used_percent=float(used_pct) if used_pct is not None else None,
+                    remaining_percent=(
+                        round(100.0 - float(used_pct), 4) if used_pct is not None else None
+                    ),
+                    window_minutes=int(limit_secs) // 60 if limit_secs is not None else None,
+                    resets_at=_epoch_to_iso(reset_at),
+                )
             )
-        ]
+        return records

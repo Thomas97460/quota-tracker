@@ -37,15 +37,19 @@ interface StackedTokenChartProps {
   className?: string
 }
 
+const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
 function formatBucket(bucket: string): string {
   if (bucket.length === 13) {
     const [datePart, hour] = bucket.split("T")
     const [, month, day] = datePart.split("-")
-    return `${month}/${day} ${hour}h`
+    const monthName = MONTH_NAMES[parseInt(month, 10) - 1]
+    return `${monthName} ${day} ${hour}h`
   }
   if (bucket.length === 10) {
     const [, month, day] = bucket.split("-")
-    return `${month}/${day}`
+    const monthName = MONTH_NAMES[parseInt(month, 10) - 1]
+    return `${monthName} ${day}`
   }
   return bucket
 }
