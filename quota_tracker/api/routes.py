@@ -463,17 +463,22 @@ def register_routes(
 
     @app.post("/api/update")
     def trigger_update() -> dict[str, str]:
-        """Spawn install.sh in the background to update the binary and restart the service."""
+        """Spawn install.sh outside the service cgroup so it survives the service restart."""
 
+        install_cmd = (
+            "INTERACTIVE=0 RESTART_SERVICE=1 curl -fsSL "
+            "https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/install.sh "
+            "| bash"
+        )
         subprocess.Popen(
             [
+                "systemd-run",
+                "--user",
+                "--unit=quota-tracker-updater",
+                "--description=quota-tracker self-update",
                 "bash",
                 "-c",
-                (
-                    "curl -fsSL "
-                    "https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/install.sh "
-                    "| bash"
-                ),
+                install_cmd,
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

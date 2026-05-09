@@ -40,8 +40,18 @@ export function useVersion(): UseVersionResult {
     } catch {
       // ignore — service will restart
     }
-    // Reload after a short delay to let the service restart
-    setTimeout(() => window.location.reload(), 8000)
+    // Poll until the service comes back up (max 90s), then reload
+    const deadline = Date.now() + 90_000
+    const poll = async () => {
+      await new Promise((r) => setTimeout(r, 3000))
+      try {
+        const r = await fetch("/api/version")
+        if (r.ok) { window.location.reload(); return }
+      } catch { /* still restarting */ }
+      if (Date.now() < deadline) poll()
+      else window.location.reload()
+    }
+    poll()
   }, [])
 
   return {

@@ -3,10 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
-import sqlite3
-import tempfile
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -109,45 +105,9 @@ def _load_session_key_from_file(home: Path) -> str | None:
     return session_key.strip()
 
 
-def _load_session_key_from_firefox() -> str | None:
-    """Try to read claude.ai sessionKey cookie from Firefox (no decryption needed)."""
-    firefox_dir = Path.home() / ".mozilla" / "firefox"
-    if not firefox_dir.exists():
-        return None
-    cookie_dbs = sorted(
-        firefox_dir.glob("*/cookies.sqlite"),
-        key=lambda p: p.stat().st_mtime,
-        reverse=True,
-    )
-    for cookies_path in cookie_dbs:
-        try:
-            with tempfile.NamedTemporaryFile(suffix=".sqlite", delete=False) as tmp:
-                shutil.copy2(cookies_path, tmp.name)
-                tmp_path = tmp.name
-            try:
-                conn = sqlite3.connect(tmp_path)
-                cur = conn.execute(
-                    "SELECT value FROM moz_cookies"
-                    " WHERE host LIKE '%.claude.ai' AND name = 'sessionKey'"
-                    " ORDER BY expiry DESC LIMIT 1"
-                )
-                row = cur.fetchone()
-                conn.close()
-                if row and isinstance(row[0], str) and row[0].strip():
-                    return row[0].strip()
-            finally:
-                os.unlink(tmp_path)
-        except Exception:
-            continue
-    return None
-
-
 def _load_session_key(home: Path) -> str | None:
-    """Return a session key: credentials file first, then Firefox auto-detection."""
-    key = _load_session_key_from_file(home)
-    if key:
-        return key
-    return _load_session_key_from_firefox()
+    """Return a session key from quota_tracker_creds.json."""
+    return _load_session_key_from_file(home)
 
 
 def _fetch_org_id(session_key: str) -> str | None:
@@ -221,9 +181,8 @@ def _parse_usage_response(data: dict[str, Any], now: str) -> list[QuotaRecord]:
 class ClaudeAiProvider:
     """Claude.ai active quota probe and Claude Code passive usage sync.
 
-    Credentials are loaded automatically from (in order):
-      1. ~/.claude/quota_tracker_creds.json  {"session_key": "sk-ant-sid02-..."}
-      2. Firefox cookies for claude.ai (no decryption needed)
+    Credentials are loaded from ~/.claude/quota_tracker_creds.json
+    Example: {"session_key": "sk-ant-sid02-..."}
 
     The organization UUID is discovered at runtime via /api/organizations.
     """

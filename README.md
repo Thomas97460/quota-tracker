@@ -2,6 +2,8 @@
 
 Track token usage and quotas for [Claude](https://claude.ai), [Copilot](https://github.com/features/copilot), [Codex](https://openai.com/codex) and [Gemini](https://gemini.google.com) — locally, with no telemetry.
 
+**Zero configuration required.** Quota Tracker automatically leverages your existing local CLI credentials to fetch real-time quotas. It parses and backfills your conversation history into a local database, ensuring your usage data is persisted and searchable even after a local environment cleanup.
+
 <p align="center">
   <a href="https://github.com/Thomas97460/quota-tracker/actions/workflows/ci.yml">
     <img src="https://github.com/Thomas97460/quota-tracker/actions/workflows/ci.yml/badge.svg" alt="CI">
