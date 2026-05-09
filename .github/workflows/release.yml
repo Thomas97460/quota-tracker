@@ -1,0 +1,133 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  # ── build binary for each platform ────────────────────────────────────────────
+  build:
+    name: build ${{ matrix.arch }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+            asset: quota-tracker-linux-amd64
+          - os: ubuntu-24.04-arm
+            arch: arm64
+            asset: quota-tracker-linux-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: set version from tag
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
+          # Stamp version into source before build
+          sed -i "s/__version__ = \".*\"/__version__ = \"${VERSION}\"/" quota_tracker/_version.py
+          sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
+
+      - name: install python deps
+        run: uv sync --extra dev
+
+      - name: build frontend
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+
+      - name: build binary
+        run: |
+          env -u PYTHONPATH uv run pyinstaller \
+            --noconfirm \
+            --onefile \
+            --name quota-tracker \
+            --add-data "frontend/dist:frontend/dist" \
+            quota_tracker/cli.py
+
+      - name: package & checksum
+        run: |
+          mkdir -p dist/release
+          cp dist/quota-tracker "dist/release/${{ matrix.asset }}"
+          cd dist/release
+          sha256sum "${{ matrix.asset }}" > "${{ matrix.asset }}.sha256"
+          echo "--- checksum ---"
+          cat "${{ matrix.asset }}.sha256"
+
+      - name: smoke test
+        run: dist/release/${{ matrix.asset }} --version
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: |
+            dist/release/${{ matrix.asset }}
+            dist/release/${{ matrix.asset }}.sha256
+          retention-days: 1
+
+  # ── create github release ──────────────────────────────────────────────────────
+  release:
+    name: publish release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist/release
+          merge-multiple: true
+
+      - name: verify assets
+        run: |
+          echo "--- release assets ---"
+          ls -lh dist/release/
+          echo "--- checksums ---"
+          cat dist/release/*.sha256
+
+      - name: create github release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            dist/release/quota-tracker-linux-amd64
+            dist/release/quota-tracker-linux-amd64.sha256
+            dist/release/quota-tracker-linux-arm64
+            dist/release/quota-tracker-linux-arm64.sha256
+          body: |
+            ## Install
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+
+            Or pin to this release:
+
+            ```bash
+            VERSION=${{ github.ref_name }} \
+              curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/install.sh | bash
+            ```
+
+            ## Checksums
+
+            Verify your download:
+            ```bash
+            sha256sum -c quota-tracker-linux-amd64.sha256
+            sha256sum -c quota-tracker-linux-arm64.sha256
+            ```

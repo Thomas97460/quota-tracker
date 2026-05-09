@@ -1,0 +1,86 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "quota-tracker"
+version = "0.1.0"
+description = "Quota tracker daemon and API"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi>=0.115.0",
+  "uvicorn>=0.30.0",
+  "pydantic>=2.8.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.2.0",
+  "ruff>=0.6.0",
+  "mypy>=1.11.0",
+  "interrogate>=1.7.0",
+  "pyinstaller>=6.10.0",
+]
+
+[project.scripts]
+quota-tracker = "quota_tracker.cli:main"
+
+[tool.setuptools]
+package-dir = {"" = "."}
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["quota_tracker*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [
+  "codex_local_audit.py",
+  "gemini_local_audit.py",
+  "copilot_local_audit.py",
+  "get_weekly_quota.py",
+  "node_modules",
+  ".venv",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_configs = true
+files = ["quota_tracker"]
+exclude = "(^|/)(codex_local_audit\\.py|gemini_local_audit\\.py|copilot_local_audit\\.py|get_weekly_quota\\.py)$"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --cov=quota_tracker --cov-report=term --cov-fail-under=90"
+norecursedirs = [".git", ".venv", "node_modules", "__pycache__"]
+
+[tool.interrogate]
+fail-under = 90
+verbose = 1
+exclude = [
+  "codex_local_audit.py",
+  "gemini_local_audit.py",
+  "copilot_local_audit.py",
+  "get_weekly_quota.py",
+]
+ignore-init-method = false
+ignore-init-module = false
+ignore-magic = false
+ignore-semiprivate = false
+ignore-private = false
+ignore-property-decorators = false
+ignore-module = false
+ignore-nested-functions = false
+ignore-nested-classes = false
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest-cov>=7.1.0",
+]

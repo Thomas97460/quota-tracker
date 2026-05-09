@@ -1,0 +1,121 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+    tags-ignore: ["v*"]
+    paths-ignore:
+      - "assets/**"
+  pull_request:
+
+permissions:
+  contents: write
+
+jobs:
+  # ── ruff lint + format ────────────────────────────────────────────────────────
+  lint:
+    name: ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+      - name: lint
+        run: uv run ruff check .
+      - name: format check
+        run: uv run ruff format --check .
+
+  # ── mypy strict ───────────────────────────────────────────────────────────────
+  typecheck:
+    name: mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+      - run: uv run mypy
+
+  # ── interrogate docstring coverage ────────────────────────────────────────────
+  docstrings:
+    name: interrogate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+      - run: uv run interrogate -v quota_tracker
+
+  # ── pytest + coverage ─────────────────────────────────────────────────────────
+  tests:
+    name: pytest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+      - name: run tests
+        run: uv run pytest --cov-report=xml --cov-report=term
+      - name: upload coverage xml
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-xml
+          path: coverage.xml
+          retention-days: 1
+
+  # ── frontend build ────────────────────────────────────────────────────────────
+  frontend:
+    name: frontend build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm --prefix frontend ci
+      - run: npm --prefix frontend run build
+
+  # ── update coverage badge (main branch only) ──────────────────────────────────
+  update-badges:
+    name: update badges
+    needs: [lint, typecheck, docstrings, tests, frontend]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: coverage-xml
+      - name: generate coverage badge json
+        run: |
+          COVERAGE=$(python3 -c "
+          import xml.etree.ElementTree as ET
+          tree = ET.parse('coverage.xml')
+          root = tree.getroot()
+          print(round(float(root.attrib['line-rate']) * 100))
+          ")
+          if   [ "$COVERAGE" -ge 90 ]; then COLOR="00d7d7"
+          elif [ "$COVERAGE" -ge 75 ]; then COLOR="f5a623"
+          else COLOR="e05252"; fi
+          mkdir -p assets
+          printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s","style":"flat-square"}' \
+            "$COVERAGE" "$COLOR" > assets/coverage.json
+          echo "coverage: ${COVERAGE}%"
+      - name: commit badges
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add assets/
+          git diff --staged --quiet || \
+            git commit -m "chore: update coverage badge" && git push || true
