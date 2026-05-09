@@ -468,7 +468,11 @@ def register_routes(
             [
                 "bash",
                 "-c",
-                "curl -fsSL https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/install.sh | bash",
+                (
+                    "curl -fsSL "
+                    "https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/install.sh "
+                    "| bash"
+                ),
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,

@@ -39,19 +39,21 @@ const pages = [
             transition: none !important;
           }
           
-          /* Revert titles to normal-ish and boost small text only */
+          /* Ensure the gradient border is visible on all 4 sides */
           html {
             font-size: 19px !important;
             background: linear-gradient(135deg, #8B5CF6, #4F8DF7, #F59E0B) !important;
             padding: 10px !important;
             box-sizing: border-box !important;
-            height: auto !important;
+            height: 100% !important;
+            overflow: hidden !important;
           }
           
           body {
+            height: 100% !important;
             border-radius: 12px !important;
-            overflow: hidden !important;
-            background: #0A0B10 !important; /* Force background-0 color */
+            overflow-y: auto !important;
+            background: #0A0B10 !important;
             position: relative !important;
           }
           

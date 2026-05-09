@@ -118,18 +118,20 @@ print_banner() {
   if [[ "${IS_TTY}" -eq 1 ]] && [[ -z "${NO_COLOR:-}" ]] && [[ "${COLORTERM:-}" =~ ^(truecolor|24bit)$ ]]; then
     WM="\033[38;2;0;215;215mq\033[38;2;43;202;225mu\033[38;2;65;196;230mo\033[38;2;87;189;235mt\033[38;2;109;182;240ma\033[38;2;131;176;245m-\033[38;2;153;169;250mt\033[38;2;164;158;253mr\033[38;2;168;152;254ma\033[38;2;172;147;255mc\033[38;2;175;140;255mk\033[38;2;175;137;255me\033[38;2;175;135;255mr\033[0m"
     GM="\033[38;2;0;215;215m▰\033[38;2;19;206;219m▰\033[38;2;39;197;224m▰\033[38;2;58;188;228m▰\033[38;2;78;179;233m▰\033[38;2;97;170;237m▰\033[38;2;117;161;242m▰\033[38;2;136;152;246m▰\033[38;2;156;143;251m▰\033[38;2;175;135;255m▰\033[0m"
+    GMR="\033[38;2;175;135;255m▰\033[38;2;156;143;251m▰\033[38;2;136;152;246m▰\033[38;2;117;161;242m▰\033[38;2;97;170;237m▰\033[38;2;78;179;233m▰\033[38;2;58;188;228m▰\033[38;2;39;197;224m▰\033[38;2;19;206;219m▰\033[38;2;0;215;215m▰\033[0m"
   elif [[ "${IS_TTY}" -eq 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
     WM="${CYAN}q${VIOLET}u${CYAN}o${VIOLET}t${CYAN}a${VIOLET}-${CYAN}t${VIOLET}r${CYAN}a${VIOLET}c${CYAN}k${VIOLET}e${CYAN}r${R}"
     GM="${CYAN}▰${VIOLET}▰${CYAN}▰${VIOLET}▰${CYAN}▰${VIOLET}▰${CYAN}▰${VIOLET}▰${CYAN}▰${VIOLET}▰${R}"
+    GMR="${VIOLET}▰${CYAN}▰${VIOLET}▰${CYAN}▰${VIOLET}▰${CYAN}▰${VIOLET}▰${CYAN}▰${VIOLET}▰${CYAN}▰${R}"
   else
-    WM="quota-tracker"; GM="▰▰▰▰▰▰▰▰▰▰"
+    WM="quota-tracker"; GM="▰▰▰▰▰▰▰▰▰▰"; GMR="▰▰▰▰▰▰▰▰▰▰"
   fi
 
   local mode_color="${GREEN}"
   [[ "${MODE}" == "update" ]] && mode_color="${AMBER}"
 
   printf '\n'
-  printf "  ${BOLD}${GM}  ${WM}${R}\n"
+  printf "  ${BOLD}${GM}  ${WM}  ${GMR}${R}\n"
   printf "  ${CYAN}════════════════════════════════════════${R}\n"
   printf "  ${DIM}local-first quota & token observability${R}\n"
   if [[ "${MODE}" == "update" && -n "${PREV_VERSION}" ]]; then
@@ -262,6 +264,13 @@ _LAST_OP="apply migrations"
 MIGRATE_OUT="$(quota-tracker migrate 2>/dev/null)"
 ok "${MIGRATE_OUT}"
 
+# ── stop service before backfill to avoid SQLite write contention ──────────────
+_LAST_OP="stop service"
+if systemctl_user is-active --quiet quota-tracker.service 2>/dev/null; then
+  systemctl --user stop quota-tracker.service >/dev/null 2>&1 || true
+  info "service stopped for backfill"
+fi
+
 # ── backfill ───────────────────────────────────────────────────────────────────
 section "backfill"
 _LAST_OP="local scan"
@@ -270,14 +279,16 @@ if [[ "${AUTO_SCAN}" == "1" ]]; then
   [[ "${FULL_RESCAN}" == "1" ]] && SCAN_FLAGS="${SCAN_FLAGS} --full"
   spin_start "scanning local usage data"
   # shellcheck disable=SC2086
-  SCAN_OUT="$(quota-tracker scan ${SCAN_FLAGS} 2>/dev/null)"
+  SCAN_OUT="$(quota-tracker scan ${SCAN_FLAGS} 2>/dev/null)" || { spin_stop; warn "scan failed — skipping backfill (run manually: quota-tracker scan --provider all --full)"; SCAN_OUT=""; }
   spin_stop
-  SESSIONS="$(printf '%s' "${SCAN_OUT}" | grep -oE 'sessions_upserted=[0-9]+' | grep -oE '[0-9]+' || true)"
-  TOKENS="$(printf '%s'   "${SCAN_OUT}" | grep -oE 'token_rows_inserted=[0-9]+' | grep -oE '[0-9]+' || true)"
-  FAILURES="$(printf '%s' "${SCAN_OUT}" | grep -oE 'parse_failures=[0-9]+' | grep -oE '[0-9]+' || true)"
-  SESSIONS="${SESSIONS:-0}"; TOKENS="${TOKENS:-0}"; FAILURES="${FAILURES:-0}"
-  ok "$(printf '%s sessions, %s token events indexed' "${SESSIONS}" "${TOKENS}")"
-  [[ "${FAILURES}" -gt 0 ]] && warn "${FAILURES} parse failure(s) — run with FULL_RESCAN=1 to retry"
+  if [[ -n "${SCAN_OUT}" ]]; then
+    SESSIONS="$(printf '%s' "${SCAN_OUT}" | grep -oE 'sessions_upserted=[0-9]+' | grep -oE '[0-9]+' || true)"
+    TOKENS="$(printf '%s'   "${SCAN_OUT}" | grep -oE 'token_rows_inserted=[0-9]+' | grep -oE '[0-9]+' || true)"
+    FAILURES="$(printf '%s' "${SCAN_OUT}" | grep -oE 'parse_failures=[0-9]+' | grep -oE '[0-9]+' || true)"
+    SESSIONS="${SESSIONS:-0}"; TOKENS="${TOKENS:-0}"; FAILURES="${FAILURES:-0}"
+    ok "$(printf '%s sessions, %s token events indexed' "${SESSIONS}" "${TOKENS}")"
+    [[ "${FAILURES}" -gt 0 ]] && warn "${FAILURES} parse failure(s) — run with FULL_RESCAN=1 to retry"
+  fi
 else
   info "skipped  (set AUTO_SCAN=1 to index local history)"
 fi
