@@ -145,6 +145,28 @@ tasks:
       - cd "{{.ROOT}}" && quota-tracker install --interactive --exec-path "${HOME}/.local/bin/quota-tracker"
       - cd "{{.ROOT}}" && quota-tracker install-user-service --exec-path "${HOME}/.local/bin/quota-tracker"
 
+  screenshot:
+    desc: "capture overview screenshot into assets/screenshots/"
+    cmds:
+      - mkdir -p "{{.ROOT}}/assets/screenshots"
+      - |
+        nix-shell -p nodejs chromium --run '
+          tmp=$(mktemp -d)
+          npm install --prefix "$tmp" playwright >/dev/null
+          CHROMIUM_BIN=$(which chromium) NODE_PATH="$tmp/node_modules" node frontend/screenshot.cjs "{{.ROOT}}/assets/screenshots"
+          rm -rf "$tmp"
+        '
+
+  package-linux-arm64:
+    desc: "build arm64 binary (requires arm64 host or cross-compiler)"
+    cmds:
+      - cd "{{.ROOT}}" && uv sync --extra dev
+      - cd "{{.ROOT}}/frontend" && npm run build
+      - cd "{{.ROOT}}" && env -u PYTHONPATH uv run pyinstaller --noconfirm --onefile --name quota-tracker --add-data "frontend/dist:frontend/dist" quota_tracker/cli.py
+      - cd "{{.ROOT}}" && mkdir -p dist/release
+      - cd "{{.ROOT}}" && cp dist/quota-tracker dist/release/quota-tracker-linux-arm64
+      - cd "{{.ROOT}}" && sha256sum dist/release/quota-tracker-linux-arm64 > dist/release/quota-tracker-linux-arm64.sha256
+
   clean:
     cmds:
       - cd "{{.ROOT}}" && rm -rf .mypy_cache .ruff_cache .pytest_cache dist build .coverage __pycache__ *.spec

@@ -68,6 +68,7 @@ export interface ProjectUsageRow {
 export interface ProjectUsageResponse {
   items: ProjectUsageRow[]
   total: number
+  total_tokens: number
 }
 
 export interface DaemonConfig {

@@ -47,6 +47,12 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "codex:gpt-5.4-nano": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.25),
         "codex:gpt-5.4-pro": ModelPricing(input_1m=30.00, output_1m=180.00),
         "codex:gpt-5.3-codex": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
+        "codex:gpt-5.2-codex": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
+        "codex:gpt-5.2": ModelPricing(input_1m=2.50, cached_1m=0.25, output_1m=15.00),
+        "codex:gpt-5.1-codex": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
+        "codex:gpt-5.1-codex-max": ModelPricing(input_1m=3.50, cached_1m=0.35, output_1m=28.00),
+        "codex:gpt-5.1-codex-mini": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=4.50),
+        "codex:gpt-5-codex": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
         # Anthropic (Claude)
         "claude:claude-opus-4-7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),

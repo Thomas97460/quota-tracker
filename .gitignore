@@ -71,6 +71,11 @@ build/
 .DS_Store
 Thumbs.db
 
+# Provider-specific local folders
+.claude/
+.gemini/
+.codex/
+
 # IDE
 .idea/
 .vscode/

@@ -7,6 +7,7 @@ from pathlib import Path
 
 import uvicorn
 
+from quota_tracker import __version__
 from quota_tracker.api import create_app
 from quota_tracker.config import (
     AppConfig,
@@ -25,6 +26,7 @@ def build_parser() -> argparse.ArgumentParser:
     """Build the CLI argument parser."""
 
     parser = argparse.ArgumentParser(prog="quota-tracker")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command")
 
     sub.add_parser("show-default-config")
@@ -185,10 +187,16 @@ def main() -> int:
         config = load_config()
         conn = connect_db(config.daemon.database_path)
         try:
-            apply_migrations(conn)
+            newly_applied = apply_migrations(conn)
+            row = conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()
+            total = row[0] if row else 0
         finally:
             conn.close()
-        print(config.daemon.database_path)
+        if newly_applied:
+            ids = ", ".join(newly_applied)
+            print(f"applied {len(newly_applied)} new migration(s): {ids}")
+        else:
+            print(f"up-to-date ({total} migrations applied)")
         return 0
     if args.command == "scan":
         config = load_config()
@@ -237,11 +245,11 @@ def main() -> int:
             enable_service=args.enable_service,
             exec_path=args.exec_path,
         )
-        print(sanitized_config_json(config))
-        print(
-            f"service_path={install_summary['service_path']} "
-            f"updated={install_summary['service_updated']}"
-        )
+        cfg_path = config_file_path()
+        svc_path = install_summary["service_path"]
+        status_str = "updated" if install_summary["service_updated"] else "unchanged"
+        print(f"config: {cfg_path}")
+        print(f"service: {svc_path} ({status_str})")
         return 0
     if args.command == "install-user-service":
         config = load_config()
@@ -252,10 +260,9 @@ def main() -> int:
             enable_service=True,
             exec_path=args.exec_path,
         )
-        print(
-            f"service_path={install_summary['service_path']} "
-            f"updated={install_summary['service_updated']}"
-        )
+        svc_path = install_summary["service_path"]
+        status_str = "updated" if install_summary["service_updated"] else "unchanged"
+        print(f"service: {svc_path} ({status_str})")
         return 0
     if args.command == "install-script":
         print(render_install_script())

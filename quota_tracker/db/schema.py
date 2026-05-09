@@ -52,8 +52,8 @@ def connect_db(db_path: str) -> sqlite3.Connection:
     return conn
 
 
-def apply_migrations(conn: sqlite3.Connection) -> None:
-    """Apply idempotent schema migrations."""
+def apply_migrations(conn: sqlite3.Connection) -> list[str]:
+    """Apply idempotent schema migrations. Returns IDs of newly-applied migrations."""
 
     conn.execute(
         """
@@ -150,6 +150,7 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
         ),
     ]
 
+    newly_applied: list[str] = []
     for migration_id, sql in migrations:
         present = conn.execute(
             "SELECT 1 FROM schema_migrations WHERE id = ?", (migration_id,)
@@ -161,9 +162,11 @@ def apply_migrations(conn: sqlite3.Connection) -> None:
             "INSERT INTO schema_migrations(id, applied_at) VALUES(?, ?)",
             (migration_id, utc_now_iso()),
         )
+        newly_applied.append(migration_id)
 
     _ensure_default_providers(conn)
     conn.commit()
+    return newly_applied
 
 
 def _ensure_default_providers(conn: sqlite3.Connection) -> None:

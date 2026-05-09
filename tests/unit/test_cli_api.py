@@ -223,7 +223,8 @@ def test_cli_migrate(
     monkeypatch.setattr("quota_tracker.cli.load_config", lambda: cfg)
     monkeypatch.setattr("sys.argv", ["quota-tracker", "migrate"])
     assert cli.main() == 0
-    assert "migrate.sqlite3" in capsys.readouterr().out
+    out = capsys.readouterr().out
+    assert "up-to-date" in out or "applied" in out
 
 
 def test_python_m_quota_tracker_entrypoint(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -256,14 +257,14 @@ def test_cli_install_commands(
         ["quota-tracker", "install", "--interactive", "--exec-path", "/bin/quota-tracker"],
     )
     assert cli.main() == 0
-    assert "service_path=" in capsys.readouterr().out
+    assert "service:" in capsys.readouterr().out
 
     monkeypatch.setattr(
         "sys.argv",
         ["quota-tracker", "install-user-service", "--exec-path", "/bin/quota-tracker"],
     )
     assert cli.main() == 0
-    assert "updated=True" in capsys.readouterr().out
+    assert "service:" in capsys.readouterr().out
 
     monkeypatch.setattr("sys.argv", ["quota-tracker", "install-script"])
     assert cli.main() == 0

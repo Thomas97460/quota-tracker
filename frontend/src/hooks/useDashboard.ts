@@ -24,6 +24,7 @@ interface DashboardState {
   /** Top projects by token usage (only when providerId is set). */
   projectUsage: ProjectUsageRow[]
   projectUsageTotal: number
+  projectUsageTokens: number
   projectPage: number
   projectPageSize: number
   setProjectPage: (n: number) => void
@@ -78,6 +79,7 @@ export function useDashboard(
   const [providerTotals, setProviderTotals] = useState<UsageRow[]>([])
   const [projectUsage, setProjectUsage] = useState<ProjectUsageRow[]>([])
   const [projectUsageTotal, setProjectUsageTotal] = useState(0)
+  const [projectUsageTokens, setProjectUsageTokens] = useState(0)
   const [projectPage, setProjectPage] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -222,12 +224,13 @@ export function useDashboard(
     if (!providerId) {
       setProjectUsage([])
       setProjectUsageTotal(0)
+      setProjectUsageTokens(0)
       return
     }
     let cancelled = false
     const start = rangeStartIso(range) ?? undefined
     const offset = projectPage * PROJECT_PAGE_SIZE
-    apiGet<{ items: ProjectUsageRow[]; total: number }>(
+    apiGet<ProjectUsageResponse>(
       `/api/token-usage/by-project${buildQuery({
         provider_id: providerId,
         start,
@@ -239,11 +242,13 @@ export function useDashboard(
         if (cancelled) return
         setProjectUsage(res.items)
         setProjectUsageTotal(res.total)
+        setProjectUsageTokens(res.total_tokens)
       })
       .catch(() => {
         if (!cancelled) {
           setProjectUsage([])
           setProjectUsageTotal(0)
+          setProjectUsageTokens(0)
         }
       })
     return () => {
@@ -263,6 +268,7 @@ export function useDashboard(
     providerTotals,
     projectUsage,
     projectUsageTotal,
+    projectUsageTokens,
     projectPage,
     projectPageSize: PROJECT_PAGE_SIZE,
     setProjectPage,

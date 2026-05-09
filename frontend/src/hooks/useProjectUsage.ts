@@ -30,11 +30,13 @@ export function useProjectUsage(
 ): {
   items: ProjectUsageResponse["items"]
   total: number
+  total_tokens: number
   loading: boolean
   error: string | null
 } {
   const [items, setItems] = useState<ProjectUsageResponse["items"]>([])
   const [total, setTotal] = useState(0)
+  const [totalTokens, setTotalTokens] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -52,11 +54,13 @@ export function useProjectUsage(
         if (cancelled) return
         setItems(res.items)
         setTotal(res.total)
+        setTotalTokens(res.total_tokens)
       })
       .catch((e: unknown) => {
         if (cancelled) return
         setItems([])
         setTotal(0)
+        setTotalTokens(0)
         setError(e instanceof Error ? e.message : "Failed to load project usage")
       })
       .finally(() => {
@@ -67,6 +71,6 @@ export function useProjectUsage(
     }
   }, [range, provider, page, pageSize])
 
-  return { items, total, loading, error }
+  return { items, total, total_tokens: totalTokens, loading, error }
 }
 

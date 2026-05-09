@@ -276,7 +276,17 @@ def register_routes(
                 f"FROM token_usage_history t JOIN sessions s ON t.session_id = s.id {where}",
                 tuple(params),
             ).fetchone()
-            total = count_row[0] if count_row else 0
+            total_projects = count_row[0] if count_row else 0
+
+            total_tokens_row = conn.execute(
+                f"SELECT SUM(t.total_tokens) "
+                f"FROM token_usage_history t JOIN sessions s ON t.session_id = s.id {where}",
+                tuple(params),
+            ).fetchone()
+            global_total_tokens = (
+                total_tokens_row[0] if total_tokens_row and total_tokens_row[0] else 0
+            )
+
             rows = conn.execute(
                 f"SELECT "
                 f"CASE WHEN s.project_name = 'repo' OR s.project_path LIKE '%/repo' "
@@ -293,7 +303,8 @@ def register_routes(
             ).fetchall()
             return {
                 "items": [dict(row) for row in rows],
-                "total": total,
+                "total": total_projects,
+                "total_tokens": global_total_tokens,
             }
         finally:
             conn.close()

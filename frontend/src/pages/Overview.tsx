@@ -9,7 +9,7 @@ import { useDashboard } from "../hooks/useDashboard"
 import { useProjectUsage } from "../hooks/useProjectUsage"
 import { useProviders } from "../contexts/ProvidersContext"
 import type { ProviderId, QuotaRow } from "../types"
-import { basename, formatLargeNumber, formatCost, formatRelative, latestQuotas } from "../utils"
+import { basename, formatLargeNumber, formatCost, formatRelative, formatDate, latestQuotas } from "../utils"
 
 const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
 
@@ -152,6 +152,7 @@ export function Overview(): React.JSX.Element {
   const {
     items: topProjects,
     total: topProjectsTotal,
+    total_tokens: topProjectsTokens,
     loading: topProjectsLoading,
   } = useProjectUsage(range, topProjectsProvider, topProjectsPage, PROJECT_PAGE_SIZE)
 
@@ -304,7 +305,7 @@ export function Overview(): React.JSX.Element {
               <span>{sessions.length}</span>
             </div>
             <div className="kpi-foot">
-              <span>in {range}</span>
+              <span>{range === "all" ? (sessions.length > 0 ? `from ${formatDate(sessions[sessions.length - 1].created_at)}` : "all time") : `in ${range}`}</span>
             </div>
           </div>
 
@@ -543,8 +544,7 @@ export function Overview(): React.JSX.Element {
                   <tbody>
                     {topProjects.map((p, i) => {
                       const name = p.project_name ?? basename(p.project_path) ?? "unknown"
-                      const totalProjTokens = topProjectsProvider === "all" ? totalTokens : providerTotals.find(t => t.bucket === topProjectsProvider)?.total_tokens ?? 0
-                      const pct = totalProjTokens > 0 ? (p.total_tokens / totalProjTokens) * 100 : 0
+                      const pct = topProjectsTokens > 0 ? (p.total_tokens / topProjectsTokens) * 100 : 0
                       return (
                         <tr key={i}>
                           <td>

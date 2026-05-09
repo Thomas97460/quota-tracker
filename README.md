@@ -1,40 +1,39 @@
 # quota-tracker
 
-Application quota-tracker (daemon/API/CLI) avec scripts d'audit conservés comme références.
+Track token usage and quotas for [Claude](https://claude.ai), [Copilot](https://github.com/features/copilot), [Codex](https://openai.com/codex) and [Gemini](https://gemini.google.com) — locally, with no telemetry.
 
-## Commandes (Taskfile)
+<div align="center">
 
-Utiliser `task` depuis la racine du dépôt.
+[![CI](https://github.com/Thomas97460/quota-tracker/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Thomas97460/quota-tracker/actions/workflows/ci.yml)
+[![Release](https://github.com/Thomas97460/quota-tracker/actions/workflows/release.yml/badge.svg)](https://github.com/Thomas97460/quota-tracker/actions/workflows/release.yml)
+[![version](https://img.shields.io/github/v/release/Thomas97460/quota-tracker?style=flat-square&color=00d7d7&label=latest)](https://github.com/Thomas97460/quota-tracker/releases/latest)
+[![coverage](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2FThomas97460%2Fquota-tracker%2Fmain%2Fassets%2Fcoverage.json&style=flat-square)](https://github.com/Thomas97460/quota-tracker/actions/workflows/ci.yml)
+[![ruff](https://img.shields.io/github/actions/workflow/status/Thomas97460/quota-tracker/ci.yml?job=lint&label=ruff&style=flat-square)](https://github.com/Thomas97460/quota-tracker/actions/workflows/ci.yml)
+[![mypy](https://img.shields.io/github/actions/workflow/status/Thomas97460/quota-tracker/ci.yml?job=typecheck&label=mypy&style=flat-square)](https://github.com/Thomas97460/quota-tracker/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/github/actions/workflow/status/Thomas97460/quota-tracker/ci.yml?job=tests&label=tests&style=flat-square)](https://github.com/Thomas97460/quota-tracker/actions/workflows/ci.yml)
+[![python](https://img.shields.io/badge/python-3.12%2B-00d7d7?style=flat-square)](https://www.python.org/)
+
+<img src="assets/screenshots/overview.png" alt="quota-tracker overview" width="100%">
+
+</div>
+
+## Quick start
+
+**Linux**
 
 ```bash
-task setup
-task format
-task lint
-task typecheck
-task docstrings
-task test
-task test-unit
-task test-integration
-task test-snapshots
-task test-frontend
-task build-frontend
-task nix-check
-task validate
-task validate:quiet
-task run-api
-task run-daemon
-task scan
-task probe
-task migrate
-task install-user-service
-task clean
+curl -fsSL https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/install.sh | bash
 ```
 
-## Scripts de référence conservés
+Installs the binary, runs migrations, backfills history and starts a systemd user service. Open the printed URL when done.
 
-- `codex_local_audit.py`
-- `gemini_local_audit.py`
-- `copilot_local_audit.py`
-- `get_weekly_quota.py`
+**macOS**
 
-Ces scripts restent disponibles tant que les comportements de production équivalents ne sont pas totalement implémentés et testés dans le package `quota_tracker`.
+```bash
+git clone https://github.com/Thomas97460/quota-tracker
+cd quota-tracker
+uv sync
+task run-api
+```
+
+Then open [http://localhost:8787](http://localhost:8787).

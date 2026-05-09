@@ -70,16 +70,19 @@ export function ProviderDetail(): React.JSX.Element {
     quotaHistory,
     sessions,
     timeSeries,
-    timeSeriesGroupBy,
+    timeSeriesByProvider,
     modelUsage,
+    providerTotals,
     projectUsage,
     projectUsageTotal,
+    projectUsageTokens,
     projectPage,
     projectPageSize,
     setProjectPage,
     loading,
     refresh,
-  } = useDashboard(providerId ?? undefined, range, selectedModel)
+    } = useDashboard(providerId ?? undefined, range, selectedModel)
+
 
   if (!providerId) {
     return (
@@ -242,20 +245,6 @@ export function ProviderDetail(): React.JSX.Element {
               <span>{[...new Set(modelUsage.map((u) => u.bucket))].length} models</span>
             </div>
           </div>
-          <div className="provider-page-meta">
-            <div className="meta-stat">
-              <span className="meta-stat-label">Tokens · {range}</span>
-              <span className="meta-stat-value">{formatLargeNumber(totalTokens)}</span>
-            </div>
-            <div className="meta-stat">
-              <span className="meta-stat-label">Sessions · {range}</span>
-              <span className="meta-stat-value">{sessions.length}</span>
-            </div>
-            <div className="meta-stat">
-              <span className="meta-stat-label">Models · {range}</span>
-              <span className="meta-stat-value">{[...new Set(modelUsage.map((u) => u.bucket))].length}</span>
-            </div>
-          </div>
         </div>
 
         {/* Hero: quotas (big meters) + KPI stats */}
@@ -348,7 +337,7 @@ export function ProviderDetail(): React.JSX.Element {
                 <span>{sessions.length}</span>
               </div>
               <div className="kpi-foot">
-                <span>in {range}</span>
+                <span>{range === "all" ? (sessions.length > 0 ? `from ${formatDate(sessions[sessions.length - 1].created_at)}` : "all time") : `in ${range}`}</span>
               </div>
             </div>
           </div>
@@ -437,9 +426,10 @@ export function ProviderDetail(): React.JSX.Element {
                 <tbody>
                   {projectUsage.map((p, i) => {
                     const name = p.project_name ?? basename(p.project_path) ?? "unknown"
-                    const pct = totalTokens > 0 ? (p.total_tokens / totalTokens) * 100 : 0
+                    const pct = projectUsageTokens > 0 ? (p.total_tokens / projectUsageTokens) * 100 : 0
                     return (
                       <tr key={i}>
+
                         <td
                           style={{ color: "var(--fg-1)", fontWeight: 500 }}
                           title={p.project_path ?? undefined}
