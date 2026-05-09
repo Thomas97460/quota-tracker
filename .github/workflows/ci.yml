@@ -4,6 +4,8 @@ on:
   push:
     branches: ["main"]
     tags-ignore: ["v*"]
+    paths-ignore:
+      - "assets/**"
   pull_request:
 
 permissions:
@@ -116,4 +118,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add assets/
           git diff --staged --quiet || \
-            git commit -m "chore: update coverage badge [skip ci]" && git push || true
+            git commit -m "chore: update coverage badge" && git push || true
