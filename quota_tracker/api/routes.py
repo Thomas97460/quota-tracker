@@ -1,0 +1,280 @@
+"""HTTP route registration on a FastAPI app."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from fastapi import FastAPI, HTTPException
+
+from quota_tracker.api.schemas import (
+    ConfigPatchRequest,
+    ProviderActionRequest,
+    ProviderPatchRequest,
+)
+from quota_tracker.config import AppConfig, save_config
+from quota_tracker.daemon import DaemonService
+from quota_tracker.db import (
+    apply_migrations,
+    connect_db,
+    list_provider_health,
+    list_provider_rows,
+    update_provider_row,
+)
+
+_GROUP_BY_EXPR: dict[str, str] = {
+    "provider": "provider_id",
+    "model": "model_name",
+    "session": "session_id",
+    "day": "substr(timestamp, 1, 10)",
+    "hour": "substr(timestamp, 1, 13)",
+}
+
+
+def _health_payload(db_path: Path, scheduler_enabled: bool) -> dict[str, object]:
+    """Build the /api/health response."""
+
+    conn = connect_db(str(db_path))
+    try:
+        apply_migrations(conn)
+        providers = list_provider_health(conn)
+    finally:
+        conn.close()
+    return {
+        "status": "ok",
+        "database": {"path": str(db_path), "migrated": True},
+        "scheduler": {"enabled": scheduler_enabled},
+        "providers": providers,
+    }
+
+
+def register_routes(
+    app: FastAPI,
+    *,
+    db_path: Path,
+    config: AppConfig,
+    config_path_str: str | None,
+    service: DaemonService | None,
+) -> None:
+    """Wire all /api endpoints onto the given FastAPI app."""
+
+    @app.get("/api/health")
+    def health() -> dict[str, object]:
+        """Return health status, DB, scheduler, and provider summary."""
+
+        return _health_payload(db_path, service is not None)
+
+    @app.get("/api/providers")
+    def providers() -> dict[str, Any]:
+        """Return provider health and safe config."""
+
+        conn = connect_db(str(db_path))
+        try:
+            apply_migrations(conn)
+            return {"providers": list_provider_health(conn)}
+        finally:
+            conn.close()
+
+    @app.patch("/api/providers/{provider_id}")
+    def patch_provider(provider_id: str, payload: ProviderPatchRequest) -> dict[str, Any]:
+        """Patch one provider configuration in DB."""
+
+        if provider_id not in {"gemini", "codex", "copilot"}:
+            raise HTTPException(status_code=404, detail="provider not found")
+        conn = connect_db(str(db_path))
+        try:
+            apply_migrations(conn)
+            rows = {row["id"]: row for row in list_provider_rows(conn)}
+            row = rows.get(provider_id)
+            if row is None:
+                raise HTTPException(status_code=404, detail="provider not found")
+            cfg = dict(row["config"])
+            if payload.home_path is not None:
+                cfg["home_path"] = payload.home_path
+            if payload.active_probe_enabled is not None:
+                cfg["active_probe_enabled"] = payload.active_probe_enabled
+            if payload.passive_sync_enabled is not None:
+                cfg["passive_sync_enabled"] = payload.passive_sync_enabled
+            enabled = row["enabled"] if payload.enabled is None else payload.enabled
+            update_provider_row(conn, provider_id, enabled=enabled, config=cfg)
+            conn.commit()
+            return {"ok": True}
+        finally:
+            conn.close()
+
+    @app.post("/api/providers/{provider_id}/scan")
+    def manual_scan(provider_id: str, payload: ProviderActionRequest) -> dict[str, Any]:
+        """Run manual passive scan for one provider."""
+
+        runner = service or DaemonService(str(db_path))
+        summary = runner.run_scan(provider=provider_id, full=payload.full_rescan)
+        return {"ok": True, "summary": summary.__dict__}
+
+    @app.post("/api/providers/{provider_id}/probe")
+    def manual_probe(provider_id: str) -> dict[str, Any]:
+        """Run manual active probe for one provider."""
+
+        runner = service or DaemonService(str(db_path))
+        summary = runner.run_probe(provider=provider_id)
+        return {"ok": True, "summary": summary.__dict__}
+
+    @app.post("/api/providers/{provider_id}/rescan")
+    def manual_full_rescan(provider_id: str, payload: ProviderActionRequest) -> dict[str, Any]:
+        """Reset high-water marks then run full rescan when explicitly requested."""
+
+        if not payload.full_rescan:
+            return {
+                "ok": False,
+                "error": "full_rescan confirmation required",
+            }
+        runner = service or DaemonService(str(db_path))
+        runner.reset_high_water_marks(provider_id)
+        summary = runner.run_scan(provider=provider_id, full=True)
+        return {"ok": True, "summary": summary.__dict__}
+
+    @app.get("/api/quotas")
+    def quotas(
+        provider_id: str | None = None,
+        quota_name: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Return filtered quota history."""
+
+        conn = connect_db(str(db_path))
+        try:
+            apply_migrations(conn)
+            query = "SELECT * FROM quota_history WHERE 1=1"
+            params: list[Any] = []
+            if provider_id:
+                query += " AND provider_id = ?"
+                params.append(provider_id)
+            if quota_name:
+                query += " AND quota_name = ?"
+                params.append(quota_name)
+            if start:
+                query += " AND timestamp >= ?"
+                params.append(start)
+            if end:
+                query += " AND timestamp <= ?"
+                params.append(end)
+            query += " ORDER BY timestamp DESC LIMIT ?"
+            params.append(limit)
+            rows = conn.execute(query, tuple(params)).fetchall()
+            return {"items": [dict(row) for row in rows]}
+        finally:
+            conn.close()
+
+    @app.get("/api/sessions")
+    def sessions(
+        provider_id: str | None = None,
+        project_name: str | None = None,
+        model_name: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+    ) -> dict[str, Any]:
+        """Return filtered sessions."""
+
+        conn = connect_db(str(db_path))
+        try:
+            apply_migrations(conn)
+            query = "SELECT * FROM sessions WHERE 1=1"
+            params: list[Any] = []
+            if provider_id:
+                query += " AND provider_id = ?"
+                params.append(provider_id)
+            if project_name:
+                query += " AND project_name = ?"
+                params.append(project_name)
+            if model_name:
+                query += " AND model_name = ?"
+                params.append(model_name)
+            if start:
+                query += " AND last_seen_at >= ?"
+                params.append(start)
+            if end:
+                query += " AND last_seen_at <= ?"
+                params.append(end)
+            query += " ORDER BY last_seen_at DESC"
+            rows = conn.execute(query, tuple(params)).fetchall()
+            return {"items": [dict(row) for row in rows]}
+        finally:
+            conn.close()
+
+    @app.get("/api/token-usage")
+    def token_usage(
+        group_by: str = "provider",
+        provider_id: str | None = None,
+        start: str | None = None,
+        end: str | None = None,
+        model_name: str | None = None,
+    ) -> dict[str, Any]:
+        """Return aggregated token usage with optional time and model filters."""
+
+        if group_by not in _GROUP_BY_EXPR:
+            raise HTTPException(status_code=400, detail="invalid group_by")
+        expr = _GROUP_BY_EXPR[group_by]
+        conn = connect_db(str(db_path))
+        try:
+            apply_migrations(conn)
+            query = (
+                f"SELECT {expr} as bucket, "
+                "SUM(input_tokens) as input_tokens, "
+                "SUM(output_tokens) as output_tokens, "
+                "SUM(cached_tokens) as cached_tokens, "
+                "SUM(reasoning_tokens) as reasoning_tokens, "
+                "SUM(thoughts_tokens) as thoughts_tokens, "
+                "SUM(tool_tokens) as tool_tokens, "
+                "SUM(total_tokens) as total_tokens "
+                "FROM token_usage_history WHERE 1=1"
+            )
+            params: list[Any] = []
+            if provider_id:
+                query += " AND provider_id = ?"
+                params.append(provider_id)
+            if model_name:
+                query += " AND model_name = ?"
+                params.append(model_name)
+            if start:
+                query += " AND timestamp >= ?"
+                params.append(start)
+            if end:
+                query += " AND timestamp <= ?"
+                params.append(end)
+            query += " GROUP BY bucket ORDER BY bucket"
+            rows = conn.execute(query, tuple(params)).fetchall()
+            return {"items": [dict(row) for row in rows], "group_by": group_by}
+        finally:
+            conn.close()
+
+    @app.get("/api/config")
+    def get_config() -> dict[str, Any]:
+        """Return sanitized app config."""
+
+        return {"config": config.model_dump()}
+
+    @app.patch("/api/config")
+    def patch_config(payload: ConfigPatchRequest) -> dict[str, Any]:
+        """Patch and persist global config."""
+
+        if payload.active_probe_interval_minutes is not None:
+            if payload.active_probe_interval_minutes <= 0:
+                raise HTTPException(status_code=400, detail="invalid active interval")
+            config.daemon.active_probe_interval_minutes = payload.active_probe_interval_minutes
+        if payload.passive_sync_interval_minutes is not None:
+            if payload.passive_sync_interval_minutes <= 0:
+                raise HTTPException(status_code=400, detail="invalid passive interval")
+            config.daemon.passive_sync_interval_minutes = payload.passive_sync_interval_minutes
+        if payload.web_host is not None:
+            config.daemon.web_host = payload.web_host
+        if payload.web_port is not None:
+            if payload.web_port < 1 or payload.web_port > 65535:
+                raise HTTPException(status_code=400, detail="invalid port")
+            config.daemon.web_port = payload.web_port
+        if payload.database_path is not None:
+            config.daemon.database_path = payload.database_path
+        if payload.log_level is not None:
+            config.daemon.log_level = payload.log_level
+        save_config(config, config_path_str)
+        return {"config": config.model_dump()}

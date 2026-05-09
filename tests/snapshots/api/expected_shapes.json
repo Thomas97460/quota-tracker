@@ -1,0 +1,39 @@
+{
+  "health_keys": ["database", "providers", "scheduler", "status"],
+  "provider_item_keys": ["config", "enabled", "id", "updated_at"],
+  "quota_item_keys": [
+    "created_at",
+    "id",
+    "provider_id",
+    "quota_name",
+    "raw_data",
+    "remaining_percent",
+    "resets_at",
+    "source",
+    "timestamp",
+    "used_percent",
+    "window_minutes"
+  ],
+  "session_item_keys": [
+    "created_at",
+    "external_session_id",
+    "id",
+    "last_seen_at",
+    "metadata",
+    "model_name",
+    "project_name",
+    "project_path",
+    "provider_id"
+  ],
+  "token_usage_item_keys": [
+    "bucket",
+    "cached_tokens",
+    "input_tokens",
+    "output_tokens",
+    "reasoning_tokens",
+    "thoughts_tokens",
+    "tool_tokens",
+    "total_tokens"
+  ],
+  "config_top_keys": ["codex", "copilot", "daemon", "gemini"]
+}

@@ -137,330 +137,330 @@ They prove where the data lives and how live quota probes work. The production i
 
 ### 1. Repository And Application Foundation
 
-- [ ] Create a Python package named `quota_tracker`.
-  - [ ] Move production logic into the package instead of extending the existing audit scripts.
-  - [ ] Keep the existing scripts available as references until equivalent production behavior is implemented and tested.
-  - [ ] Add a single installed CLI command named `quota-tracker`.
-- [ ] Add project packaging and tool configuration.
-  - [ ] Define Python dependencies for FastAPI, Uvicorn, Pydantic, pytest, ruff, mypy, and interrogate.
-  - [ ] Define frontend tooling for Vite, React, TypeScript, and ECharts.
-  - [ ] Configure `ruff`, `mypy`, `pytest`, and `interrogate` in the project configuration.
-- [ ] Add a root `Taskfile.yml` as the canonical command registry.
-  - [ ] Every documented development, validation, build, test, install, run, and cleanup command must be available as a `task` target.
-  - [ ] The README and developer docs must reference `task` targets instead of duplicating raw shell command sequences.
-  - [ ] Each task must be deterministic from the repository root and must avoid depending on the caller's current subdirectory.
-  - [ ] Task names must be stable and descriptive: `setup`, `format`, `lint`, `typecheck`, `docstrings`, `test`, `test-unit`, `test-integration`, `test-snapshots`, `test-frontend`, `build-frontend`, `nix-check`, `validate`, `validate:quiet`, `run-api`, `run-daemon`, `scan`, `probe`, `migrate`, `install-user-service`, and `clean`.
-  - [ ] `task validate` must run all required local validation gates in a normal developer-readable mode.
-  - [ ] `task validate:quiet` must run the same validation gates as `task validate` with silent success output.
-  - [ ] `task validate:quiet` must print nothing when every validation gate succeeds except an optional final one-line success summary.
-  - [ ] On failure, `task validate:quiet` must stop at the first failing gate and print only the failing task name, exit code, raw command, and the first 120 lines of captured output.
-  - [ ] On failure, `task validate:quiet` must also print the path to a full temporary log file for the failing command.
-  - [ ] `task validate:quiet` must prefer non-verbose command modes when available, for example quiet pytest output or non-verbose frontend build output.
-  - [ ] `task validate:quiet` must not hide the failure reason completely; the first 120 lines must be enough to identify the failing subsystem.
-- [ ] Define application directories.
-  - [ ] Default config directory: `~/.config/quota-tracker`.
-  - [ ] Default database path: `~/.local/share/quota-tracker/quota-tracker.sqlite3`.
-  - [ ] Default log directory: `~/.local/state/quota-tracker/logs`.
-  - [ ] Default web host: `127.0.0.1`.
-  - [ ] Default web port: `8787`.
-- [ ] Define the config file format.
-  - [ ] Store config as JSON at `~/.config/quota-tracker/config.json`.
-  - [ ] Include global daemon settings: active probe interval minutes, passive sync interval minutes, web host, web port, database path, log level.
-  - [ ] Include provider settings for `gemini`, `codex`, and `copilot`: enabled flag, home path, active probe enabled flag, passive sync enabled flag, provider-specific safe options.
-  - [ ] Include no secrets in config.
-- [ ] Implement structured logging.
-  - [ ] Log provider id, operation name, outcome, elapsed time, and error summary.
-  - [ ] Do not log secret values, raw cookies, raw tokens, or conversation content.
-  - [ ] Make logs useful for daemon troubleshooting without requiring debug secrets.
+- [x] Create a Python package named `quota_tracker`.
+  - [x] Move production logic into the package instead of extending the existing audit scripts.
+  - [x] Keep the existing scripts available as references until equivalent production behavior is implemented and tested.
+  - [x] Add a single installed CLI command named `quota-tracker`.
+- [x] Add project packaging and tool configuration.
+  - [x] Define Python dependencies for FastAPI, Uvicorn, Pydantic, pytest, ruff, mypy, and interrogate.
+  - [x] Define frontend tooling for Vite, React, TypeScript, and ECharts.
+  - [x] Configure `ruff`, `mypy`, `pytest`, and `interrogate` in the project configuration.
+- [x] Add a root `Taskfile.yml` as the canonical command registry.
+  - [x] Every documented development, validation, build, test, install, run, and cleanup command must be available as a `task` target.
+  - [x] The README and developer docs must reference `task` targets instead of duplicating raw shell command sequences.
+  - [x] Each task must be deterministic from the repository root and must avoid depending on the caller's current subdirectory.
+  - [x] Task names must be stable and descriptive: `setup`, `format`, `lint`, `typecheck`, `docstrings`, `test`, `test-unit`, `test-integration`, `test-snapshots`, `test-frontend`, `build-frontend`, `nix-check`, `validate`, `validate:quiet`, `run-api`, `run-daemon`, `scan`, `probe`, `migrate`, `install-user-service`, and `clean`.
+  - [x] `task validate` must run all required local validation gates in a normal developer-readable mode.
+  - [x] `task validate:quiet` must run the same validation gates as `task validate` with silent success output.
+  - [x] `task validate:quiet` must print nothing when every validation gate succeeds except an optional final one-line success summary.
+  - [x] On failure, `task validate:quiet` must stop at the first failing gate and print only the failing task name, exit code, raw command, and the first 120 lines of captured output.
+  - [x] On failure, `task validate:quiet` must also print the path to a full temporary log file for the failing command.
+  - [x] `task validate:quiet` must prefer non-verbose command modes when available, for example quiet pytest output or non-verbose frontend build output.
+  - [x] `task validate:quiet` must not hide the failure reason completely; the first 120 lines must be enough to identify the failing subsystem.
+- [x] Define application directories.
+  - [x] Default config directory: `~/.config/quota-tracker`.
+  - [x] Default database path: `~/.local/share/quota-tracker/quota-tracker.sqlite3`.
+  - [x] Default log directory: `~/.local/state/quota-tracker/logs`.
+  - [x] Default web host: `127.0.0.1`.
+  - [x] Default web port: `8787`.
+- [x] Define the config file format.
+  - [x] Store config as JSON at `~/.config/quota-tracker/config.json`.
+  - [x] Include global daemon settings: active probe interval minutes, passive sync interval minutes, web host, web port, database path, log level.
+  - [x] Include provider settings for `gemini`, `codex`, and `copilot`: enabled flag, home path, active probe enabled flag, passive sync enabled flag, provider-specific safe options.
+  - [x] Include no secrets in config.
+- [x] Implement structured logging.
+  - [x] Log provider id, operation name, outcome, elapsed time, and error summary.
+  - [x] Do not log secret values, raw cookies, raw tokens, or conversation content.
+  - [x] Make logs useful for daemon troubleshooting without requiring debug secrets.
 
 ### 2. SQLite Schema And Migrations
 
-- [ ] Implement idempotent SQLite migrations.
-  - [ ] Store migration state in a generic internal table named `schema_migrations`.
-  - [ ] Running migrations twice must not change existing data.
-  - [ ] Opening the application must apply pending migrations before any scan or API read.
-- [ ] Implement the `providers` table.
-  - [ ] Columns: `id`, `enabled`, `config`, `created_at`, `updated_at`.
-  - [ ] `id` values must be exactly `gemini`, `codex`, and `copilot`.
-  - [ ] `config` must be JSON text containing provider paths, intervals, high-water marks, and safe provider options.
-- [ ] Implement the `quota_history` table.
-  - [ ] Required PLAN fields: `provider_id`, `timestamp`, `used_percent`, `remaining_percent`, `window_minutes`, `resets_at`, `raw_data`.
-  - [ ] Add generic V1 fields: `id`, `quota_name`, `source`, `created_at`.
-  - [ ] `quota_name` examples: `default`, `primary`, `secondary`, `weekly`, `session`, `monthly`, `premium_interactions`, `chat`, `completions`.
-  - [ ] `source` examples: `active_probe`, `local_log`, `provider_db`.
-  - [ ] Add indexes on provider id, timestamp, quota name, and reset time.
-- [ ] Implement the `sessions` table.
-  - [ ] Required PLAN fields: `id`, `provider_id`, `external_session_id`, `model_name`, `project_path`, `project_name`, `created_at`, `last_seen_at`, `metadata`.
-  - [ ] `id` must be deterministic from provider id and external session id.
-  - [ ] `metadata` must include detected CLI version when available.
-  - [ ] `metadata` may include project hash, source file path, source database name, parse version, and safe provider metadata.
-  - [ ] `metadata` must not include conversation text.
-- [ ] Implement the `token_usage_history` table.
-  - [ ] Required PLAN fields: `session_id`, `timestamp`, `input_tokens`, `output_tokens`, `cached_tokens`, `reasoning_tokens`, `thoughts_tokens`, `tool_tokens`, `total_tokens`, `raw_data`.
-  - [ ] Add generic V1 fields: `id`, `provider_id`, `external_event_id`, `model_name`, `source`, `created_at`.
-  - [ ] `external_event_id` must make repeated syncs idempotent.
-  - [ ] Add a unique constraint that prevents duplicate token usage rows for the same provider/session/event.
-- [ ] Implement safe database access.
-  - [ ] Use write transactions for each provider sync batch.
-  - [ ] Enable WAL mode.
-  - [ ] Use UTC ISO timestamps.
-  - [ ] Validate JSON before storing it.
-  - [ ] Provide read queries used by the API without exposing raw secret-bearing metadata.
+- [x] Implement idempotent SQLite migrations.
+  - [x] Store migration state in a generic internal table named `schema_migrations`.
+  - [x] Running migrations twice must not change existing data.
+  - [x] Opening the application must apply pending migrations before any scan or API read.
+- [x] Implement the `providers` table.
+  - [x] Columns: `id`, `enabled`, `config`, `created_at`, `updated_at`.
+  - [x] `id` values must be exactly `gemini`, `codex`, and `copilot`.
+  - [x] `config` must be JSON text containing provider paths, intervals, high-water marks, and safe provider options.
+- [x] Implement the `quota_history` table.
+  - [x] Required PLAN fields: `provider_id`, `timestamp`, `used_percent`, `remaining_percent`, `window_minutes`, `resets_at`, `raw_data`.
+  - [x] Add generic V1 fields: `id`, `quota_name`, `source`, `created_at`.
+  - [x] `quota_name` examples: `default`, `primary`, `secondary`, `weekly`, `session`, `monthly`, `premium_interactions`, `chat`, `completions`.
+  - [x] `source` examples: `active_probe`, `local_log`, `provider_db`.
+  - [x] Add indexes on provider id, timestamp, quota name, and reset time.
+- [x] Implement the `sessions` table.
+  - [x] Required PLAN fields: `id`, `provider_id`, `external_session_id`, `model_name`, `project_path`, `project_name`, `created_at`, `last_seen_at`, `metadata`.
+  - [x] `id` must be deterministic from provider id and external session id.
+  - [x] `metadata` must include detected CLI version when available.
+  - [x] `metadata` may include project hash, source file path, source database name, parse version, and safe provider metadata.
+  - [x] `metadata` must not include conversation text.
+- [x] Implement the `token_usage_history` table.
+  - [x] Required PLAN fields: `session_id`, `timestamp`, `input_tokens`, `output_tokens`, `cached_tokens`, `reasoning_tokens`, `thoughts_tokens`, `tool_tokens`, `total_tokens`, `raw_data`.
+  - [x] Add generic V1 fields: `id`, `provider_id`, `external_event_id`, `model_name`, `source`, `created_at`.
+  - [x] `external_event_id` must make repeated syncs idempotent.
+  - [x] Add a unique constraint that prevents duplicate token usage rows for the same provider/session/event.
+- [x] Implement safe database access.
+  - [x] Use write transactions for each provider sync batch.
+  - [x] Enable WAL mode.
+  - [x] Use UTC ISO timestamps.
+  - [x] Validate JSON before storing it.
+  - [x] Provide read queries used by the API without exposing raw secret-bearing metadata.
 
 ### 3. Provider Contract And Normalization
 
-- [ ] Define one provider contract used by all providers.
-  - [ ] Each provider exposes metadata: id, display name, default home path, supported active probe, supported passive sync.
-  - [ ] Each provider can run a full passive scan.
-  - [ ] Each provider can run an incremental passive scan from stored high-water marks.
-  - [ ] Each provider can run an active quota probe if enabled and credentials are available.
-  - [ ] Each provider returns normalized records, not database writes.
-- [ ] Define normalized session records.
-  - [ ] Required fields: provider id, external session id, model name, project path, project name, created at, last seen at, metadata.
-  - [ ] Missing model name must be stored as `unknown`.
-  - [ ] Missing project path must be stored as `null`, not guessed.
-- [ ] Define normalized token usage records.
-  - [ ] Required fields: provider id, external session id, external event id, timestamp, model name, token counts, raw metadata.
-  - [ ] All absent token counts must become `0`.
-  - [ ] `total_tokens` must be provider-provided when available; otherwise compute from known token fields.
-- [ ] Define normalized quota records.
-  - [ ] Required fields: provider id, quota name, timestamp, used percent, remaining percent, window minutes, resets at, source, raw metadata.
-  - [ ] If only remaining percent is known, compute used percent as `100 - remaining_percent`.
-  - [ ] If only used percent is known, compute remaining percent as `100 - used_percent`.
-  - [ ] Clamp computed percentages to the `[0, 100]` range.
-- [ ] Define high-water mark rules.
-  - [ ] File-based sources track path, size, mtime, and last processed offset or last event timestamp.
-  - [ ] SQLite sources track database path and last processed row id or timestamp.
-  - [ ] Active probes track last successful probe timestamp per provider and quota name.
-  - [ ] Store high-water marks in provider `config` JSON or a generic sync-state JSON field. Do not create provider-specific tables.
+- [x] Define one provider contract used by all providers.
+  - [x] Each provider exposes metadata: id, display name, default home path, supported active probe, supported passive sync.
+  - [x] Each provider can run a full passive scan.
+  - [x] Each provider can run an incremental passive scan from stored high-water marks.
+  - [x] Each provider can run an active quota probe if enabled and credentials are available.
+  - [x] Each provider returns normalized records, not database writes.
+- [x] Define normalized session records.
+  - [x] Required fields: provider id, external session id, model name, project path, project name, created at, last seen at, metadata.
+  - [x] Missing model name must be stored as `unknown`.
+  - [x] Missing project path must be stored as `null`, not guessed.
+- [x] Define normalized token usage records.
+  - [x] Required fields: provider id, external session id, external event id, timestamp, model name, token counts, raw metadata.
+  - [x] All absent token counts must become `0`.
+  - [x] `total_tokens` must be provider-provided when available; otherwise compute from known token fields.
+- [x] Define normalized quota records.
+  - [x] Required fields: provider id, quota name, timestamp, used percent, remaining percent, window minutes, resets at, source, raw metadata.
+  - [x] If only remaining percent is known, compute used percent as `100 - remaining_percent`.
+  - [x] If only used percent is known, compute remaining percent as `100 - used_percent`.
+  - [x] Clamp computed percentages to the `[0, 100]` range.
+- [x] Define high-water mark rules.
+  - [x] File-based sources track path, size, mtime, and last processed offset or last event timestamp.
+  - [x] SQLite sources track database path and last processed row id or timestamp.
+  - [x] Active probes track last successful probe timestamp per provider and quota name.
+  - [x] Store high-water marks in provider `config` JSON or a generic sync-state JSON field. Do not create provider-specific tables.
 
 ### 4. Gemini Provider
 
-- [ ] Implement Gemini passive history syncing.
-  - [ ] Discover supported chat JSON and JSONL files under the configured Gemini home.
-  - [ ] Parse session metadata: session id, kind, project hash, start time, last updated.
-  - [ ] Parse Gemini message token data without storing message text.
-  - [ ] Deduplicate token-bearing messages using a stable event identity.
-  - [ ] Normalize each chat file into sessions and token usage rows.
-  - [ ] Store project hash and detected safe metadata in `sessions.metadata`.
-- [ ] Implement Gemini incremental syncing.
-  - [ ] Skip unchanged files using high-water marks.
-  - [ ] Re-read changed files and rely on deterministic event ids to avoid duplicate rows.
-  - [ ] Update high-water marks only after a successful transaction.
-- [ ] Implement Gemini active quota probing.
-  - [ ] Read OAuth credentials from the configured Gemini home.
-  - [ ] Refresh expired access tokens in memory.
-  - [ ] Call Code Assist `loadCodeAssist`.
-  - [ ] Call Code Assist `retrieveUserQuota`.
-  - [ ] Store each returned bucket as a quota history row.
-  - [ ] Use quota names that include model id and token type in raw metadata while keeping `quota_name` generic and queryable.
-- [ ] Implement Gemini error handling.
-  - [ ] If credentials are missing, record a provider health warning and keep passive syncing operational.
-  - [ ] If quota probing fails, do not fail the whole daemon loop.
-  - [ ] Interactive fallback is optional for manual CLI mode only and must not block daemon execution.
+- [x] Implement Gemini passive history syncing.
+  - [x] Discover supported chat JSON and JSONL files under the configured Gemini home.
+  - [x] Parse session metadata: session id, kind, project hash, start time, last updated.
+  - [x] Parse Gemini message token data without storing message text.
+  - [x] Deduplicate token-bearing messages using a stable event identity.
+  - [x] Normalize each chat file into sessions and token usage rows.
+  - [x] Store project hash and detected safe metadata in `sessions.metadata`.
+- [x] Implement Gemini incremental syncing.
+  - [x] Skip unchanged files using high-water marks.
+  - [x] Re-read changed files and rely on deterministic event ids to avoid duplicate rows.
+  - [x] Update high-water marks only after a successful transaction.
+- [x] Implement Gemini active quota probing.
+  - [x] Read OAuth credentials from the configured Gemini home.
+  - [x] Refresh expired access tokens in memory.
+  - [x] Call Code Assist `loadCodeAssist`.
+  - [x] Call Code Assist `retrieveUserQuota`.
+  - [x] Store each returned bucket as a quota history row.
+  - [x] Use quota names that include model id and token type in raw metadata while keeping `quota_name` generic and queryable.
+- [x] Implement Gemini error handling.
+  - [x] If credentials are missing, record a provider health warning and keep passive syncing operational.
+  - [x] If quota probing fails, do not fail the whole daemon loop.
+  - [x] Interactive fallback is optional for manual CLI mode only and must not block daemon execution.
 
 ### 5. Codex Provider
 
-- [ ] Implement Codex passive session syncing.
-  - [ ] Discover `sessions/**/*.jsonl`.
-  - [ ] Include `archived_sessions/*.jsonl` unless disabled in config.
-  - [ ] Parse session metadata from `session_meta` and `turn_context`.
-  - [ ] Parse `token_count` events.
-  - [ ] Normalize latest total usage when available.
-  - [ ] Store CLI version in `sessions.metadata` when present.
-- [ ] Implement Codex local SQLite syncing.
-  - [ ] Read `state_5.sqlite` in read-only mode.
-  - [ ] Read `logs_2.sqlite` in read-only mode.
-  - [ ] Extract useful session, thread, model, token, and rate-limit metadata without mutating provider databases.
-  - [ ] Convert local SQLite data into the common schema.
-  - [ ] Use deterministic event ids to avoid duplicate token rows.
-- [ ] Implement Codex quota extraction.
-  - [ ] Extract primary and secondary rate limit windows from session files when available.
-  - [ ] Convert each window to a quota history row with `quota_name` `primary` or `secondary`.
-  - [ ] Store reset timestamp and window minutes.
-- [ ] Implement Codex WHAM active probing.
-  - [ ] Read the local access token from `auth.json` in memory.
-  - [ ] Call the WHAM usage endpoint only when active probing is enabled.
-  - [ ] Normalize returned quota metadata into quota history rows.
-  - [ ] Store only safe usage metadata.
-- [ ] Implement Codex resilience.
-  - [ ] Missing auth disables active probe only.
-  - [ ] Missing local SQLite databases must not disable session JSONL parsing.
-  - [ ] Broken JSONL lines must be counted as parse failures and skipped.
+- [x] Implement Codex passive session syncing.
+  - [x] Discover `sessions/**/*.jsonl`.
+  - [x] Include `archived_sessions/*.jsonl` unless disabled in config.
+  - [x] Parse session metadata from `session_meta` and `turn_context`.
+  - [x] Parse `token_count` events.
+  - [x] Normalize latest total usage when available.
+  - [x] Store CLI version in `sessions.metadata` when present.
+- [x] Implement Codex local SQLite syncing.
+  - [x] Read `state_5.sqlite` in read-only mode.
+  - [x] Read `logs_2.sqlite` in read-only mode.
+  - [x] Extract useful session, thread, model, token, and rate-limit metadata without mutating provider databases.
+  - [x] Convert local SQLite data into the common schema.
+  - [x] Use deterministic event ids to avoid duplicate token rows.
+- [x] Implement Codex quota extraction.
+  - [x] Extract primary and secondary rate limit windows from session files when available.
+  - [x] Convert each window to a quota history row with `quota_name` `primary` or `secondary`.
+  - [x] Store reset timestamp and window minutes.
+- [x] Implement Codex WHAM active probing.
+  - [x] Read the local access token from `auth.json` in memory.
+  - [x] Call the WHAM usage endpoint only when active probing is enabled.
+  - [x] Normalize returned quota metadata into quota history rows.
+  - [x] Store only safe usage metadata.
+- [x] Implement Codex resilience.
+  - [x] Missing auth disables active probe only.
+  - [x] Missing local SQLite databases must not disable session JSONL parsing.
+  - [x] Broken JSONL lines must be counted as parse failures and skipped.
 
 ### 6. Copilot Provider
 
-- [ ] Implement Copilot passive session syncing.
-  - [ ] Discover `session-state/**/events.jsonl`.
-  - [ ] Parse `session.start`, `session.model_change`, `assistant.message`, and `session.shutdown` usage metadata.
-  - [ ] Prefer `session.shutdown` model metrics as authoritative session totals when present.
-  - [ ] Normalize per-model usage into token usage rows.
-  - [ ] Store models seen and safe CLI metadata in `sessions.metadata`.
-- [ ] Implement Copilot precise weekly active probing.
-  - [ ] Read the local Copilot token from `config.json` in memory.
-  - [ ] Resolve the API base URL through `https://api.github.com/copilot_internal/user`.
-  - [ ] Send one minimal chat completion request using the locked probe model from the current R&D script unless tests override it.
-  - [ ] Parse response headers with prefixes `x-usage-ratelimit-` and `x-quota-snapshot-`.
-  - [ ] For `x-usage-ratelimit-weekly`, parse query params `ent`, `ov`, `ovPerm`, `rem`, `rst`, `hasQuota`, `tbb`, and `totRem` when present.
-  - [ ] Store weekly `remaining_percent = rem`.
-  - [ ] Store weekly `used_percent = 100 - rem`.
-  - [ ] Store weekly `resets_at = rst`.
-  - [ ] Store `quota_name = weekly` and `source = active_probe`.
-- [ ] Implement Copilot session and snapshot quotas.
-  - [ ] Parse `x-usage-ratelimit-session` into `quota_name = session`.
-  - [ ] Parse `x-quota-snapshot-chat` into `quota_name = chat`.
-  - [ ] Parse `x-quota-snapshot-completions` into `quota_name = completions`.
-  - [ ] Parse `x-quota-snapshot-premium_interactions` into `quota_name = premium_interactions`.
-- [ ] Implement Copilot monthly entitlement probing.
-  - [ ] Keep the monthly entitlement probe separate from the weekly header probe.
-  - [ ] Use GitHub cookie discovery only when explicitly enabled or already configured safely.
-  - [ ] Store monthly/premium request quota with `quota_name = monthly` or `premium_interactions`.
-  - [ ] Do not use entitlement data to estimate weekly usage.
-- [ ] Implement Copilot safety.
-  - [ ] Never persist the local Copilot token.
-  - [ ] Never persist raw cookies.
-  - [ ] Never persist unsanitized command history.
-  - [ ] Mark the active weekly probe in UI/API as an active request that may consume quota.
+- [x] Implement Copilot passive session syncing.
+  - [x] Discover `session-state/**/events.jsonl`.
+  - [x] Parse `session.start`, `session.model_change`, `assistant.message`, and `session.shutdown` usage metadata.
+  - [x] Prefer `session.shutdown` model metrics as authoritative session totals when present.
+  - [x] Normalize per-model usage into token usage rows.
+  - [x] Store models seen and safe CLI metadata in `sessions.metadata`.
+- [x] Implement Copilot precise weekly active probing.
+  - [x] Read the local Copilot token from `config.json` in memory.
+  - [x] Resolve the API base URL through `https://api.github.com/copilot_internal/user`.
+  - [x] Send one minimal chat completion request using the locked probe model from the current R&D script unless tests override it.
+  - [x] Parse response headers with prefixes `x-usage-ratelimit-` and `x-quota-snapshot-`.
+  - [x] For `x-usage-ratelimit-weekly`, parse query params `ent`, `ov`, `ovPerm`, `rem`, `rst`, `hasQuota`, `tbb`, and `totRem` when present.
+  - [x] Store weekly `remaining_percent = rem`.
+  - [x] Store weekly `used_percent = 100 - rem`.
+  - [x] Store weekly `resets_at = rst`.
+  - [x] Store `quota_name = weekly` and `source = active_probe`.
+- [x] Implement Copilot session and snapshot quotas.
+  - [x] Parse `x-usage-ratelimit-session` into `quota_name = session`.
+  - [x] Parse `x-quota-snapshot-chat` into `quota_name = chat`.
+  - [x] Parse `x-quota-snapshot-completions` into `quota_name = completions`.
+  - [x] Parse `x-quota-snapshot-premium_interactions` into `quota_name = premium_interactions`.
+- [x] Implement Copilot monthly entitlement probing.
+  - [x] Keep the monthly entitlement probe separate from the weekly header probe.
+  - [x] Use GitHub cookie discovery only when explicitly enabled or already configured safely.
+  - [x] Store monthly/premium request quota with `quota_name = monthly` or `premium_interactions`.
+  - [x] Do not use entitlement data to estimate weekly usage.
+- [x] Implement Copilot safety.
+  - [x] Never persist the local Copilot token.
+  - [x] Never persist raw cookies.
+  - [x] Never persist unsanitized command history.
+  - [x] Mark the active weekly probe in UI/API as an active request that may consume quota.
 
 ### 7. Daemon And Sync Scheduler
 
-- [ ] Implement daemon lifecycle.
-  - [ ] `quota-tracker daemon` starts the scheduler and the API server in one process.
-  - [ ] The daemon applies migrations before starting work.
-  - [ ] The daemon creates default provider rows if missing.
-  - [ ] The daemon logs startup config without secrets.
-- [ ] Implement initial full scan.
-  - [ ] On first run, perform a full passive scan for every enabled provider.
-  - [ ] When a provider is enabled for the first time, perform a full passive scan for that provider.
-  - [ ] Store high-water marks only after successful writes.
-- [ ] Implement incremental passive syncing.
-  - [ ] Poll enabled providers every configured passive sync interval.
-  - [ ] Process only changed files or new source rows when high-water marks allow it.
-  - [ ] Preserve idempotency through deterministic ids and database constraints.
-- [ ] Implement active quota probing.
-  - [ ] Poll enabled providers every configured active probe interval.
-  - [ ] Skip providers whose active probe is disabled.
-  - [ ] Do not run active probes more frequently than configured.
-  - [ ] Record failed probes as health state without inserting bogus quota rows.
-- [ ] Implement resilience.
-  - [ ] Restarting the daemon must not duplicate sessions or token usage rows.
-  - [ ] Disabling a provider stops future scans but keeps historical rows.
-  - [ ] Re-enabling a provider resumes from high-water marks unless the user explicitly requests a full rescan.
-  - [ ] Provider failures must not crash the whole daemon loop.
-- [ ] Implement manual operations.
-  - [ ] Manual scan endpoint and CLI command trigger passive sync for a provider or all providers.
-  - [ ] Manual probe endpoint and CLI command trigger active quota probing for a provider or all providers.
-  - [ ] Manual full rescan resets the selected provider high-water marks only after user confirmation in CLI or explicit API payload.
+- [x] Implement daemon lifecycle.
+  - [x] `quota-tracker daemon` starts the scheduler and the API server in one process.
+  - [x] The daemon applies migrations before starting work.
+  - [x] The daemon creates default provider rows if missing.
+  - [x] The daemon logs startup config without secrets.
+- [x] Implement initial full scan.
+  - [x] On first run, perform a full passive scan for every enabled provider.
+  - [x] When a provider is enabled for the first time, perform a full passive scan for that provider.
+  - [x] Store high-water marks only after successful writes.
+- [x] Implement incremental passive syncing.
+  - [x] Poll enabled providers every configured passive sync interval.
+  - [x] Process only changed files or new source rows when high-water marks allow it.
+  - [x] Preserve idempotency through deterministic ids and database constraints.
+- [x] Implement active quota probing.
+  - [x] Poll enabled providers every configured active probe interval.
+  - [x] Skip providers whose active probe is disabled.
+  - [x] Do not run active probes more frequently than configured.
+  - [x] Record failed probes as health state without inserting bogus quota rows.
+- [x] Implement resilience.
+  - [x] Restarting the daemon must not duplicate sessions or token usage rows.
+  - [x] Disabling a provider stops future scans but keeps historical rows.
+  - [x] Re-enabling a provider resumes from high-water marks unless the user explicitly requests a full rescan.
+  - [x] Provider failures must not crash the whole daemon loop.
+- [x] Implement manual operations.
+  - [x] Manual scan endpoint and CLI command trigger passive sync for a provider or all providers.
+  - [x] Manual probe endpoint and CLI command trigger active quota probing for a provider or all providers.
+  - [x] Manual full rescan resets the selected provider high-water marks only after user confirmation in CLI or explicit API payload.
 
 ### 8. CLI Contract
 
-- [ ] Implement `quota-tracker config show`.
-  - [ ] Prints sanitized config JSON.
-  - [ ] Does not print secrets.
-- [ ] Implement `quota-tracker config set`.
-  - [ ] Supports setting provider enabled flags, home paths, active probe intervals, passive sync intervals, host, port, database path, and log level.
-  - [ ] Validates paths and intervals before writing config.
-- [ ] Implement `quota-tracker migrate`.
-  - [ ] Applies migrations and exits.
-  - [ ] Is safe to run repeatedly.
-- [ ] Implement `quota-tracker scan`.
-  - [ ] Supports `--provider all|gemini|codex|copilot`.
-  - [ ] Supports `--full` to ignore high-water marks after explicit invocation.
-  - [ ] Prints a concise summary: sessions upserted, token rows inserted, quota rows inserted, parse failures.
+- [x] Implement `quota-tracker config show`.
+  - [x] Prints sanitized config JSON.
+  - [x] Does not print secrets.
+- [x] Implement `quota-tracker config set`.
+  - [x] Supports setting provider enabled flags, home paths, active probe intervals, passive sync intervals, host, port, database path, and log level.
+  - [x] Validates paths and intervals before writing config.
+- [x] Implement `quota-tracker migrate`.
+  - [x] Applies migrations and exits.
+  - [x] Is safe to run repeatedly.
+- [x] Implement `quota-tracker scan`.
+  - [x] Supports `--provider all|gemini|codex|copilot`.
+  - [x] Supports `--full` to ignore high-water marks after explicit invocation.
+  - [x] Prints a concise summary: sessions upserted, token rows inserted, quota rows inserted, parse failures.
 - [ ] Implement `quota-tracker probe`.
-  - [ ] Supports `--provider all|gemini|codex|copilot`.
-  - [ ] Supports `--dry-run` where possible by using mocked or cached probe responses, not live network calls.
+  - [x] Supports `--provider all|gemini|codex|copilot`.
+  - [x] Supports `--dry-run` where possible by using mocked or cached probe responses, not live network calls.
   - [ ] Prints quota name, used percent, remaining percent, reset time, and source.
-- [ ] Implement `quota-tracker serve`.
-  - [ ] Starts the FastAPI server and serves the React build.
-  - [ ] Uses configured host and port unless CLI flags override them.
-- [ ] Implement `quota-tracker daemon`.
-  - [ ] Starts API server and scheduler in one process.
-  - [ ] Uses one user-facing port.
+- [x] Implement `quota-tracker serve`.
+  - [x] Starts the FastAPI server and serves the React build.
+  - [x] Uses configured host and port unless CLI flags override them.
+- [x] Implement `quota-tracker daemon`.
+  - [x] Starts API server and scheduler in one process.
+  - [x] Uses one user-facing port.
   - [ ] Handles SIGTERM and SIGINT cleanly.
 
 ### 9. Single-Port API And Web Serving
 
-- [ ] Implement FastAPI application startup.
-  - [ ] Apply migrations.
-  - [ ] Load config.
-  - [ ] Initialize provider registry.
-  - [ ] Initialize scheduler only for daemon mode.
-- [ ] Implement API endpoints.
-  - [ ] `GET /api/health` returns service status, database status, scheduler status, and provider health summaries.
-  - [ ] `GET /api/providers` returns provider configs and health summaries without secrets.
-  - [ ] `PATCH /api/providers/{id}` enables/disables a provider and updates safe provider config.
-  - [ ] `POST /api/providers/{id}/scan` triggers passive sync.
-  - [ ] `POST /api/providers/{id}/probe` triggers active quota probe.
-  - [ ] `GET /api/quotas` returns quota history filtered by provider id, quota name, time range, and limit.
-  - [ ] `GET /api/sessions` returns sessions filtered by provider id, project name, model name, and time range.
-  - [ ] `GET /api/token-usage` returns aggregated token usage grouped by provider, model, project, session, day, or hour.
-  - [ ] `GET /api/config` returns sanitized config.
-  - [ ] `PATCH /api/config` updates global config and validates intervals, host, port, and paths.
-- [ ] Implement static frontend serving.
-  - [ ] Serve `/` from the built React assets.
-  - [ ] Serve frontend asset files from the same FastAPI process.
-  - [ ] Return `index.html` for non-API frontend routes.
-  - [ ] Never proxy to a separate frontend dev server in production.
-- [ ] Implement API response rules.
-  - [ ] Return UTC ISO timestamps.
-  - [ ] Return percentages as numbers, not formatted strings.
-  - [ ] Return token counts as integers.
-  - [ ] Return no secrets.
-  - [ ] Return stable JSON shapes tested by snapshots.
+- [x] Implement FastAPI application startup.
+  - [x] Apply migrations.
+  - [x] Load config.
+  - [x] Initialize provider registry.
+  - [x] Initialize scheduler only for daemon mode.
+- [x] Implement API endpoints.
+  - [x] `GET /api/health` returns service status, database status, scheduler status, and provider health summaries.
+  - [x] `GET /api/providers` returns provider configs and health summaries without secrets.
+  - [x] `PATCH /api/providers/{id}` enables/disables a provider and updates safe provider config.
+  - [x] `POST /api/providers/{id}/scan` triggers passive sync.
+  - [x] `POST /api/providers/{id}/probe` triggers active quota probe.
+  - [x] `GET /api/quotas` returns quota history filtered by provider id, quota name, time range, and limit.
+  - [x] `GET /api/sessions` returns sessions filtered by provider id, project name, model name, and time range.
+  - [x] `GET /api/token-usage` returns aggregated token usage grouped by provider, model, project, session, day, or hour.
+  - [x] `GET /api/config` returns sanitized config.
+  - [x] `PATCH /api/config` updates global config and validates intervals, host, port, and paths.
+- [x] Implement static frontend serving.
+  - [x] Serve `/` from the built React assets.
+  - [x] Serve frontend asset files from the same FastAPI process.
+  - [x] Return `index.html` for non-API frontend routes.
+  - [x] Never proxy to a separate frontend dev server in production.
+- [x] Implement API response rules.
+  - [x] Return UTC ISO timestamps.
+  - [x] Return percentages as numbers, not formatted strings.
+  - [x] Return token counts as integers.
+  - [x] Return no secrets.
+  - [x] Return stable JSON shapes tested by snapshots.
 
 ### 10. React Dashboard
 
-- [ ] Implement frontend application shell.
-  - [ ] Use React TypeScript.
-  - [ ] Use relative API calls only.
-  - [ ] Support loading, empty, error, and stale-data states.
-  - [ ] Do not display conversation content.
-- [ ] Implement global overview.
-  - [ ] Show enabled providers.
-  - [ ] Show latest quota state per provider and quota name.
-  - [ ] Show total tokens over selectable time ranges.
-  - [ ] Show token breakdown by provider and model.
-  - [ ] Use ECharts for quota and usage visualizations.
-- [ ] Implement provider drill-down.
-  - [ ] Show provider health.
-  - [ ] Show provider-specific latest quota rows through normalized fields.
-  - [ ] Show sessions table with project, model, created time, last seen time, and token totals.
-  - [ ] Show token usage charts grouped by model and time.
-- [ ] Implement configuration panel.
-  - [ ] Toggle providers enabled/disabled.
-  - [ ] Edit provider home paths.
-  - [ ] Edit active probe intervals and passive sync intervals.
-  - [ ] Trigger manual scan.
-  - [ ] Trigger manual active quota probe.
-  - [ ] Show warning text before active probes that can consume provider quota.
-- [ ] Implement frontend production behavior.
-  - [ ] Build assets are served by FastAPI.
-  - [ ] No runtime dependency on Vite.
-  - [ ] The browser uses the same origin for UI and API.
+- [x] Implement frontend application shell.
+  - [x] Use React TypeScript.
+  - [x] Use relative API calls only.
+  - [x] Support loading, empty, error, and stale-data states.
+  - [x] Do not display conversation content.
+- [x] Implement global overview.
+  - [x] Show enabled providers.
+  - [x] Show latest quota state per provider and quota name.
+  - [x] Show total tokens over selectable time ranges.
+  - [x] Show token breakdown by provider and model.
+  - [x] Use ECharts for quota and usage visualizations.
+- [x] Implement provider drill-down.
+  - [x] Show provider health.
+  - [x] Show provider-specific latest quota rows through normalized fields.
+  - [x] Show sessions table with project, model, created time, last seen time, and token totals.
+  - [x] Show token usage charts grouped by model and time.
+- [x] Implement configuration panel.
+  - [x] Toggle providers enabled/disabled.
+  - [x] Edit provider home paths.
+  - [x] Edit active probe intervals and passive sync intervals.
+  - [x] Trigger manual scan.
+  - [x] Trigger manual active quota probe.
+  - [x] Show warning text before active probes that can consume provider quota.
+- [x] Implement frontend production behavior.
+  - [x] Build assets are served by FastAPI.
+  - [x] No runtime dependency on Vite.
+  - [x] The browser uses the same origin for UI and API.
 
 ### 11. Installer And Systemd Setup
 
-- [ ] Implement one-liner install flow.
-  - [ ] Support `curl -sSL <install-url> | sh`.
-  - [ ] Install into a deterministic user-level location.
-  - [ ] Create config, data, and log directories if missing.
-  - [ ] Do not overwrite user config without merging known fields.
-- [ ] Implement interactive configuration.
-  - [ ] Auto-detect Gemini, Codex, and Copilot homes.
-  - [ ] Ask whether to enable all detected providers or select a subset.
-  - [ ] Allow non-standard provider paths.
-  - [ ] Allow configuring host, port, active probe interval, and passive sync interval.
-- [ ] Implement idempotent reconfiguration.
-  - [ ] Re-running the installer updates existing config without duplicating provider entries.
-  - [ ] Re-running the installer updates the systemd user unit if content changed.
-  - [ ] Re-running the installer preserves database contents.
-- [ ] Implement systemd user service.
-  - [ ] Service name: `quota-tracker.service`.
-  - [ ] Command runs `quota-tracker daemon`.
-  - [ ] Restart policy handles daemon failures.
-  - [ ] Logs go to journald and the configured log directory.
-  - [ ] Installer enables and starts the service when the user confirms.
+- [x] Implement one-liner install flow.
+  - [x] Support `curl -sSL <install-url> | sh`.
+  - [x] Install into a deterministic user-level location.
+  - [x] Create config, data, and log directories if missing.
+  - [x] Do not overwrite user config without merging known fields.
+- [x] Implement interactive configuration.
+  - [x] Auto-detect Gemini, Codex, and Copilot homes.
+  - [x] Ask whether to enable all detected providers or select a subset.
+  - [x] Allow non-standard provider paths.
+  - [x] Allow configuring host, port, active probe interval, and passive sync interval.
+- [x] Implement idempotent reconfiguration.
+  - [x] Re-running the installer updates existing config without duplicating provider entries.
+  - [x] Re-running the installer updates the systemd user unit if content changed.
+  - [x] Re-running the installer preserves database contents.
+- [x] Implement systemd user service.
+  - [x] Service name: `quota-tracker.service`.
+  - [x] Command runs `quota-tracker daemon`.
+  - [x] Restart policy handles daemon failures.
+  - [x] Logs go to journald and the configured log directory.
+  - [x] Installer enables and starts the service when the user confirms.
 
 ### 12. Performance And Data Minimization
 

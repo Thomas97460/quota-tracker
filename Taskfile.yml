@@ -1,0 +1,151 @@
+version: "3"
+
+vars:
+  ROOT: '{{.TASKFILE_DIR}}'
+
+silent: false
+
+tasks:
+  setup:
+    cmds:
+      - cd "{{.ROOT}}" && python -m pip install -e ".[dev]"
+      - cd "{{.ROOT}}/frontend" && npm install
+
+  format:
+    cmds:
+      - cd "{{.ROOT}}" && ruff format .
+
+  lint:
+    cmds:
+      - cd "{{.ROOT}}" && ruff check .
+
+  typecheck:
+    cmds:
+      - cd "{{.ROOT}}" && mypy
+
+  docstrings:
+    cmds:
+      - cd "{{.ROOT}}" && interrogate -v quota_tracker
+
+  test:
+    cmds:
+      - cd "{{.ROOT}}" && pytest
+
+  test-unit:
+    cmds:
+      - cd "{{.ROOT}}" && pytest tests/unit
+
+  test-integration:
+    cmds:
+      - cd "{{.ROOT}}" && pytest tests/integration
+
+  test-snapshots:
+    cmds:
+      - cd "{{.ROOT}}" && pytest tests/snapshots
+
+  test-frontend:
+    cmds:
+      - cd "{{.ROOT}}/frontend" && npm run test
+
+  build-frontend:
+    cmds:
+      - cd "{{.ROOT}}/frontend" && npm run build
+
+  nix-check:
+    cmds:
+      - cd "{{.ROOT}}" && nix flake check
+
+  validate:
+    cmds:
+      - task: lint
+      - cd "{{.ROOT}}" && ruff format --check .
+      - task: typecheck
+      - task: docstrings
+      - task: test
+      - task: build-frontend
+      - task: nix-check
+
+  validate:quiet:
+    silent: true
+    cmds:
+      - task: _run_quiet
+        vars: {NAME: "lint", CMD: "task lint"}
+      - task: _run_quiet
+        vars: {NAME: "format-check", CMD: "cd {{.ROOT}} && ruff format --check ."}
+      - task: _run_quiet
+        vars: {NAME: "typecheck", CMD: "task typecheck"}
+      - task: _run_quiet
+        vars: {NAME: "docstrings", CMD: "task docstrings"}
+      - task: _run_quiet
+        vars: {NAME: "test", CMD: "task test"}
+      - task: _run_quiet
+        vars: {NAME: "build-frontend", CMD: "task build-frontend"}
+      - task: _run_quiet
+        vars: {NAME: "nix-check", CMD: "task nix-check"}
+      - echo "validate:quiet ok"
+
+  _run_quiet:
+    internal: true
+    silent: true
+    cmds:
+      - |
+        LOG=$(mktemp "/tmp/task_{{.NAME}}_XXXXXX.log")
+        set +e
+        bash -lc '{{.CMD}}' >"$LOG" 2>&1
+        EXIT_CODE=$?
+        set -e
+        if [ $EXIT_CODE -ne 0 ]; then
+          echo "gate={{.NAME}}"
+          echo "exit_code=$EXIT_CODE"
+          echo "command={{.CMD}}"
+          echo "output_head(120):"
+          sed -n '1,120p' "$LOG"
+          echo "log_file=$LOG"
+          exit $EXIT_CODE
+        fi
+        echo "{{.NAME}}: ok"
+
+  run-api:
+    cmds:
+      - cd "{{.ROOT}}" && uvicorn quota_tracker.api:app --host 127.0.0.1 --port 8787
+
+  run-daemon:
+    cmds:
+      - cd "{{.ROOT}}" && quota-tracker daemon
+
+  scan:
+    cmds:
+      - cd "{{.ROOT}}" && quota-tracker scan
+
+  probe:
+    cmds:
+      - cd "{{.ROOT}}" && quota-tracker probe
+
+  migrate:
+    cmds:
+      - cd "{{.ROOT}}" && quota-tracker migrate
+
+  install-user-service:
+    cmds:
+      - cd "{{.ROOT}}" && quota-tracker install-user-service
+
+  package-linux:
+    cmds:
+      - cd "{{.ROOT}}" && uv sync --extra dev
+      - cd "{{.ROOT}}/frontend" && npm run build
+      - cd "{{.ROOT}}" && env -u PYTHONPATH uv run pyinstaller --noconfirm --onefile --name quota-tracker --add-data "frontend/dist:frontend/dist" quota_tracker/cli.py
+      - cd "{{.ROOT}}" && mkdir -p dist/release
+      - cd "{{.ROOT}}" && cp dist/quota-tracker dist/release/quota-tracker-linux-amd64
+      - cd "{{.ROOT}}" && sha256sum dist/release/quota-tracker-linux-amd64 > dist/release/quota-tracker-linux-amd64.sha256
+
+  install-local-binary:
+    cmds:
+      - cd "{{.ROOT}}" && task package-linux
+      - cd "{{.ROOT}}" && install -Dm755 dist/release/quota-tracker-linux-amd64 "${HOME}/.local/bin/quota-tracker"
+      - cd "{{.ROOT}}" && quota-tracker install --interactive --exec-path "${HOME}/.local/bin/quota-tracker"
+      - cd "{{.ROOT}}" && quota-tracker install-user-service --exec-path "${HOME}/.local/bin/quota-tracker"
+
+  clean:
+    cmds:
+      - cd "{{.ROOT}}" && rm -rf .mypy_cache .ruff_cache .pytest_cache dist build .coverage __pycache__ *.spec
+      - cd "{{.ROOT}}/frontend" && rm -rf dist

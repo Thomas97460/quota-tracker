@@ -1,3 +1,0 @@
-x-quota-snapshot-
-x-src-conn-rate
-x-usage-ratelimit-
