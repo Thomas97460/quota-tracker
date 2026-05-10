@@ -124,6 +124,7 @@ def _apply_config_set(config: AppConfig, args: argparse.Namespace) -> AppConfig:
 
     if args.provider:
         provider_cfg = getattr(config, args.provider)
+        provider_cfg.active_probe_enabled = True
         enabled = _parse_bool(args.enabled)
         if enabled is not None:
             provider_cfg.enabled = enabled
@@ -131,7 +132,7 @@ def _apply_config_set(config: AppConfig, args: argparse.Namespace) -> AppConfig:
             provider_cfg.home_path = str(Path(args.home_path).expanduser())
         active_probe = _parse_bool(args.active_probe_enabled)
         if active_probe is not None:
-            provider_cfg.active_probe_enabled = active_probe
+            provider_cfg.active_probe_enabled = True
         passive_sync = _parse_bool(args.passive_sync_enabled)
         if passive_sync is not None:
             provider_cfg.passive_sync_enabled = passive_sync
@@ -143,6 +144,7 @@ def _service_from_config(config: AppConfig) -> DaemonService:
 
     return DaemonService(
         db_path=config.daemon.database_path,
+        sync_interval_minutes=config.daemon.sync_interval_minutes,
         passive_sync_interval_minutes=config.daemon.passive_sync_interval_minutes,
         active_probe_interval_minutes=config.daemon.active_probe_interval_minutes,
         log_level=config.daemon.log_level,

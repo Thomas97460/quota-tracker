@@ -69,6 +69,7 @@ def test_tick_due_logic_and_scheduler_start_stop(
             cfg = dict(row["config"])
             safe = dict(cfg.get("safe_options", {}))
             safe["last_successful_sync_at"] = (datetime.now(UTC) - timedelta(minutes=1)).isoformat()
+            safe["last_successful_probe_at"] = datetime.now(UTC).isoformat()
             cfg["safe_options"] = safe
             update_provider_row(conn, provider, enabled=True, config=cfg)
         conn.commit()
@@ -328,7 +329,10 @@ def test_tick_not_due_when_recent_sync(tmp_path: Path, monkeypatch: pytest.Monke
             row = get_provider_row(conn, provider)
             assert row is not None
             cfg = dict(row["config"])
-            cfg["safe_options"] = {"last_successful_sync_at": datetime.now(UTC).isoformat()}
+            cfg["safe_options"] = {
+                "last_successful_sync_at": datetime.now(UTC).isoformat(),
+                "last_successful_probe_at": datetime.now(UTC).isoformat(),
+            }
             update_provider_row(conn, provider, enabled=True, config=cfg)
         conn.commit()
     finally:

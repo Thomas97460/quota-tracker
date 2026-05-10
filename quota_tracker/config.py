@@ -20,7 +20,7 @@ class ProviderConfig(BaseModel):
 
     enabled: bool = True
     home_path: str
-    active_probe_enabled: bool = False
+    active_probe_enabled: bool = True
     passive_sync_enabled: bool = True
     safe_options: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
 
@@ -126,10 +126,18 @@ class AppConfig(BaseModel):
     pricing: dict[str, ModelPricing] = Field(default_factory=get_default_pricing)
 
 
+def _force_active_probe_enabled(config: AppConfig) -> AppConfig:
+    """Keep active quota probes mandatory for every provider."""
+
+    for provider in ("gemini", "codex", "copilot", "claude"):
+        getattr(config, provider).active_probe_enabled = True
+    return config
+
+
 def default_config_json() -> str:
     """Return the default JSON config content."""
 
-    return AppConfig().model_dump_json(indent=2)
+    return _force_active_probe_enabled(AppConfig()).model_dump_json(indent=2)
 
 
 def config_file_path() -> str:
@@ -143,9 +151,9 @@ def load_config(path: str | None = None) -> AppConfig:
 
     config_path = Path(path) if path else DEFAULT_CONFIG_PATH
     if not config_path.exists():
-        return AppConfig()
+        return _force_active_probe_enabled(AppConfig())
     data = json.loads(config_path.read_text())
-    return AppConfig.model_validate(data)
+    return _force_active_probe_enabled(AppConfig.model_validate(data))
 
 
 def save_config(config: AppConfig, path: str | None = None) -> None:
@@ -153,10 +161,10 @@ def save_config(config: AppConfig, path: str | None = None) -> None:
 
     config_path = Path(path) if path else DEFAULT_CONFIG_PATH
     config_path.parent.mkdir(parents=True, exist_ok=True)
-    config_path.write_text(config.model_dump_json(indent=2) + "\n")
+    config_path.write_text(_force_active_probe_enabled(config).model_dump_json(indent=2) + "\n")
 
 
 def sanitized_config_json(config: AppConfig) -> str:
     """Return sanitized config JSON for CLI/API display."""
 
-    return config.model_dump_json(indent=2)
+    return _force_active_probe_enabled(config).model_dump_json(indent=2)

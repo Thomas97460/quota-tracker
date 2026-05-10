@@ -157,8 +157,7 @@ def register_routes(
             cfg = dict(row["config"])
             if payload.home_path is not None:
                 cfg["home_path"] = payload.home_path
-            if payload.active_probe_enabled is not None:
-                cfg["active_probe_enabled"] = payload.active_probe_enabled
+            cfg["active_probe_enabled"] = True
             if payload.passive_sync_enabled is not None:
                 cfg["passive_sync_enabled"] = payload.passive_sync_enabled
             enabled = row["enabled"] if payload.enabled is None else payload.enabled

@@ -127,7 +127,7 @@ def list_provider_health(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         cfg = json.loads(row["config"])
         safe_cfg = {
             "home_path": cfg.get("home_path"),
-            "active_probe_enabled": cfg.get("active_probe_enabled"),
+            "active_probe_enabled": True,
             "passive_sync_enabled": cfg.get("passive_sync_enabled"),
             "high_water_marks": cfg.get("high_water_marks", {}),
             "safe_options": cfg.get("safe_options", {}),

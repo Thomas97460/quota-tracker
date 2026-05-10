@@ -55,14 +55,16 @@ class DaemonService:
         self,
         db_path: str,
         sync_interval_minutes: int = 5,
-        passive_sync_interval_minutes: int = 15,
-        active_probe_interval_minutes: int = 60,
+        passive_sync_interval_minutes: int | None = None,
+        active_probe_interval_minutes: int | None = None,
         log_level: str = "INFO",
     ) -> None:
         """Initialize daemon service settings."""
 
         self.db_path = db_path
         self.sync_interval_minutes = sync_interval_minutes
+        self.passive_sync_interval_minutes = passive_sync_interval_minutes or sync_interval_minutes
+        self.active_probe_interval_minutes = active_probe_interval_minutes or sync_interval_minutes
         configure_logging(log_level)
         self._stop_event = threading.Event()
         self._thread: threading.Thread | None = None
@@ -81,6 +83,8 @@ class DaemonService:
                     "operation": "startup",
                     "db_path": self.db_path,
                     "sync_interval_minutes": self.sync_interval_minutes,
+                    "passive_sync_interval_minutes": self.passive_sync_interval_minutes,
+                    "active_probe_interval_minutes": self.active_probe_interval_minutes,
                 },
                 ensure_ascii=True,
             )
@@ -288,10 +292,11 @@ class DaemonService:
             conn.close()
 
     def tick(self) -> None:
-        """Run one scheduler tick using configured interval."""
+        """Run one scheduler tick using configured sync and probe intervals."""
 
         conn = connect_db(self.db_path)
-        due = False
+        scan_due = False
+        probe_due: list[str] = []
         try:
             apply_migrations(conn)
             now = datetime.now(UTC)
@@ -301,17 +306,25 @@ class DaemonService:
                 safe = row["config"].get("safe_options", {})
                 last_sync = safe.get("last_successful_sync_at")
                 if not last_sync:
-                    due = True
+                    scan_due = True
                 else:
                     delta = now - datetime.fromisoformat(last_sync)
-                    if delta.total_seconds() >= self.sync_interval_minutes * 60:
-                        due = True
-            if due:
-                self.run_scan(provider="all", full=False)
-                for pid in AUTO_PROBE_PROVIDERS:
-                    self.run_probe(provider=pid)
+                    if delta.total_seconds() >= self.passive_sync_interval_minutes * 60:
+                        scan_due = True
+                if row["id"] in AUTO_PROBE_PROVIDERS:
+                    last_probe = safe.get("last_successful_probe_at")
+                    if not last_probe:
+                        probe_due.append(row["id"])
+                    else:
+                        probe_delta = now - datetime.fromisoformat(last_probe)
+                        if probe_delta.total_seconds() >= self.active_probe_interval_minutes * 60:
+                            probe_due.append(row["id"])
         finally:
             conn.close()
+        if scan_due:
+            self.run_scan(provider="all", full=False)
+        for provider_id in probe_due:
+            self.run_probe(provider=provider_id)
 
     def start_scheduler(self, sleep_seconds: float = 1.0) -> None:
         """Start background scheduler loop."""

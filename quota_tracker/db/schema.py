@@ -176,6 +176,7 @@ def _ensure_default_providers(conn: sqlite3.Connection) -> None:
     for provider in PROVIDERS:
         default_config = {
             "home_path": f"~/.{provider}",
+            "active_probe_enabled": True,
             "high_water_marks": {},
             "safe_options": {},
         }
@@ -187,6 +188,16 @@ def _ensure_default_providers(conn: sqlite3.Connection) -> None:
             """,
             (provider, validate_json_text(default_config), now, now),
         )
+        row = conn.execute("SELECT config FROM providers WHERE id = ?", (provider,)).fetchone()
+        if row is None:
+            continue
+        config = json.loads(row["config"])
+        if config.get("active_probe_enabled") is not True:
+            config["active_probe_enabled"] = True
+            conn.execute(
+                "UPDATE providers SET config = ?, updated_at = ? WHERE id = ?",
+                (validate_json_text(config), now, provider),
+            )
 
 
 @contextmanager
