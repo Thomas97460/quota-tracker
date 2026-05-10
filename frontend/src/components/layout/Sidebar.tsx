@@ -121,13 +121,15 @@ export function Sidebar(): React.JSX.Element {
           <div className="sidebar-brand-name">Quota Tracker</div>
           <div className="sidebar-brand-version-row">
             {current && <span className="sidebar-brand-version">v{current}</span>}
-            <button
-              className={`sidebar-update-badge${updateAvailable ? " available" : ""}`}
-              onClick={() => setUpdatePopup(true)}
-              title={latestVersion ? `v${latestVersion} available` : "Update"}
-            >
-              {updateAvailable && latestVersion ? `↑ v${latestVersion}` : "Update"}
-            </button>
+            {updateAvailable && latestVersion && (
+              <button
+                className="sidebar-update-badge available"
+                onClick={() => setUpdatePopup(true)}
+                title={`v${latestVersion} available`}
+              >
+                ↑ v{latestVersion}
+              </button>
+            )}
           </div>
         </div>
       </div>
