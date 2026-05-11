@@ -39,3 +39,11 @@ Installs the binary, runs migrations, backfills history and starts a systemd use
 <div align="center">
 <img src="assets/screenshots/overview.png" alt="quota-tracker overview" width="100%">
 </div>
+
+## Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/uninstall.sh | bash
+```
+
+The uninstall helper asks before removing the systemd user service, then asks separately before deleting the local SQLite database.

@@ -102,6 +102,7 @@ def test_cli_config_show_set(
     monkeypatch.setattr(
         "quota_tracker.cli.save_config", lambda cfg: save_to_path(cfg, str(config_path))
     )
+    monkeypatch.setattr("quota_tracker.cli.sync_provider_rows_from_config", lambda cfg: None)
 
     monkeypatch.setattr("sys.argv", ["quota-tracker", "config", "show"])
     assert cli.main() == 0

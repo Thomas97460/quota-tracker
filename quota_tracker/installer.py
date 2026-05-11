@@ -8,6 +8,7 @@ from pathlib import Path
 
 from quota_tracker import _ui as ui
 from quota_tracker.config import AppConfig, save_config
+from quota_tracker.db import apply_migrations, connect_db, get_provider_row, update_provider_row
 from quota_tracker.paths import DEFAULT_CONFIG_DIR, DEFAULT_LOG_DIR
 
 
@@ -143,6 +144,29 @@ def ensure_directories(config: AppConfig) -> None:
     DEFAULT_LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 
+def sync_provider_rows_from_config(config: AppConfig) -> None:
+    """Persist config provider enable/home settings into the dashboard DB rows."""
+
+    conn = connect_db(config.daemon.database_path)
+    try:
+        apply_migrations(conn)
+        for provider in ("gemini", "codex", "copilot", "claude"):
+            provider_cfg = getattr(config, provider)
+            row = get_provider_row(conn, provider)
+            current = dict(row["config"]) if row is not None else {}
+            current["home_path"] = provider_cfg.home_path
+            current["active_probe_enabled"] = True
+            current["passive_sync_enabled"] = provider_cfg.passive_sync_enabled
+            current.setdefault("high_water_marks", {})
+            safe_options = dict(current.get("safe_options", {}))
+            safe_options.update(provider_cfg.safe_options)
+            current["safe_options"] = safe_options
+            update_provider_row(conn, provider, enabled=provider_cfg.enabled, config=current)
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def build_systemd_unit(exec_path: str, log_dir: Path) -> str:
     """Build deterministic user service content."""
 
@@ -199,6 +223,7 @@ def run_install(
         config = configure_interactively(config, home)
     ensure_directories(config)
     save_config(config)
+    sync_provider_rows_from_config(config)
     resolved_exec = exec_path or shutil.which("quota-tracker") or "quota-tracker"
     unit_text = build_systemd_unit(resolved_exec, DEFAULT_LOG_DIR)
     unit_path, changed = write_systemd_user_service(unit_text, home)

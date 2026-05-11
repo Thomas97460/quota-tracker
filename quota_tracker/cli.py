@@ -19,7 +19,11 @@ from quota_tracker.config import (
 )
 from quota_tracker.daemon import DaemonService
 from quota_tracker.db import apply_migrations, connect_db
-from quota_tracker.installer import render_install_script, run_install
+from quota_tracker.installer import (
+    render_install_script,
+    run_install,
+    sync_provider_rows_from_config,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -181,6 +185,7 @@ def main() -> int:
                 print(str(exc))
                 return 2
             save_config(updated)
+            sync_provider_rows_from_config(updated)
             print(sanitized_config_json(updated))
             return 0
         print("unknown config subcommand")
@@ -194,6 +199,7 @@ def main() -> int:
             total = row[0] if row else 0
         finally:
             conn.close()
+        sync_provider_rows_from_config(config)
         if newly_applied:
             ids = ", ".join(newly_applied)
             print(f"applied {len(newly_applied)} new migration(s): {ids}")

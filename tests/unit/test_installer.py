@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from quota_tracker.config import AppConfig
+from quota_tracker.db import apply_migrations, connect_db, get_provider_row, update_provider_row
 from quota_tracker.installer import (
     _input_with_default,
     _parse_bool,
@@ -17,6 +18,7 @@ from quota_tracker.installer import (
     merge_config,
     render_install_script,
     run_install,
+    sync_provider_rows_from_config,
     write_systemd_user_service,
 )
 
@@ -71,6 +73,7 @@ def test_run_install_preserves_db_and_creates_dirs(
     home.mkdir()
     cfg = AppConfig()
     cfg.daemon.database_path = str(home / ".local" / "share" / "quota-tracker" / "db.sqlite3")
+    cfg.codex.enabled = False
     monkeypatch.setattr(
         "quota_tracker.installer.DEFAULT_CONFIG_DIR",
         home / ".config" / "quota-tracker",
@@ -86,6 +89,13 @@ def test_run_install_preserves_db_and_creates_dirs(
     )
     assert "service_path" in result
     assert (home / ".config" / "systemd" / "user" / "quota-tracker.service").exists()
+    conn = connect_db(cfg.daemon.database_path)
+    try:
+        row = get_provider_row(conn, "codex")
+        assert row is not None
+        assert row["enabled"] is False
+    finally:
+        conn.close()
 
 
 def test_interactive_prompts_and_bool_parser(
@@ -170,6 +180,37 @@ def test_run_install_interactive_branch(tmp_path: Path, monkeypatch: pytest.Monk
         cfg, home=home, interactive=True, enable_service=False, exec_path="/bin/qt"
     )
     assert result["service_updated"] is True
+
+
+def test_sync_provider_rows_preserves_runtime_safe_options(tmp_path: Path) -> None:
+    db_path = tmp_path / "quota.sqlite3"
+    cfg = AppConfig()
+    cfg.daemon.database_path = str(db_path)
+    cfg.gemini.enabled = False
+    cfg.gemini.home_path = str(tmp_path / "gemini-home")
+    conn = connect_db(str(db_path))
+    try:
+        apply_migrations(conn)
+        row = get_provider_row(conn, "gemini")
+        assert row is not None
+        db_cfg = dict(row["config"])
+        db_cfg["safe_options"] = {"last_successful_probe_at": "2026-01-01T00:00:00+00:00"}
+        update_provider_row(conn, "gemini", enabled=True, config=db_cfg)
+        conn.commit()
+    finally:
+        conn.close()
+
+    sync_provider_rows_from_config(cfg)
+
+    conn = connect_db(str(db_path))
+    try:
+        row = get_provider_row(conn, "gemini")
+        assert row is not None
+        assert row["enabled"] is False
+        assert row["config"]["home_path"] == str(tmp_path / "gemini-home")
+        assert row["config"]["safe_options"]["last_successful_probe_at"].startswith("2026")
+    finally:
+        conn.close()
 
 
 def test_interactive_undetected_provider(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
