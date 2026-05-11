@@ -31,24 +31,28 @@ section() { printf "\n  ${CYAN}${BOLD}%s${R}${DIM} ─────────�
 confirm() {
   local question="$1"
   local answer=""
-  if [[ -t 0 ]]; then
-    if ! read -r -p "    ${question} [y/N]: " answer; then
-      warn "could not read confirmation; defaulting to no for: ${question}"
+  while true; do
+    if [[ -t 0 ]]; then
+      if ! read -r -p "    ${question} [y/n]: " answer; then
+        warn "could not read confirmation; please enter y or n."
+        continue
+      fi
+    elif [[ -t 1 && -r /dev/tty ]]; then
+      if ! read -r -p "    ${question} [y/n]: " answer </dev/tty 2>/dev/null; then
+        warn "could not read /dev/tty; please enter y or n."
+        continue
+      fi
+    else
+      warn "no interactive terminal; defaulting to no for safety: ${question}"
       return 1
     fi
-  elif [[ -t 1 && -r /dev/tty ]]; then
-    if ! read -r -p "    ${question} [y/N]: " answer </dev/tty 2>/dev/null; then
-      warn "could not read /dev/tty; defaulting to no for: ${question}"
-      return 1
-    fi
-  else
-    warn "no interactive terminal; defaulting to no for: ${question}"
-    return 1
-  fi
-  case "${answer}" in
-    y|Y|yes|YES|Yes|o|O|oui|OUI|Oui) return 0 ;;
-    *) return 1 ;;
-  esac
+
+    case "${answer}" in
+      y|Y|yes|YES|Yes|o|O|oui|OUI|Oui) return 0 ;;
+      n|N|no|NO|No|non|NON|Non) return 1 ;;
+      *) warn "invalid input; please enter 'y' for yes or 'n' for no." ;;
+    esac
+  done
 }
 
 db_path_from_config() {
