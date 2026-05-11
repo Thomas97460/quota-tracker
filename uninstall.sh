@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# quota-tracker — local daemon/database uninstall helper
+# quota-tracker — local uninstall helper
 set -euo pipefail
 IFS=$'\n\t'
 
 APP_NAME="quota-tracker"
 SERVICE_NAME="quota-tracker.service"
-CONFIG_PATH="${HOME}/.config/${APP_NAME}/config.json"
-DEFAULT_DB_PATH="${HOME}/.local/share/${APP_NAME}/${APP_NAME}.sqlite3"
+BIN_PATH="${HOME}/.local/bin/${APP_NAME}"
+CONFIG_DIR="${HOME}/.config/${APP_NAME}"
+CONFIG_PATH="${CONFIG_DIR}/config.json"
+DATA_DIR="${HOME}/.local/share/${APP_NAME}"
+STATE_DIR="${HOME}/.local/state/${APP_NAME}"
+DEFAULT_DB_PATH="${DATA_DIR}/${APP_NAME}.sqlite3"
 UNIT_PATH="${HOME}/.config/systemd/user/${SERVICE_NAME}"
 
 if [[ -t 1 ]] && [[ -z "${NO_COLOR:-}" ]]; then
@@ -22,7 +26,6 @@ systemctl_user() { command_exists systemctl && systemctl --user "$@" >/dev/null 
 info() { printf "    ${DIM}·${R}  %s\n" "$1"; }
 ok() { printf "    ${GREEN}✔${R}  %s\n" "$1"; }
 warn() { printf "    ${AMBER}⚠${R}  %s\n" "$1"; }
-err() { printf "    ${RED}✖${R}  %s\n" "$1" >&2; }
 section() { printf "\n  ${CYAN}${BOLD}%s${R}${DIM} ─────────────────────────────────────${R}\n" "$1"; }
 
 confirm() {
@@ -71,7 +74,9 @@ PY
 printf '\n'
 printf "  ${BOLD}quota-tracker uninstall${R}\n"
 printf "  ${CYAN}════════════════════════════════════════${R}\n"
-printf "  ${DIM}removes the user daemon and optionally the local database${R}\n"
+printf "  ${DIM}removes the user daemon, app files, and optionally the local database${R}\n"
+
+DB_PATH="$(db_path_from_config)"
 
 section "daemon"
 if [[ -f "${UNIT_PATH}" ]] || systemctl_user list-unit-files "${SERVICE_NAME}"; then
@@ -103,13 +108,30 @@ else
   info "no ${SERVICE_NAME} user unit found"
 fi
 
+section "files"
+info "binary: ${BIN_PATH}"
+info "config: ${CONFIG_DIR}"
+info "state/logs: ${STATE_DIR}"
+if [[ -e "${BIN_PATH}" || -e "${CONFIG_DIR}" || -e "${STATE_DIR}" ]]; then
+  if confirm "Delete installed app files except the database?"; then
+    rm -f "${BIN_PATH}"
+    rm -rf "${CONFIG_DIR}" "${STATE_DIR}"
+    ok "installed app files removed"
+  else
+    info "installed app files left unchanged"
+  fi
+else
+  info "installed app files already absent"
+fi
+
 section "database"
-DB_PATH="$(db_path_from_config)"
 info "database: ${DB_PATH}"
-if [[ -e "${DB_PATH}" || -e "${DB_PATH}-wal" || -e "${DB_PATH}-shm" ]]; then
-  if confirm "Delete the quota-tracker SQLite database?"; then
+info "data dir: ${DATA_DIR}"
+if [[ -e "${DB_PATH}" || -e "${DB_PATH}-wal" || -e "${DB_PATH}-shm" || -d "${DATA_DIR}" ]]; then
+  if confirm "Delete the quota-tracker SQLite database and data directory?"; then
     rm -f "${DB_PATH}" "${DB_PATH}-wal" "${DB_PATH}-shm"
-    ok "database files removed"
+    rm -rf "${DATA_DIR}"
+    ok "database and data directory removed"
   else
     info "database left unchanged"
   fi

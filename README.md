@@ -46,4 +46,4 @@ Installs the binary, runs migrations, backfills history and starts a systemd use
 curl -fsSL https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/uninstall.sh | bash
 ```
 
-The uninstall helper asks before removing the systemd user service, then asks separately before deleting the local SQLite database.
+The uninstall helper asks before removing the systemd user service, then asks separately before deleting app files. It has a separate database prompt so you can uninstall quota-tracker while keeping the local SQLite history.
