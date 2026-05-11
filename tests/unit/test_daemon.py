@@ -351,7 +351,9 @@ def test_tick_uses_last_probe_attempted_at_for_backoff(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     db_path = tmp_path / "db.sqlite3"
-    service = DaemonService(str(db_path), sync_interval_minutes=60, active_probe_interval_minutes=15)
+    service = DaemonService(
+        str(db_path), sync_interval_minutes=60, active_probe_interval_minutes=15
+    )
     service.migrate_and_prepare()
     conn = connect_db(str(db_path))
     try:

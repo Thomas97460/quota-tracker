@@ -484,9 +484,7 @@ class CopilotProvider:
         """Run active weekly quota probe via Copilot chat completions API headers."""
         default_home = Path(self.metadata.default_home_path).expanduser()
         allow_global_fallback = self.home == default_home and _global_fallback_enabled()
-        token = _copilot_config_token(
-            self.home, allow_global_fallback=allow_global_fallback
-        )
+        token = _copilot_config_token(self.home, allow_global_fallback=allow_global_fallback)
         if not token:
             raise CopilotProbeError("No Copilot auth token found")
         try:

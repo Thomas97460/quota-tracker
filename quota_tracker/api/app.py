@@ -30,10 +30,12 @@ def _mount_frontend(app: FastAPI) -> None:
     """Serve the bundled SPA on all non-/api routes when assets exist."""
 
     frontend_dist = _frontend_dist_path()
-    if not frontend_dist.exists():
+    if not frontend_dist.exists() or not (frontend_dist / "index.html").exists():
         return
 
-    app.mount("/assets", StaticFiles(directory=frontend_dist / "assets"), name="assets")
+    assets_dir = frontend_dist / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=assets_dir), name="assets")
 
     @app.get("/")
     def root() -> FileResponse:

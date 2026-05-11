@@ -170,7 +170,9 @@ def test_copilot_token_resolution_requires_last_logged_in_user(tmp_path: Path) -
     assert copilot_mod._copilot_config_token(tmp_path) is None
 
 
-def test_copilot_token_resolution_env_fallback_without_config(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_copilot_token_resolution_env_fallback_without_config(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     monkeypatch.setenv("GH_TOKEN", "token-from-env")
     assert copilot_mod._copilot_config_token(Path("/path/that/does/not/exist")) is None
     assert (
@@ -198,7 +200,10 @@ def test_copilot_token_resolution_hosts_yml_fallback(
     monkeypatch.setenv("GH_CONFIG_DIR", str(gh_dir))
 
     assert copilot_mod._copilot_config_token(tmp_path) is None
-    assert copilot_mod._copilot_config_token(tmp_path, allow_global_fallback=True) == "token-from-hosts"
+    assert (
+        copilot_mod._copilot_config_token(tmp_path, allow_global_fallback=True)
+        == "token-from-hosts"
+    )
 
 
 def test_copilot_active_probe_custom_home_ignores_global_token(
@@ -228,7 +233,9 @@ def test_copilot_active_probe_http_error_raises(
 ) -> None:
     p = CopilotProvider(str(tmp_path))
     monkeypatch.setattr(copilot_mod, "_copilot_config_token", lambda *_args, **_kwargs: "token")
-    monkeypatch.setattr(copilot_mod, "_resolve_copilot_api_url", lambda _token: "https://api.example")
+    monkeypatch.setattr(
+        copilot_mod, "_resolve_copilot_api_url", lambda _token: "https://api.example"
+    )
     monkeypatch.setattr(
         copilot_mod,
         "request_with_response_headers",
@@ -244,7 +251,9 @@ def test_copilot_active_probe_missing_quota_headers_raises(
 ) -> None:
     p = CopilotProvider(str(tmp_path))
     monkeypatch.setattr(copilot_mod, "_copilot_config_token", lambda *_args, **_kwargs: "token")
-    monkeypatch.setattr(copilot_mod, "_resolve_copilot_api_url", lambda _token: "https://api.example")
+    monkeypatch.setattr(
+        copilot_mod, "_resolve_copilot_api_url", lambda _token: "https://api.example"
+    )
     monkeypatch.setattr(
         copilot_mod,
         "request_with_response_headers",
