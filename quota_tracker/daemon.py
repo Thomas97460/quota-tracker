@@ -151,8 +151,9 @@ class DaemonService:
 
         config = dict(row["config"])
         safe = dict(config.get("safe_options", {}))
+        safe["last_probe_attempted_at"] = datetime.now(UTC).isoformat()
         if success:
-            safe["last_successful_probe_at"] = datetime.now(UTC).isoformat()
+            safe["last_successful_probe_at"] = safe["last_probe_attempted_at"]
             safe.pop("last_probe_error", None)
         else:
             safe["last_probe_error"] = message or "probe failed"
@@ -324,7 +325,9 @@ class DaemonService:
                     if delta.total_seconds() >= self.passive_sync_interval_minutes * 60:
                         scan_due = True
                 if row["id"] in AUTO_PROBE_PROVIDERS:
-                    last_probe = safe.get("last_successful_probe_at")
+                    last_probe = safe.get("last_probe_attempted_at") or safe.get(
+                        "last_successful_probe_at"
+                    )
                     if not last_probe:
                         probe_due.append(row["id"])
                     else:

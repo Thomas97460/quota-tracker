@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import os
 import re
+import subprocess
 import uuid
 from datetime import UTC, datetime
 from hashlib import sha256
@@ -57,6 +59,10 @@ _COPILOT_API_VERSION = "2026-01-09"
 _PASSIVE_SCAN_MARK_VERSION = 2
 
 
+class CopilotProbeError(RuntimeError):
+    """Raised when the Copilot active probe cannot produce trustworthy quota data."""
+
+
 def _copilot_cli_version() -> str:
     """Detect the installed Copilot CLI version from the local cache directory."""
     pkg_root = Path.home() / ".cache" / "copilot" / "pkg" / "linux-x64"
@@ -67,7 +73,79 @@ def _copilot_cli_version() -> str:
     return "unknown"
 
 
-def _copilot_config_token(home: Path) -> str | None:
+def _token_from_env() -> str | None:
+    """Read Copilot-compatible token env vars in documented precedence order."""
+    for key in ("COPILOT_GITHUB_TOKEN", "GH_TOKEN", "GITHUB_TOKEN"):
+        value = os.environ.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
+
+
+def _token_from_gh_cli(timeout_seconds: int = 10) -> str | None:
+    """Ask GitHub CLI for the current auth token when available."""
+    try:
+        proc = subprocess.run(
+            ["gh", "auth", "token"],
+            check=False,
+            capture_output=True,
+            text=True,
+            timeout=timeout_seconds,
+        )
+    except Exception:
+        return None
+    if proc.returncode != 0:
+        return None
+    token = proc.stdout.strip()
+    return token or None
+
+
+def _gh_hosts_yml_path() -> Path:
+    """Resolve gh hosts.yml path from env overrides or defaults."""
+    gh_config_dir = os.environ.get("GH_CONFIG_DIR")
+    if isinstance(gh_config_dir, str) and gh_config_dir.strip():
+        return Path(gh_config_dir).expanduser() / "hosts.yml"
+    xdg_config_home = os.environ.get("XDG_CONFIG_HOME")
+    if isinstance(xdg_config_home, str) and xdg_config_home.strip():
+        return Path(xdg_config_home).expanduser() / "gh" / "hosts.yml"
+    return Path.home() / ".config" / "gh" / "hosts.yml"
+
+
+def _token_from_gh_hosts_yml() -> str | None:
+    """Read oauth_token for github.com from gh hosts.yml."""
+    path = _gh_hosts_yml_path()
+    if not path.exists():
+        return None
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except Exception:
+        return None
+    in_github = False
+    github_indent = 0
+    for line in lines:
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        if not line.startswith(" ") and stripped.endswith(":"):
+            host = stripped[:-1].strip().strip('"').strip("'")
+            in_github = host == "github.com"
+            github_indent = 0
+            continue
+        if not in_github:
+            continue
+        indent = len(line) - len(line.lstrip(" "))
+        if github_indent == 0 and indent > 0:
+            github_indent = indent
+        if indent < github_indent:
+            in_github = False
+            continue
+        if stripped.startswith("oauth_token:"):
+            token = stripped.split(":", 1)[1].strip().strip('"').strip("'")
+            return token or None
+    return None
+
+
+def _token_from_copilot_config(home: Path) -> str | None:
     """Read the Copilot bearer token from config.json without persisting it."""
     cfg_path = home / "config.json"
     if not cfg_path.exists():
@@ -91,10 +169,27 @@ def _copilot_config_token(home: Path) -> str | None:
             token = tokens.get(f"{host}:{login}")
             if isinstance(token, str) and token.strip():
                 return token.strip()
-    for token in tokens.values():
+    return None
+
+
+def _copilot_config_token(home: Path, *, allow_global_fallback: bool = False) -> str | None:
+    """Resolve Copilot auth token, preferring home-scoped credentials."""
+    token = _token_from_copilot_config(home)
+    if isinstance(token, str) and token.strip():
+        return token.strip()
+    if not allow_global_fallback:
+        return None
+    for resolver in (_token_from_env, _token_from_gh_cli, _token_from_gh_hosts_yml):
+        token = resolver()
         if isinstance(token, str) and token.strip():
             return token.strip()
     return None
+
+
+def _global_fallback_enabled() -> bool:
+    """Return whether global GitHub auth fallback is explicitly enabled."""
+    raw = os.environ.get("QUOTA_TRACKER_COPILOT_ALLOW_GLOBAL_AUTH_FALLBACK", "")
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _resolve_copilot_api_url(token: str, timeout_seconds: int = 20) -> str:
@@ -387,14 +482,18 @@ class CopilotProvider:
 
     def active_probe(self) -> list[QuotaRecord]:
         """Run active weekly quota probe via Copilot chat completions API headers."""
-        token = _copilot_config_token(self.home)
+        default_home = Path(self.metadata.default_home_path).expanduser()
+        allow_global_fallback = self.home == default_home and _global_fallback_enabled()
+        token = _copilot_config_token(
+            self.home, allow_global_fallback=allow_global_fallback
+        )
         if not token:
-            return []
+            raise CopilotProbeError("No Copilot auth token found")
         try:
             api_url = _resolve_copilot_api_url(token)
             interaction_id = str(uuid.uuid4())
             cli_version = _copilot_cli_version()
-            _, response_headers, _ = request_with_response_headers(
+            status_code, response_headers, _ = request_with_response_headers(
                 f"{api_url.rstrip('/')}/chat/completions",
                 method="POST",
                 headers={
@@ -415,7 +514,12 @@ class CopilotProvider:
                     "stream": False,
                 },
             )
-        except Exception:
-            return []
+        except Exception as exc:
+            raise CopilotProbeError(f"Copilot quota probe request failed: {exc}") from exc
+        if status_code >= 400:
+            raise CopilotProbeError(f"Copilot quota probe returned HTTP {status_code}")
         now = datetime.now(UTC).isoformat()
-        return self.parse_quota_headers(response_headers, now)
+        quotas = self.parse_quota_headers(response_headers, now)
+        if not quotas:
+            raise CopilotProbeError("Copilot quota probe returned no quota headers")
+        return quotas

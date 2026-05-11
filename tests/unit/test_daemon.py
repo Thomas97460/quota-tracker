@@ -190,6 +190,7 @@ def test_run_scan_quotas_and_probe_failure_state(
         row2 = get_provider_row(conn, "gemini")
         assert row2 is not None
         assert "last_probe_error" in row2["config"]["safe_options"]
+        assert "last_probe_attempted_at" in row2["config"]["safe_options"]
     finally:
         conn.close()
 
@@ -342,6 +343,39 @@ def test_tick_not_due_when_recent_sync(tmp_path: Path, monkeypatch: pytest.Monke
         service, "run_scan", lambda provider="all", full=False: called.append("scan")
     )
     monkeypatch.setattr(service, "run_probe", lambda provider="all": called.append("probe"))
+    service.tick()
+    assert called == []
+
+
+def test_tick_uses_last_probe_attempted_at_for_backoff(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    db_path = tmp_path / "db.sqlite3"
+    service = DaemonService(str(db_path), sync_interval_minutes=60, active_probe_interval_minutes=15)
+    service.migrate_and_prepare()
+    conn = connect_db(str(db_path))
+    try:
+        now = datetime.now(UTC).isoformat()
+        for provider in ("gemini", "codex", "copilot", "claude"):
+            row = get_provider_row(conn, provider)
+            assert row is not None
+            cfg = dict(row["config"])
+            cfg["safe_options"] = {
+                "last_successful_sync_at": now,
+                "last_probe_attempted_at": now,
+                "last_successful_probe_at": now,
+            }
+            if provider == "copilot":
+                cfg["safe_options"]["last_probe_error"] = "No Copilot auth token found"
+            update_provider_row(conn, provider, enabled=True, config=cfg)
+        conn.commit()
+    finally:
+        conn.close()
+    called: list[str] = []
+    monkeypatch.setattr(
+        service, "run_scan", lambda provider="all", full=False: called.append("scan")
+    )
+    monkeypatch.setattr(service, "run_probe", lambda provider="all": called.append(provider))
     service.tick()
     assert called == []
 

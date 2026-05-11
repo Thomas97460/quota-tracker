@@ -3,7 +3,10 @@
 import json
 from pathlib import Path
 
-from quota_tracker.providers.copilot import CopilotProvider
+import pytest
+
+from quota_tracker.providers import copilot as copilot_mod
+from quota_tracker.providers.copilot import CopilotProbeError, CopilotProvider
 
 
 def test_copilot_passive_and_incremental(tmp_path: Path) -> None:
@@ -129,9 +132,124 @@ def test_copilot_header_parsing_full_and_weekly_only() -> None:
     assert weekly_only[0].resets_at is None
 
 
-def test_copilot_active_probe_paths(tmp_path: Path) -> None:
+def test_copilot_active_probe_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     p = CopilotProvider(str(tmp_path))
-    assert p.active_probe() == []  # no config.json
+    monkeypatch.delenv("COPILOT_GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setattr(copilot_mod, "_token_from_gh_cli", lambda: None)
+    monkeypatch.setattr(copilot_mod, "_token_from_gh_hosts_yml", lambda: None)
+    with pytest.raises(CopilotProbeError, match="No Copilot auth token found"):
+        p.active_probe()
 
-    (tmp_path / "config.json").write_text("{}")
-    assert p.active_probe() == []  # config exists but no copilotTokens
+    cfg = {
+        "copilotTokens": {"github.com:octocat": "token-from-config"},
+        "lastLoggedInUser": {"host": "github.com", "login": "octocat"},
+    }
+    (tmp_path / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    assert copilot_mod._copilot_config_token(tmp_path) == "token-from-config"
+
+
+def test_copilot_token_resolution_prefers_provider_config(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cfg = {
+        "copilotTokens": {"github.com:octocat": "token-from-config"},
+        "lastLoggedInUser": {"host": "github.com", "login": "octocat"},
+    }
+    (tmp_path / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    monkeypatch.setenv("GH_TOKEN", "token-from-env")
+    assert copilot_mod._copilot_config_token(tmp_path) == "token-from-config"
+
+
+def test_copilot_token_resolution_requires_last_logged_in_user(tmp_path: Path) -> None:
+    cfg = {
+        "copilotTokens": {"github.com:octocat": "token-from-config"},
+    }
+    (tmp_path / "config.json").write_text(json.dumps(cfg), encoding="utf-8")
+    assert copilot_mod._copilot_config_token(tmp_path) is None
+
+
+def test_copilot_token_resolution_env_fallback_without_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("GH_TOKEN", "token-from-env")
+    assert copilot_mod._copilot_config_token(Path("/path/that/does/not/exist")) is None
+    assert (
+        copilot_mod._copilot_config_token(
+            Path("/path/that/does/not/exist"), allow_global_fallback=True
+        )
+        == "token-from-env"
+    )
+
+
+def test_copilot_token_resolution_hosts_yml_fallback(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("COPILOT_GITHUB_TOKEN", raising=False)
+    monkeypatch.delenv("GH_TOKEN", raising=False)
+    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    monkeypatch.setattr(copilot_mod, "_token_from_gh_cli", lambda: None)
+
+    gh_dir = tmp_path / "gh"
+    gh_dir.mkdir()
+    (gh_dir / "hosts.yml").write_text(
+        "github.com:\n  user: capyBearista\n  oauth_token: token-from-hosts\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("GH_CONFIG_DIR", str(gh_dir))
+
+    assert copilot_mod._copilot_config_token(tmp_path) is None
+    assert copilot_mod._copilot_config_token(tmp_path, allow_global_fallback=True) == "token-from-hosts"
+
+
+def test_copilot_active_probe_custom_home_ignores_global_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    custom_home = tmp_path / "copilot-home"
+    custom_home.mkdir()
+    p = CopilotProvider(str(custom_home))
+    monkeypatch.setenv("GH_TOKEN", "token-from-env")
+    with pytest.raises(CopilotProbeError, match="No Copilot auth token found"):
+        p.active_probe()
+
+
+def test_copilot_active_probe_default_home_disables_global_fallback_without_opt_in(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    p = CopilotProvider("~/.copilot")
+    monkeypatch.delenv("QUOTA_TRACKER_COPILOT_ALLOW_GLOBAL_AUTH_FALLBACK", raising=False)
+    monkeypatch.setenv("GH_TOKEN", "token-from-env")
+    monkeypatch.setattr(copilot_mod, "_token_from_copilot_config", lambda _home: None)
+    with pytest.raises(CopilotProbeError, match="No Copilot auth token found"):
+        p.active_probe()
+
+
+def test_copilot_active_probe_http_error_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    p = CopilotProvider(str(tmp_path))
+    monkeypatch.setattr(copilot_mod, "_copilot_config_token", lambda *_args, **_kwargs: "token")
+    monkeypatch.setattr(copilot_mod, "_resolve_copilot_api_url", lambda _token: "https://api.example")
+    monkeypatch.setattr(
+        copilot_mod,
+        "request_with_response_headers",
+        lambda *_args, **_kwargs: (401, {}, "{}"),
+    )
+
+    with pytest.raises(CopilotProbeError, match="HTTP 401"):
+        p.active_probe()
+
+
+def test_copilot_active_probe_missing_quota_headers_raises(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    p = CopilotProvider(str(tmp_path))
+    monkeypatch.setattr(copilot_mod, "_copilot_config_token", lambda *_args, **_kwargs: "token")
+    monkeypatch.setattr(copilot_mod, "_resolve_copilot_api_url", lambda _token: "https://api.example")
+    monkeypatch.setattr(
+        copilot_mod,
+        "request_with_response_headers",
+        lambda *_args, **_kwargs: (200, {"content-type": "application/json"}, "{}"),
+    )
+
+    with pytest.raises(CopilotProbeError, match="no quota headers"):
+        p.active_probe()
