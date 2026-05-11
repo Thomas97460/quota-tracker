@@ -95,7 +95,19 @@ class DaemonService:
 
         home = str(config.get("home_path", f"~/.{provider_id}"))
         if provider_id == "gemini":
-            return GeminiProvider(home=home)
+            safe_options = config.get("safe_options", {})
+            project_id = None
+            if isinstance(safe_options, dict):
+                for key in (
+                    "google_cloud_project",
+                    "google_cloud_project_id",
+                    "cloudaicompanion_project",
+                ):
+                    value = safe_options.get(key)
+                    if isinstance(value, str) and value.strip():
+                        project_id = value
+                        break
+            return GeminiProvider(home=home, project_id=project_id)
         if provider_id == "codex":
             include_archived = bool(config.get("safe_options", {}).get("include_archived", True))
             return CodexProvider(home=home, include_archived=include_archived)

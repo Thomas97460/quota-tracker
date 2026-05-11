@@ -312,6 +312,37 @@ def test_gemini_active_probe_no_project(tmp_path: Path) -> None:
         assert p.active_probe() == []
 
 
+def test_gemini_active_probe_uses_explicit_project(tmp_path: Path) -> None:
+    """Work/GCP accounts can require a configured cloudaicompanion project."""
+    creds = {"access_token": "tok", "expiry_date": 9999999999000}
+    (tmp_path / "oauth_creds.json").write_text(json.dumps(creds))
+    p = GeminiProvider(str(tmp_path), project_id="work-project")
+    buckets = [
+        {
+            "model_id": "gemini-2.5-pro",
+            "token_type": "REQUESTS",
+            "remaining_percent": 70.0,
+            "used_percent": 30.0,
+            "reset_time": None,
+        }
+    ]
+    calls = []
+
+    def fake_post_json(url: str, body: dict, bearer_token: str | None = None) -> dict:
+        calls.append(body)
+        return {"currentTier": {"id": "standard-tier"}}
+
+    with (
+        patch("quota_tracker.providers.gemini._get_access_token", return_value="tok"),
+        patch("quota_tracker.providers.gemini.post_json", side_effect=fake_post_json),
+        patch("quota_tracker.providers.gemini._retrieve_quota_buckets", return_value=buckets),
+    ):
+        records = p.active_probe()
+    assert len(records) == 1
+    assert calls[0]["cloudaicompanionProject"] == "work-project"
+    assert calls[0]["metadata"]["duetProject"] == "work-project"
+
+
 def test_gemini_active_probe_exception(tmp_path: Path) -> None:
     """Network exception returns empty list."""
     creds = {"access_token": "tok", "expiry_date": 9999999999000}

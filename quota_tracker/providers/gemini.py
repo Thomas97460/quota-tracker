@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.parse
 import urllib.request
@@ -32,6 +33,25 @@ _OAUTH_CLIENT_ID = "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleuse
 _OAUTH_CLIENT_SECRET = "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"
 _OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 _PASSIVE_SCAN_MARK_VERSION = 2
+
+
+def _project_from_env() -> str | None:
+    """Return the explicit Google Cloud project configured for work accounts."""
+
+    for name in ("GOOGLE_CLOUD_PROJECT", "GOOGLE_CLOUD_PROJECT_ID"):
+        value = os.environ.get(name)
+        if value and value.strip():
+            return value.strip()
+    return None
+
+
+def _metadata_for_project(project: str | None) -> dict[str, str]:
+    """Build Code Assist metadata, including duetProject when project-scoped."""
+
+    metadata = dict(_CODE_ASSIST_METADATA)
+    if project:
+        metadata["duetProject"] = project
+    return metadata
 
 
 def _code_assist_url(method: str) -> str:
@@ -123,9 +143,10 @@ class GeminiProvider:
 
     metadata = ProviderMetadata("gemini", "Gemini", "~/.gemini", True, True)
 
-    def __init__(self, home: str):
+    def __init__(self, home: str, project_id: str | None = None):
         """Initialize provider with home path."""
         self.home = Path(home).expanduser()
+        self.project_id = project_id.strip() if project_id and project_id.strip() else None
         self._project_hash_map: dict[str, str] | None = None
 
     def _load_project_hash_map(self) -> dict[str, str]:
@@ -381,12 +402,16 @@ class GeminiProvider:
             token = _get_access_token(creds)
             if not token:
                 return []
+            explicit_project = self.project_id or _project_from_env()
             load_result = post_json(
                 _code_assist_url("loadCodeAssist"),
-                {"cloudaicompanionProject": None, "metadata": _CODE_ASSIST_METADATA},
+                {
+                    "cloudaicompanionProject": explicit_project,
+                    "metadata": _metadata_for_project(explicit_project),
+                },
                 bearer_token=token,
             )
-            project = load_result.get("cloudaicompanionProject")
+            project = load_result.get("cloudaicompanionProject") or explicit_project
             if not isinstance(project, str) or not project:
                 return []
             buckets = _retrieve_quota_buckets(token, project)
