@@ -229,7 +229,13 @@ fi
 
 if [[ "${INTERACTIVE}" == "1" ]]; then
   printf '\n'
-  quota-tracker install --interactive --exec-path "${TARGET_BIN}"
+  if [[ -r /dev/tty ]]; then
+    quota-tracker install --interactive --exec-path "${TARGET_BIN}" </dev/tty
+  elif [[ -t 0 ]]; then
+    quota-tracker install --interactive --exec-path "${TARGET_BIN}"
+  else
+    die "interactive configuration requires a terminal — rerun with INTERACTIVE=0 to keep existing/default config"
+  fi
   printf '\n'
 else
   while IFS= read -r line; do

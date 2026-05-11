@@ -218,5 +218,9 @@ def render_install_script() -> str:
         "TARGET=${HOME}/.local/bin\n"
         'mkdir -p "$TARGET"\n'
         "python -m pip install --user quota-tracker\n"
-        "quota-tracker install --interactive\n"
+        "if [ -r /dev/tty ]; then\n"
+        "  quota-tracker install --interactive </dev/tty\n"
+        "else\n"
+        "  quota-tracker install\n"
+        "fi\n"
     )

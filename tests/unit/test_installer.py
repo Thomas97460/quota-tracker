@@ -242,4 +242,5 @@ def test_interactive_decline_reruns_flow(monkeypatch: pytest.MonkeyPatch, tmp_pa
 def test_render_install_script_contains_oneliner_flow() -> None:
     script = render_install_script()
     assert "pip install --user quota-tracker" in script
-    assert "quota-tracker install --interactive" in script
+    assert "quota-tracker install --interactive </dev/tty" in script
+    assert "quota-tracker install\n" in script
