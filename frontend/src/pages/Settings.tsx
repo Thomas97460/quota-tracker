@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react"
+import { ThemeToggle } from "../components/ui/ThemeToggle"
 import { useConfig } from "../hooks/useConfig"
 import type { ModelPricing, ProviderId, ProviderSummary } from "../types"
 
@@ -169,6 +170,8 @@ export function Settings(): React.JSX.Element {
         <div className="topbar-crumb">
           <span className="crumb-title">Settings</span>
         </div>
+        <div className="topbar-spacer" />
+        <ThemeToggle />
       </div>
 
       <div className="page">

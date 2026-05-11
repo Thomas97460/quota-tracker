@@ -42,6 +42,7 @@
   --warn: #F59E0B;
   --crit: #EF4444;
   --crit-soft: rgba(239, 68, 68, 0.12);
+  --chart-grid: rgba(118, 123, 138, 0.28);
 
   /* Token kinds */
   --k-input: #8B5CF6;
@@ -441,6 +442,30 @@ a { color: inherit; text-decoration: none; }
 .icon-btn:hover { background: var(--bg-3); color: var(--fg-1); border-color: var(--border-2); }
 .icon-btn.primary { background: var(--accent); border-color: var(--accent); color: white; }
 .icon-btn.primary:hover { background: #7C4DDF; border-color: #7C4DDF; color: white; }
+
+.theme-toggle {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  border-radius: 9px;
+  border: 1px solid color-mix(in oklab, var(--accent) 38%, var(--border-1));
+  background: color-mix(in oklab, var(--accent) 16%, var(--bg-2));
+  color: var(--accent-fg);
+  box-shadow: 0 1px 0 rgba(255,255,255,0.08) inset, 0 1px 2px rgba(0,0,0,0.22);
+  transition: background 120ms, border-color 120ms, color 120ms, transform 120ms;
+}
+.theme-toggle:hover {
+  background: color-mix(in oklab, var(--accent) 24%, var(--bg-2));
+  border-color: color-mix(in oklab, var(--accent) 55%, var(--border-1));
+  color: var(--fg-1);
+  transform: translateY(-1px);
+}
+.theme-toggle:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+  outline-offset: 2px;
+}
 
 /* === Page === */
 .page {
@@ -998,6 +1023,7 @@ a { color: inherit; text-decoration: none; }
   --warn: #B45309;
   --crit: #B91C1C;
   --crit-soft: rgba(185, 28, 28, 0.10);
+  --chart-grid: rgba(26, 26, 24, 0.105);
 
   --k-input: #6D38D6;
   --k-output: #2563EB;

@@ -73,7 +73,7 @@ export function ModelBarChart({
           layout="vertical"
           margin={{ top: 4, right: 16, left: 0, bottom: 4 }}
         >
-          <CartesianGrid strokeDasharray="3 3" stroke="#1F232E" vertical horizontal={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical horizontal={false} />
           <XAxis
             type="number"
             tick={{ fill: "#767B8A", fontSize: 14, fontFamily: "Geist, sans-serif" }}

@@ -46,7 +46,7 @@ export function QuotaBarChart({ quotas, className = "" }: QuotaBarChartProps): R
     <div className={`w-full h-48 ${className}`}>
       <ResponsiveContainer width="100%" height="100%">
         <BarChart data={chartData} margin={{ top: 8, right: 12, left: 0, bottom: 40 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" horizontal vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" horizontal vertical={false} />
           <XAxis
             dataKey="name"
             tick={{ fill: "#94a3b8", fontSize: 10 }}

@@ -5,6 +5,7 @@ import { QuotaHistoryChart } from "../components/charts/QuotaHistoryChart"
 import { StackedTokenChart } from "../components/charts/StackedTokenChart"
 import { TokenBreakdownPie } from "../components/charts/TokenBreakdownPie"
 import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, displayLabel, formatRequestQuota } from "../components/ui/QuotaPanel"
+import { ThemeToggle } from "../components/ui/ThemeToggle"
 import type { Range } from "../hooks/useDashboard"
 import { useDashboard } from "../hooks/useDashboard"
 import { useProviders } from "../contexts/ProvidersContext"
@@ -209,6 +210,7 @@ export function ProviderDetail(): React.JSX.Element {
           </svg>
           Refresh
         </button>
+        <ThemeToggle />
       </div>
 
       <div className="page">

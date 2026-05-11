@@ -149,7 +149,7 @@ export function StackedTokenChart({
       <div style={{ width: "100%", height: 240 }}>
         <ResponsiveContainer width="100%" height="100%">
           <AreaChart data={data} margin={{ top: 8, right: 12, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1F232E" vertical={false} />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
             <XAxis
               dataKey="bucket"
               tick={{ fill: "#767B8A", fontSize: 14, fontFamily: "Geist, sans-serif" }}

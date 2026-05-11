@@ -4,6 +4,7 @@ import { StackedTokenChart } from "../components/charts/StackedTokenChart"
 import { ModelBarChart } from "../components/charts/ModelBarChart"
 import { TokenBreakdownPie } from "../components/charts/TokenBreakdownPie"
 import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, displayLabel } from "../components/ui/QuotaPanel"
+import { ThemeToggle } from "../components/ui/ThemeToggle"
 import type { Range } from "../hooks/useDashboard"
 import { useDashboard } from "../hooks/useDashboard"
 import { useProjectUsage } from "../hooks/useProjectUsage"
@@ -256,6 +257,7 @@ export function Overview(): React.JSX.Element {
           </svg>
           Refresh
         </button>
+        <ThemeToggle />
       </div>
 
       <div className="page">

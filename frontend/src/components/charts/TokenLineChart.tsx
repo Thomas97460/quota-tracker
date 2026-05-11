@@ -40,7 +40,7 @@ export function TokenLineChart({ data, className = "" }: TokenLineChartProps): R
               <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0.02} />
             </linearGradient>
           </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
           <XAxis
             dataKey="bucket"
             tick={{ fill: "#94a3b8", fontSize: 10 }}
