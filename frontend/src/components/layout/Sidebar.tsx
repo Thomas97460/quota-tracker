@@ -150,6 +150,8 @@ export function Sidebar(): React.JSX.Element {
       </div>
       <div className="nav">
         {PROVIDER_IDS.map((id) => {
+          const p = providers.find((p) => p.id === id)
+          const isEnabled = p ? p.enabled : true
           let providerQuotas = latest.filter((q) => q.provider_id === id)
           if (id === "claude") providerQuotas = filterClaudeQuotas(providerQuotas)
           else if (id === "copilot") providerQuotas = filterCopilotQuotas(providerQuotas)
@@ -164,8 +166,13 @@ export function Sidebar(): React.JSX.Element {
           return (
             <NavLink
               key={id}
-              to={`/provider/${id}`}
-              className={`nav-provider${isActive ? " active" : ""}`}
+              to={isEnabled ? `/provider/${id}` : "#"}
+              className={`nav-provider${isActive ? " active" : ""}${!isEnabled ? " disabled" : ""}`}
+              onClick={(e) => {
+                if (!isEnabled) {
+                  e.preventDefault()
+                }
+              }}
             >
               <span className="nav-provider-logo">
                 <img
@@ -178,7 +185,7 @@ export function Sidebar(): React.JSX.Element {
               <div className="nav-provider-body">
                 <div className="nav-provider-name">
                   <span>{PROVIDER_NAMES[id]}</span>
-                  {providerQuotas.length > 0 && (
+                  {isEnabled && providerQuotas.length > 0 && (
                     <span
                       className={`nav-provider-pct${status === "crit" ? " crit" : status === "warn" ? " warn" : ""}`}
                     >
@@ -186,7 +193,7 @@ export function Sidebar(): React.JSX.Element {
                     </span>
                   )}
                 </div>
-                {providerQuotas.length > 0 && (
+                {isEnabled && providerQuotas.length > 0 && (
                   <div
                     className={`nav-provider-bar${status === "crit" ? " crit" : status === "warn" ? " warn" : ""}`}
                     style={{ "--w": worst + "%" } as React.CSSProperties}
