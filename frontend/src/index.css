@@ -290,6 +290,13 @@ a { color: inherit; text-decoration: none; }
   color: var(--fg-1);
   box-shadow: inset 0 0 0 1px var(--border-2);
 }
+.nav-provider.disabled {
+  opacity: 0.45;
+  filter: grayscale(1);
+  pointer-events: none;
+  cursor: default;
+}
+
 .nav-provider-logo {
   display: grid; place-items: center;
   width: 20px; height: 20px;

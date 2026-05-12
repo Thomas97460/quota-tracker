@@ -165,31 +165,32 @@ export function Overview(): React.JSX.Element {
 
   // Use context quotas for sidebar mini bars + alert ribbon (always-fresh latest)
   const latestCtx = latestQuotas(contextQuotas)
+  // Use dashboard quotas for per-provider quota cards
+  const latest = latestQuotas(quotas)
+
+  const enabledProviderIds = PROVIDER_IDS.filter(id => {
+    const p = providers.find(p => p.id === id)
+    return p ? p.enabled : true
+  })
+
   // Rolled-up version for alert ribbon (same filtering as quota cards)
-  const latestCtxAlert = PROVIDER_IDS.flatMap((id) => {
+  const latestCtxAlert = enabledProviderIds.flatMap((id) => {
     const rows = latestCtx.filter((q) => q.provider_id === id)
     if (id === "gemini") return rollupGeminiQuotas(rows)
     if (id === "copilot") return filterCopilotQuotas(rows)
     if (id === "claude") return filterClaudeQuotas(rows)
     return rows
   })
-  // Use dashboard quotas for per-provider quota cards
-  const latest = latestQuotas(quotas)
 
   const totalTokens = providerTotals.reduce((s, r) => s + r.total_tokens, 0)
   const totalCost = providerTotals.reduce((s, r) => s + r.estimated_cost, 0)
-  const enabledCount = providers.filter((p) => p.enabled).length || providers.length
+  const enabledCount = enabledProviderIds.length
 
   // Compute overall worst status for topbar badge
   const worstPct = latestCtxAlert.length > 0 ? Math.max(...latestCtxAlert.map((q) => q.used_percent ?? 0)) : 0
   const worstStatus = statusFor(worstPct)
 
-  const allTimeSeries = [
-    ...timeSeriesByProvider.gemini,
-    ...timeSeriesByProvider.codex,
-    ...timeSeriesByProvider.copilot,
-    ...timeSeriesByProvider.claude,
-  ]
+  const allTimeSeries = enabledProviderIds.flatMap(id => timeSeriesByProvider[id] || [])
 
   const sessionsFiltered =
     sessionsProvider === "all"
@@ -203,7 +204,7 @@ export function Overview(): React.JSX.Element {
   )
 
   // Build per-provider visible quotas for quota cards
-  const quotasByProvider = PROVIDER_IDS.map((id) => {
+  const quotasByProvider = enabledProviderIds.map((id) => {
     const rows = latest.filter((q) => q.provider_id === id)
     let visible: QuotaRow[]
     if (id === "copilot") visible = filterCopilotQuotas(rows)
@@ -468,7 +469,7 @@ export function Overview(): React.JSX.Element {
                   onChange={(e) => setPieProvider(e.target.value)}
                 >
                   <option value="all">All providers</option>
-                  {PROVIDER_IDS.map((id) => (
+                  {enabledProviderIds.map((id) => (
                     <option key={id} value={id}>
                       {PROVIDER_NAMES[id]}
                     </option>
@@ -518,7 +519,7 @@ export function Overview(): React.JSX.Element {
                   }}
                 >
                   <option value="all">All providers</option>
-                  {PROVIDER_IDS.map((id) => (
+                  {enabledProviderIds.map((id) => (
                     <option key={id} value={id}>
                       {PROVIDER_NAMES[id]}
                     </option>
@@ -658,7 +659,7 @@ export function Overview(): React.JSX.Element {
                       </tr>
                     )
                   })}
-                  {providers.length === 0 && (
+                  {providers.filter(p => p.enabled).length === 0 && (
                     <tr>
                       <td
                         colSpan={3}
@@ -691,7 +692,7 @@ export function Overview(): React.JSX.Element {
                 }}
               >
                 <option value="all">All providers</option>
-                {PROVIDER_IDS.map((id) => (
+                {enabledProviderIds.map((id) => (
                   <option key={id} value={id}>
                     {PROVIDER_NAMES[id]}
                   </option>
