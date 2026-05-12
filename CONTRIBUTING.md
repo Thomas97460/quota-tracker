@@ -2,90 +2,74 @@
 
 First off, thank you for considering contributing to Quota Tracker! We welcome contributions to make local AI observability better for everyone.
 
-This document outlines the development environment, technology stack, and the process for contributing to the project.
+This document outlines the process for contributing to the project, as well as the development environment and technology stack.
+
+## How to Create Pull Requests
+
+We follow a structured **fork-and-pull request** workflow. The goal is to keep the project history clean and ensure each change is well-defined and validated.
+
+### 1. Preparation & Sync
+*   **Fork & Clone**: Fork the repository and clone it locally.
+*   **Keep Synced**: Always keep your `main` branch up to date with the `upstream` repository to avoid merge conflicts.
+*   **Feature Branch**: Create a dedicated branch for every fix or feature: `git checkout -b feature/my-change upstream/main`.
+
+### 2. Implementation & Commits
+*   **Atomic Changes**: Focus each PR on a single logical change. If you have multiple unrelated fixes, use multiple PRs.
+*   **Commit Style**: Use small, frequent, and atomic commits. Write clear messages (e.g., `feat: ...` or `fix: ...`).
+*   **Stay Idiomatic**: Follow the existing code style and naming conventions of the project.
+
+### 3. Quality Control
+*   **Validation**: Before submitting, ensure your code passes the full suite:
+    ```bash
+    task validate:quiet
+    ```
+*   **Self-Review**: Read through your own changes before pushing. Look for debug prints, commented-out code, or missing documentation.
+
+### 4. Submission & Review
+*   **Push & Open**: Push to your fork and open a PR against our `main` branch.
+*   **Context**: Provide a concise description of the "What" and "Why". Reference any related issues.
+*   **Iterate**: Be prepared to discuss your changes. If updates are requested, push new commits to the same branch.
+*   **Finality**: Once approved, your changes will be merged (and squashed if necessary) by a maintainer.
+
+---
 
 ## Development Environment
 
-We strive to make the development environment as reproducible and frictionless as possible. To achieve this, the project relies on **Nix**.
+While not mandatory, we strive to make the development environment as reproducible and frictionless as possible using **Nix** and **direnv**. These tools are here to facilitate your work, but you can also set up your environment manually using the provided `pyproject.toml` and `package.json` files.
 
-### Prerequisites
+### Optional Prerequisites (Recommended)
 
 1.  **[Nix](https://nixos.org/download/)**: The package manager used to define our isolated development environment.
 2.  **[Flakes](https://nixos.wiki/wiki/Flakes)**: Ensure Nix Flakes are enabled in your Nix configuration.
-3.  **[direnv](https://direnv.net/)**: Used to automatically load the Nix environment when you enter the project directory.
+3.  **[direnv](https://direnv.net/)**: To automatically load the Nix environment when you enter the project directory.
 
-### Getting Started
+If you choose to use these:
+```bash
+# The environment is automatically setup.
+# View available development tasks:
+task --list
+```
 
-Once you have the prerequisites installed:
-
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/Thomas97460/quota-tracker.git
-    cd quota-tracker
-    ```
-
-2.  Allow `direnv` to setup the environment (this will invoke Nix and download necessary dependencies):
-    ```bash
-    direnv allow
-    ```
-
-3.  The project uses `task` (go-task) as the primary task runner. You can view available commands by running:
-    ```bash
-    task --list
-    ```
-
-## Technology Stack & Architecture Choices
-
-Quota Tracker is built with a clear separation of concerns, keeping the backend lightweight and local-first, while providing a rich, modern user interface.
+## Technology Stack & Architecture
 
 ### Backend: Python
-- **Why Python?** Python is excellent for parsing logs, handling file system events efficiently, and rapid development.
-- **Key Technologies**:
-  - `FastAPI`: For serving the local API and static frontend assets.
-  - `SQLite`: For robust, local, zero-config data persistence.
-  - `Pydantic`: For data validation and settings management.
-  - `uv`: For fast Python dependency management.
+- **Engine**: `FastAPI` for the API and static serving.
+- **Data**: `SQLite` for local persistence.
+- **Validation**: `Pydantic` for configuration and schemas.
+- **Tooling**: `uv` for dependency management, `ruff` for linting/formatting, and `mypy` for typing.
 
 ### Frontend: React
-- **Why React?** We wanted a highly interactive, responsive, and beautiful dashboard. React, combined with an ecosystem of charting libraries, makes this possible.
-- **Key Technologies**:
-  - `React` & `TypeScript`: For a type-safe, component-based UI.
-  - `Vite`: For lightning-fast frontend tooling and building.
-  - `Recharts`: For drawing the token and quota graphs.
-  - Custom CSS: We prefer lean, custom CSS using CSS variables over heavy utility frameworks for this specific project to maintain absolute control over the styling and footprint.
+- **Engine**: `React` with `TypeScript`.
+- **Tooling**: `Vite` for builds.
+- **Charts**: `Recharts` for data visualization.
+- **Styling**: Pure CSS (using CSS variables) for a lean, custom-tailored footprint.
 
-## How to Contribute
+---
 
-We follow a standard Git Pull Request (PR) workflow.
+## Review Process
 
-1.  **Create a Branch**: 
-    Create a new branch from `main` for your feature or bug fix. Use a descriptive name.
-    ```bash
-    git checkout -b feature/add-new-provider
-    # or
-    git checkout -b fix/chart-y-axis-clipping
-    ```
+- **Necessity**: Does the change solve a real problem or add valuable functionality?
+- **Code Quality**: Is the code readable, maintainable, and type-safe?
+- **Artifact Quality**: Are there tests? Does it pass CI?
 
-2.  **Make Your Changes**:
-    Write your code, following the existing style and conventions.
-
-3.  **Validate Your Changes**:
-    Before pushing, ensure your code passes all linting, formatting, and tests. We have a strict validation pipeline.
-    ```bash
-    # Run the full, quiet validation suite
-    task validate:quiet
-    ```
-    If this command fails, you can run individual tasks like `task format`, `task lint`, or `task test` to identify and fix the specific issues.
-
-4.  **Commit Your Changes**:
-    Write clear, concise commit messages. If your PR addresses an open issue, reference it in your commits or PR description.
-
-5.  **Open a Pull Request**:
-    Push your branch to your fork (or the main repository if you have access) and open a Pull Request against the `main` branch. 
-    Describe your changes clearly in the PR description, including what problem it solves and how you solved it.
-
-### Code Style & Guidelines
-- **Backend**: We use `ruff` for formatting and linting, and `mypy` for static type checking. Ensure all Python code is typed.
-- **Frontend**: Follow React best practices. Keep components small and focused.
-
-Thank you for your interest in improving Quota Tracker!
+Maintainers are volunteers. Please be patient and polite during the review process. We appreciate your contributions!
