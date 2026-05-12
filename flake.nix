@@ -35,6 +35,7 @@
               github-copilot-cli
               claude-code
               go-task
+              gh
             ];
 
             shellHook = ''
