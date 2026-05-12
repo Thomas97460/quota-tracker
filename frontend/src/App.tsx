@@ -25,12 +25,12 @@ export default function App(): React.JSX.Element {
 
   useEffect(() => {
     fetchBaseline()
-    const id = setInterval(fetchBaseline, 60_000)
+    const id = setInterval(fetchBaseline, 30_000)
     return () => clearInterval(id)
   }, [fetchBaseline])
 
   return (
-    <ProvidersContext.Provider value={{ providers, quotas, range, setRange }}>
+    <ProvidersContext.Provider value={{ providers, quotas, range, setRange, refresh: fetchBaseline }}>
       <BrowserRouter>
         <div className="shell">
           <Sidebar />

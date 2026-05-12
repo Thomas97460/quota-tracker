@@ -163,6 +163,15 @@ def register_routes(
             enabled = row["enabled"] if payload.enabled is None else payload.enabled
             update_provider_row(conn, provider_id, enabled=enabled, config=cfg)
             conn.commit()
+
+            # Sync and persist back to config.json if available
+            p_config = getattr(config, provider_id)
+            if payload.enabled is not None:
+                p_config.enabled = payload.enabled
+            if payload.home_path is not None:
+                p_config.home_path = payload.home_path
+            save_config(config, config_path_str)
+
             return {"ok": True}
         finally:
             conn.close()

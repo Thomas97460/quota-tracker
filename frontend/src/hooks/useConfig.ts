@@ -19,13 +19,16 @@ interface UseConfigReturn {
   reload: () => void
 }
 
-export function useConfig(): UseConfigReturn {
+export function useConfig(onUpdate?: () => void): UseConfigReturn {
   const [config, setConfig] = useState<ConfigShape | null>(null)
   const [providers, setProviders] = useState<ProviderSummary[]>([])
   const [busy, setBusy] = useState(false)
   const [tick, setTick] = useState(0)
 
-  const reload = useCallback(() => setTick((t) => t + 1), [])
+  const reload = useCallback(() => {
+    setTick((t) => t + 1)
+    if (onUpdate) onUpdate()
+  }, [onUpdate])
 
   useEffect(() => {
     let cancelled = false
