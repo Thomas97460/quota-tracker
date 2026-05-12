@@ -97,6 +97,14 @@ export function useDashboard(
     setTick((t) => t + 1)
   }, [providerId])
 
+  // Auto-refresh every 30 seconds (data fetch only, no probe/scan)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setTick((t) => t + 1)
+    }, 30000)
+    return () => clearInterval(timer)
+  }, [])
+
   // Main data fetch — re-runs when provider/range/granularity/tick changes.
   useEffect(() => {
     let cancelled = false
