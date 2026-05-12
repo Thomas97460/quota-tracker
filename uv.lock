@@ -645,7 +645,7 @@ wheels = [
 
 [[package]]
 name = "quota-tracker"
-version = "0.1.15.dev0"
+version = "0.1.16.dev0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },
