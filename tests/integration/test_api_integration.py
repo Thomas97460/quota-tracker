@@ -196,13 +196,14 @@ def test_api_endpoints_and_static_fallback(tmp_path: Path, monkeypatch: pytest.M
     assert client.patch("/api/providers/unknown", json={"enabled": True}).status_code == 404
     assert client.get("/api/nope").status_code == 404
 
-    frontend_dist = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+    frontend_dist = tmp_path / "frontend" / "dist"
     frontend_dist.mkdir(parents=True, exist_ok=True)
     (frontend_dist / "index.html").write_text("<html>ok</html>")
     assets_dir = frontend_dist / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
     (assets_dir / "x.js").write_text("console.log('x');")
 
+    monkeypatch.setenv("QUOTA_TRACKER_FRONTEND", str(frontend_dist))
     app2 = create_app(db_path=db_path, config_path=config_path)
     client2 = TestClient(app2)
     assert client2.get("/").status_code == 200
@@ -216,6 +217,7 @@ def test_api_endpoints_and_static_fallback(tmp_path: Path, monkeypatch: pytest.M
     bundle_dist.mkdir(parents=True)
     (bundle_dist / "index.html").write_text("<html>bundled</html>")
     (bundle_dist / "assets").mkdir()
+    monkeypatch.delenv("QUOTA_TRACKER_FRONTEND")
     monkeypatch.setattr(sys, "_MEIPASS", str(tmp_path / "bundle"), raising=False)
     bundled_client = TestClient(create_app(db_path=db_path, config_path=config_path))
     assert "bundled" in bundled_client.get("/").text

@@ -76,10 +76,16 @@ Thumbs.db
 .gemini/
 .codex/
 
+_dev_build.py
+
+# Nix
+result
+result-*
+
 # IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 
-gitignore_*quota-tracker.spec
+quota-tracker.spec

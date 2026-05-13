@@ -4,12 +4,14 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quota-tracker"
-version = "0.1.21-dev"
+version = "0.1.23"
 description = "Quota tracker daemon and API"
 readme = "README.md"
+license = "MIT"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi>=0.115.0",
+  "httpx>=0.28.1",
   "uvicorn>=0.30.0",
   "pydantic>=2.8.0",
 ]
@@ -32,6 +34,9 @@ package-dir = {"" = "."}
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["quota_tracker*"]
+
+[tool.setuptools.package-data]
+quota_tracker = ["frontend_dist/**"]
 
 [tool.ruff]
 line-length = 100
@@ -81,6 +86,5 @@ ignore-nested-classes = false
 
 [dependency-groups]
 dev = [
-    "httpx>=0.28.1",
     "pytest-cov>=7.1.0",
 ]
