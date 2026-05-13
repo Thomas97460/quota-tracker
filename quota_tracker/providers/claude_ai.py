@@ -195,7 +195,7 @@ class ClaudeAiProvider:
     def _session_files(self) -> list[Path]:
         """Discover Claude Code local project transcripts."""
 
-        return sorted((self.home / "projects").glob("*/*.jsonl"))
+        return sorted((self.home / "projects").glob("**/*.jsonl"))
 
     def _scan(self, high_water_marks: dict[str, Any] | None = None) -> PassiveSyncResult:
         """Run full or incremental passive scan for Claude Code local data."""
@@ -225,7 +225,8 @@ class ClaudeAiProvider:
                 continue
 
             external_session_id = path.stem
-            project_slug = path.parent.name
+            is_subagent = path.parent.name == "subagents"
+            project_slug = path.parent.parent.parent.name if is_subagent else path.parent.name
             project_path = _project_path_from_slug(project_slug)
             project_name = Path(project_path).name if project_path else project_slug
             model_name = "unknown"
@@ -255,7 +256,10 @@ class ClaudeAiProvider:
                     mark["last_event_ts"] = timestamp
                 session_id = event.get("sessionId")
                 if isinstance(session_id, str) and session_id.strip():
-                    external_session_id = session_id.strip()
+                    if is_subagent:
+                        external_session_id = f"{session_id.strip()}/{path.stem}"
+                    else:
+                        external_session_id = session_id.strip()
                 cwd = event.get("cwd")
                 if isinstance(cwd, str) and cwd.strip():
                     project_path = cwd.strip()
