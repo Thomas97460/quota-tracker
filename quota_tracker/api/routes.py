@@ -49,9 +49,9 @@ def _build_cost_exprs(pricing: dict[str, ModelPricing]) -> dict[str, str]:
         if ":" not in key:
             continue
         pid, model = key.split(":", 1)
-        m_esc = model.replace("'", "''")
-        p_esc = pid.replace("'", "''")
-        cond = f"WHEN provider_id = '{p_esc}' AND model_name = '{m_esc}' THEN "
+        m_esc = model.replace("'", "''").lower()
+        p_esc = pid.replace("'", "''").lower()
+        cond = f"WHEN LOWER(provider_id) = '{p_esc}' AND LOWER(model_name) = '{m_esc}' THEN "
         cases_total.append(
             f"{cond} (input_tokens * {p.input_1m} + "
             f"cached_tokens * {p.cached_1m} + "
