@@ -18,11 +18,27 @@ from quota_tracker.paths import DEFAULT_DB_PATH
 def _frontend_dist_path() -> Path:
     """Return bundled frontend assets when packaged, otherwise the repo build directory."""
 
+    import os
+
+    if "QUOTA_TRACKER_FRONTEND" in os.environ:
+        return Path(os.environ["QUOTA_TRACKER_FRONTEND"])
+
     bundle_root = getattr(sys, "_MEIPASS", None)
     if bundle_root:
         bundled = Path(str(bundle_root)) / "frontend" / "dist"
         if bundled.exists():
             return bundled
+
+    try:
+        import importlib.resources
+
+        pkg_files = importlib.resources.files("quota_tracker")
+        bundled = Path(str(pkg_files)) / "frontend_dist"
+        if bundled.exists():
+            return bundled
+    except Exception:
+        pass
+
     return Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 

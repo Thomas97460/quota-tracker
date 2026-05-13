@@ -221,6 +221,62 @@ def test_api_endpoints_and_static_fallback(tmp_path: Path, monkeypatch: pytest.M
     assert "bundled" in bundled_client.get("/").text
 
 
+def test_codex_cached_tokens_are_not_double_counted(tmp_path: Path) -> None:
+    db_path = tmp_path / "api.sqlite3"
+    conn = connect_db(str(db_path))
+    try:
+        apply_migrations(conn)
+        with write_transaction(conn):
+            sid = upsert_session(
+                conn,
+                SessionRecord(
+                    provider_id="codex",
+                    external_session_id="s-cached",
+                    model_name="gpt-5",
+                    project_path="/tmp/p",
+                    project_name="p",
+                    created_at="2026-01-01T00:00:00+00:00",
+                    last_seen_at="2026-01-01T00:01:00+00:00",
+                    metadata={},
+                ),
+            )
+            insert_token_usage(
+                conn,
+                TokenUsageRecord(
+                    provider_id="codex",
+                    session_id=sid,
+                    external_event_id="e-cached",
+                    timestamp="2026-01-01T00:01:00+00:00",
+                    model_name="gpt-5",
+                    source="local_log",
+                    input_tokens=10,
+                    output_tokens=5,
+                    cached_tokens=8,
+                    reasoning_tokens=0,
+                    thoughts_tokens=0,
+                    tool_tokens=0,
+                    total_tokens=15,
+                    raw_data={},
+                ),
+            )
+    finally:
+        conn.close()
+
+    client = TestClient(create_app(db_path=db_path, config_path=tmp_path / "config.json"))
+    response = client.get(
+        "/api/token-usage",
+        params={"group_by": "provider", "provider_id": "codex"},
+    )
+    assert response.status_code == 200
+    row = response.json()["items"][0]
+    assert row["input_tokens"] == 2
+    assert row["cached_tokens"] == 8
+    assert row["input_cost"] == pytest.approx(0.000005)
+    assert row["cached_cost"] == pytest.approx(0.000002)
+    assert row["output_cost"] == pytest.approx(0.000075)
+    assert row["estimated_cost"] == pytest.approx(0.000082)
+
+
 def test_provider_patch_not_found_from_missing_row(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

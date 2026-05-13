@@ -52,12 +52,15 @@ def _build_cost_exprs(pricing: dict[str, ModelPricing]) -> dict[str, str]:
         m_esc = model.replace("'", "''").lower()
         p_esc = pid.replace("'", "''").lower()
         cond = f"WHEN LOWER(provider_id) = '{p_esc}' AND LOWER(model_name) = '{m_esc}' THEN "
+        input_tokens_expr = (
+            "max(input_tokens - cached_tokens, 0)" if p_esc == "codex" else "input_tokens"
+        )
         cases_total.append(
-            f"{cond} (input_tokens * {p.input_1m} + "
+            f"{cond} ({input_tokens_expr} * {p.input_1m} + "
             f"cached_tokens * {p.cached_1m} + "
             f"output_tokens * {p.output_1m}) / 1000000.0"
         )
-        cases_input.append(f"{cond} (input_tokens * {p.input_1m}) / 1000000.0")
+        cases_input.append(f"{cond} ({input_tokens_expr} * {p.input_1m}) / 1000000.0")
         cases_output.append(f"{cond} (output_tokens * {p.output_1m}) / 1000000.0")
         cases_cached.append(f"{cond} (cached_tokens * {p.cached_1m}) / 1000000.0")
 
@@ -72,6 +75,16 @@ def _build_cost_exprs(pricing: dict[str, ModelPricing]) -> dict[str, str]:
         "output_cost": make_case(cases_output, "output_cost"),
         "cached_cost": make_case(cases_cached, "cached_cost"),
     }
+
+
+def _input_tokens_sum_expr() -> str:
+    """Return billable non-cached input tokens for providers where cache is a subset."""
+
+    return (
+        "SUM(CASE "
+        "WHEN LOWER(provider_id) = 'codex' THEN max(input_tokens - cached_tokens, 0) "
+        "ELSE input_tokens END) as input_tokens"
+    )
 
 
 def _normalize_iso_param(value: str | None) -> str | None:
@@ -372,7 +385,7 @@ def register_routes(
             apply_migrations(conn)
             query = (
                 f"SELECT {expr} as bucket, "
-                "SUM(input_tokens) as input_tokens, "
+                f"{_input_tokens_sum_expr()}, "
                 "SUM(output_tokens) as output_tokens, "
                 "SUM(cached_tokens) as cached_tokens, "
                 "SUM(reasoning_tokens) as reasoning_tokens, "
