@@ -129,10 +129,15 @@ export function ProviderDetail(): React.JSX.Element {
     historyRows = historyRows.filter((r) => r.quota_name !== "extra_usage")
   }
 
+  if (providerId === "codex") {
+    historyRows = historyRows.filter((r) => r.source === "active_probe")
+  }
+
   historyRows = historyRows.map((r) => ({
     ...r,
     quota_name: displayLabel(r.provider_id, r.quota_name),
   }))
+
 
   const sessionPageCount = Math.ceil(sessions.length / SESSION_PAGE_SIZE)
   const pagedSessions = sessions.slice(
