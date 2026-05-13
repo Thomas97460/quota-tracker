@@ -5,8 +5,10 @@ from pathlib import Path
 from unittest.mock import patch
 
 from quota_tracker.providers.claude_ai import (
+    _ORG_ID_CACHE,
     ClaudeAiProvider,
     _fetch_org_id,
+    _load_org_id_from_file,
     _load_session_key,
     _load_session_key_from_file,
     _parse_usage_response,
@@ -158,11 +160,22 @@ def test_load_session_key_from_file_valid(tmp_path: Path) -> None:
 
 
 def test_load_session_key_from_file_old_format_with_org_id(tmp_path: Path) -> None:
-    """Old format with organization_id still works (org_id ignored, session_key returned)."""
+    """Old format with organization_id still works (session_key still returned)."""
     (tmp_path / "quota_tracker_creds.json").write_text(
         json.dumps({"session_key": "sk-ant-sid02-abc", "organization_id": "org-123"})
     )
     assert _load_session_key_from_file(tmp_path) == "sk-ant-sid02-abc"
+
+
+def test_load_org_id_from_file_missing(tmp_path: Path) -> None:
+    assert _load_org_id_from_file(tmp_path) is None
+
+
+def test_load_org_id_from_file_valid(tmp_path: Path) -> None:
+    (tmp_path / "quota_tracker_creds.json").write_text(
+        json.dumps({"session_key": "sk-ant-sid02-abc", "organization_id": "org-123"})
+    )
+    assert _load_org_id_from_file(tmp_path) == "org-123"
 
 
 # ── _load_session_key (combined) ─────────────────────────────────────────────
@@ -220,6 +233,97 @@ def test_active_probe_org_fetch_fails(tmp_path: Path) -> None:
     with patch("quota_tracker.providers.claude_ai.get_json", side_effect=Exception("403")):
         provider = ClaudeAiProvider(home=str(tmp_path))
         assert provider.active_probe() == []
+
+
+def test_active_probe_uses_org_id_from_credentials_file(tmp_path: Path) -> None:
+    (tmp_path / "quota_tracker_creds.json").write_text(
+        json.dumps({"session_key": "sk-ant-sid02-x", "organization_id": "org-file"})
+    )
+    called_urls: list[str] = []
+
+    def fake_get_json(
+        url: str,
+        *,
+        headers: dict[str, str],
+        timeout_seconds: int = 20,
+    ) -> dict[str, object]:
+        called_urls.append(url)
+        assert "Cookie" in headers
+        assert timeout_seconds == 20
+        return _REAL_RESPONSE
+
+    _ORG_ID_CACHE.clear()
+    with patch("quota_tracker.providers.claude_ai.get_json", side_effect=fake_get_json):
+        provider = ClaudeAiProvider(home=str(tmp_path))
+        records = provider.active_probe()
+    assert len(records) == 3
+    assert called_urls == ["https://claude.ai/api/organizations/org-file/usage"]
+
+
+def test_active_probe_reuses_cached_org_id_across_instances(tmp_path: Path) -> None:
+    (tmp_path / "quota_tracker_creds.json").write_text(
+        json.dumps({"session_key": "sk-ant-sid02-x"})
+    )
+    called_urls: list[str] = []
+
+    def fake_get_json(
+        url: str,
+        *,
+        headers: dict[str, str],
+        timeout_seconds: int = 20,
+    ) -> dict[str, object]:
+        called_urls.append(url)
+        assert "Cookie" in headers
+        assert timeout_seconds == 20
+        if url == "https://claude.ai/api/organizations":
+            return {"value": [{"uuid": "org-cached"}]}
+        if url == "https://claude.ai/api/organizations/org-cached/usage":
+            return _REAL_RESPONSE
+        raise AssertionError(f"unexpected URL: {url}")
+
+    _ORG_ID_CACHE.clear()
+    with patch("quota_tracker.providers.claude_ai.get_json", side_effect=fake_get_json):
+        assert ClaudeAiProvider(home=str(tmp_path)).active_probe()
+        assert ClaudeAiProvider(home=str(tmp_path)).active_probe()
+    assert called_urls == [
+        "https://claude.ai/api/organizations",
+        "https://claude.ai/api/organizations/org-cached/usage",
+        "https://claude.ai/api/organizations/org-cached/usage",
+    ]
+
+
+def test_active_probe_refreshes_org_id_when_stored_org_fails(tmp_path: Path) -> None:
+    (tmp_path / "quota_tracker_creds.json").write_text(
+        json.dumps({"session_key": "sk-ant-sid02-x", "organization_id": "org-stale"})
+    )
+    called_urls: list[str] = []
+
+    def fake_get_json(
+        url: str,
+        *,
+        headers: dict[str, str],
+        timeout_seconds: int = 20,
+    ) -> dict[str, object]:
+        called_urls.append(url)
+        assert "Cookie" in headers
+        assert timeout_seconds == 20
+        if url == "https://claude.ai/api/organizations/org-stale/usage":
+            raise RuntimeError("HTTP 404")
+        if url == "https://claude.ai/api/organizations":
+            return {"value": [{"uuid": "org-fresh"}]}
+        if url == "https://claude.ai/api/organizations/org-fresh/usage":
+            return _REAL_RESPONSE
+        raise AssertionError(f"unexpected URL: {url}")
+
+    _ORG_ID_CACHE.clear()
+    with patch("quota_tracker.providers.claude_ai.get_json", side_effect=fake_get_json):
+        records = ClaudeAiProvider(home=str(tmp_path)).active_probe()
+    assert len(records) == 3
+    assert called_urls == [
+        "https://claude.ai/api/organizations/org-stale/usage",
+        "https://claude.ai/api/organizations",
+        "https://claude.ai/api/organizations/org-fresh/usage",
+    ]
 
 
 # ── _parse_usage_response ─────────────────────────────────────────────────────

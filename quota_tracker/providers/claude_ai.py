@@ -42,6 +42,8 @@ _CLAUDE_REQUEST_HEADERS = {
     "anthropic-client-version": "1.0.0",
 }
 
+_ORG_ID_CACHE: dict[str, str] = {}
+
 
 def _as_int(value: Any) -> int:
     """Return a non-negative integer token count, defaulting invalid values to 0."""
@@ -88,8 +90,9 @@ def _safe_usage_metadata(usage: dict[str, Any]) -> dict[str, Any]:
     return metadata
 
 
-def _load_session_key_from_file(home: Path) -> str | None:
-    """Load session_key from quota_tracker_creds.json (only session_key is required)."""
+def _load_credentials_from_file(home: Path) -> dict[str, Any] | None:
+    """Load Claude credential data from quota_tracker_creds.json."""
+
     creds_path = home / _CREDENTIALS_FILE
     if not creds_path.exists():
         return None
@@ -97,12 +100,31 @@ def _load_session_key_from_file(home: Path) -> str | None:
         data = json.loads(creds_path.read_text(encoding="utf-8", errors="replace"))
     except Exception:
         return None
-    if not isinstance(data, dict):
+    return data if isinstance(data, dict) else None
+
+
+def _load_session_key_from_file(home: Path) -> str | None:
+    """Load session_key from quota_tracker_creds.json (only session_key is required)."""
+
+    data = _load_credentials_from_file(home)
+    if data is None:
         return None
     session_key = data.get("session_key")
     if not isinstance(session_key, str) or not session_key.strip():
         return None
     return session_key.strip()
+
+
+def _load_org_id_from_file(home: Path) -> str | None:
+    """Load optional organization_id from quota_tracker_creds.json."""
+
+    data = _load_credentials_from_file(home)
+    if data is None:
+        return None
+    org_id = data.get("organization_id")
+    if not isinstance(org_id, str) or not org_id.strip():
+        return None
+    return org_id.strip()
 
 
 def _load_session_key(home: Path) -> str | None:
@@ -131,6 +153,23 @@ def _fetch_org_id(session_key: str) -> str | None:
     org = orgs[0]
     uuid = org.get("uuid") if isinstance(org, dict) else None
     return uuid if isinstance(uuid, str) and uuid.strip() else None
+
+
+def _fetch_usage(session_key: str, org_id: str) -> dict[str, Any] | None:
+    """Fetch usage payload for one organization, returning None on request failure."""
+
+    url = _CLAUDE_USAGE_URL.format(org_id=org_id)
+    try:
+        return get_json(
+            url,
+            headers={
+                **_CLAUDE_REQUEST_HEADERS,
+                "Content-Type": "application/json",
+                "Cookie": f"sessionKey={session_key}",
+            },
+        )
+    except Exception:
+        return None
 
 
 def _parse_usage_response(data: dict[str, Any], now: str) -> list[QuotaRecord]:
@@ -342,20 +381,22 @@ class ClaudeAiProvider:
         session_key = _load_session_key(self.home)
         if not session_key:
             return []
-        org_id = _fetch_org_id(session_key)
+
+        org_id = _load_org_id_from_file(self.home) or _ORG_ID_CACHE.get(session_key)
+        org_loaded_without_fetch = org_id is not None
         if not org_id:
+            org_id = _fetch_org_id(session_key)
+            if not org_id:
+                return []
+        data = _fetch_usage(session_key, org_id)
+        if data is None and org_loaded_without_fetch:
+            refreshed_org_id = _fetch_org_id(session_key)
+            if not refreshed_org_id:
+                return []
+            org_id = refreshed_org_id
+            data = _fetch_usage(session_key, org_id)
+        if data is None:
             return []
-        url = _CLAUDE_USAGE_URL.format(org_id=org_id)
-        try:
-            data = get_json(
-                url,
-                headers={
-                    **_CLAUDE_REQUEST_HEADERS,
-                    "Content-Type": "application/json",
-                    "Cookie": f"sessionKey={session_key}",
-                },
-            )
-        except Exception:
-            return []
+        _ORG_ID_CACHE[session_key] = org_id
         now = datetime.now(UTC).isoformat()
         return _parse_usage_response(data, now)
