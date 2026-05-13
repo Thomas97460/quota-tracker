@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from quota_tracker.providers.claude_ai import (
     _ORG_ID_CACHE,
     ClaudeAiProvider,
@@ -204,17 +206,20 @@ def test_fetch_org_id_success() -> None:
 
 def test_fetch_org_id_empty_value_list() -> None:
     with patch("quota_tracker.providers.claude_ai.get_json", return_value={"value": []}):
-        assert _fetch_org_id("sk-ant-sid02-x") is None
+        with pytest.raises(RuntimeError, match="No organizations found"):
+            _fetch_org_id("sk-ant-sid02-x")
 
 
 def test_fetch_org_id_no_value_key() -> None:
     with patch("quota_tracker.providers.claude_ai.get_json", return_value={"error": "bad"}):
-        assert _fetch_org_id("sk-ant-sid02-x") is None
+        with pytest.raises(RuntimeError, match="No organizations found"):
+            _fetch_org_id("sk-ant-sid02-x")
 
 
 def test_fetch_org_id_request_fails() -> None:
     with patch("quota_tracker.providers.claude_ai.get_json", side_effect=Exception("timeout")):
-        assert _fetch_org_id("sk-ant-sid02-x") is None
+        with pytest.raises(Exception, match="timeout"):
+            _fetch_org_id("sk-ant-sid02-x")
 
 
 # ── active_probe ──────────────────────────────────────────────────────────────
@@ -232,7 +237,8 @@ def test_active_probe_org_fetch_fails(tmp_path: Path) -> None:
     )
     with patch("quota_tracker.providers.claude_ai.get_json", side_effect=Exception("403")):
         provider = ClaudeAiProvider(home=str(tmp_path))
-        assert provider.active_probe() == []
+        with pytest.raises(Exception, match="403"):
+            provider.active_probe()
 
 
 def test_active_probe_uses_org_id_from_credentials_file(tmp_path: Path) -> None:

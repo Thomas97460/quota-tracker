@@ -16,6 +16,18 @@
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
     in
     {
+      packages = forAllSystems (
+        system:
+        let
+          pkgs = import nixpkgs { inherit system; };
+          quotaTracker = pkgs.callPackage ./nix/package.nix { };
+        in
+        {
+          default = quotaTracker;
+          "quota-tracker" = quotaTracker;
+        }
+      );
+
       devShells = forAllSystems (
         system:
         let
@@ -61,5 +73,8 @@
           };
         }
       );
+
+      nixosModules.default = import ./nix/module.nix;
+      homeManagerModules.default = import ./nix/module.nix;
     };
 }
