@@ -28,17 +28,19 @@ def _frontend_dist_path() -> Path:
         bundled = Path(str(bundle_root)) / "frontend" / "dist"
         if bundled.exists():
             return bundled
+    package_dist = Path(__file__).resolve().parents[1] / "frontend_dist"
+    if package_dist.exists():
+        return package_dist
 
     try:
         import importlib.resources
-
+    except ImportError:
+        pass
+    else:
         pkg_files = importlib.resources.files("quota_tracker")
         bundled = Path(str(pkg_files)) / "frontend_dist"
         if bundled.exists():
             return bundled
-    except Exception:
-        pass
-
     return Path(__file__).resolve().parents[2] / "frontend" / "dist"
 
 

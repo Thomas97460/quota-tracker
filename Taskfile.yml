@@ -141,16 +141,10 @@ tasks:
   install-local-binary:
     cmds:
       - systemctl --user stop quota-tracker.service 2>/dev/null || true
-      - |
-        RAW="$(git -C "{{.ROOT}}" tag --list 'v*' --sort=-version:refname 2>/dev/null | head -1 || true)"
-        if [[ -n "${RAW}" ]]; then
-          VERSION="${RAW#v}-dev"
-        else
-          VERSION="dev"
-        fi
-        sed -i "s/^version = .*/version = \"${VERSION}\"/" "{{.ROOT}}/pyproject.toml"
+      - echo 'DEV_BUILD = True' > "{{.ROOT}}/quota_tracker/_dev_build.py"
       - uv --directory "{{.ROOT}}" sync --extra dev --reinstall-package quota-tracker
       - cd "{{.ROOT}}" && task package-linux
+      - rm -f "{{.ROOT}}/quota_tracker/_dev_build.py"
       - install -Dm755 "{{.ROOT}}/dist/release/quota-tracker-linux-amd64" "${HOME}/.local/bin/quota-tracker"
       - quota-tracker install --exec-path "${HOME}/.local/bin/quota-tracker"
       - quota-tracker migrate

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
@@ -17,6 +18,8 @@ from quota_tracker.providers.base import (
     normalize_token_usage,
 )
 from quota_tracker.providers.http import get_json
+
+LOGGER = logging.getLogger(__name__)
 
 _CLAUDE_USAGE_URL = "https://claude.ai/api/organizations/{org_id}/usage"
 _CLAUDE_ORGS_URL = "https://claude.ai/api/organizations"
@@ -132,27 +135,26 @@ def _load_session_key(home: Path) -> str | None:
     return _load_session_key_from_file(home)
 
 
-def _fetch_org_id(session_key: str) -> str | None:
+def _fetch_org_id(session_key: str) -> str:
     """Fetch the organization UUID from /api/organizations using the session key.
 
     get_json wraps list responses as {"value": [...]}, so we unwrap when needed.
     """
-    try:
-        data = get_json(
-            _CLAUDE_ORGS_URL,
-            headers={
-                **_CLAUDE_REQUEST_HEADERS,
-                "Cookie": f"sessionKey={session_key}",
-            },
-        )
-    except Exception:
-        return None
+    data = get_json(
+        _CLAUDE_ORGS_URL,
+        headers={
+            **_CLAUDE_REQUEST_HEADERS,
+            "Cookie": f"sessionKey={session_key}",
+        },
+    )
     orgs = data.get("value") if isinstance(data, dict) else data
     if not isinstance(orgs, list) or not orgs:
-        return None
+        raise RuntimeError("No organizations found in Claude API response")
     org = orgs[0]
     uuid = org.get("uuid") if isinstance(org, dict) else None
-    return uuid if isinstance(uuid, str) and uuid.strip() else None
+    if not isinstance(uuid, str) or not uuid.strip():
+        raise RuntimeError("First organization in Claude API response has no uuid")
+    return uuid.strip()
 
 
 def _fetch_usage(session_key: str, org_id: str) -> dict[str, Any] | None:
@@ -380,8 +382,8 @@ class ClaudeAiProvider:
         """Fetch usage quotas from the claude.ai organization usage API."""
         session_key = _load_session_key(self.home)
         if not session_key:
+            LOGGER.warning("No Claude session key found in %s", self.home)
             return []
-
         org_id = _load_org_id_from_file(self.home) or _ORG_ID_CACHE.get(session_key)
         org_loaded_without_fetch = org_id is not None
         if not org_id:
