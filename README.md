@@ -24,7 +24,7 @@ Track token usage and quotas for [Claude](https://claude.ai), [Copilot](https://
     <img src="https://img.shields.io/github/actions/workflow/status/Thomas97460/quota-tracker/ci.yml?job=tests&label=tests&style=flat-square" alt="tests">
   </a>
   <a href="https://www.python.org/">
-    <img src="https://img.shields.io/badge/python-3.12%2B-00d7d7?style=flat-square" alt="python">
+    <img src="https://img.shields.io/badge/python-3.14%2B-00d7d7?style=flat-square" alt="python">
   </a>
 </p>
 

@@ -39,7 +39,7 @@
         {
           default = pkgs.mkShell {
             packages = with pkgs; [
-              (python312.withPackages (ps: [ ps.pip ]))
+              (python314.withPackages (ps: [ ps.pip ]))
               uv
               nodejs
               gemini-cli

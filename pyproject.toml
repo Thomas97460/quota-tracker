@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "quota-tracker"
-version = "0.1.23"
+version = "0.1.24"
 description = "Quota tracker daemon and API"
 readme = "README.md"
 license = "MIT"
@@ -54,7 +54,7 @@ exclude = [
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 strict = true
 warn_unused_configs = true
 files = ["quota_tracker"]
