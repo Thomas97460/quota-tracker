@@ -408,3 +408,29 @@ def test_gemini_active_probe_granular(tmp_path: Path) -> None:
     assert "gemini-2.0-flash-lite/input" in names
     for r in records:
         assert r.source == "active_probe"
+
+
+def test_gemini_cached_tokens_subtraction(tmp_path: Path) -> None:
+    """Gemini input tokens include cached tokens. We subtract them to avoid double counting."""
+    chats = tmp_path / "tmp" / "x" / "chats"
+    chats.mkdir(parents=True)
+    (chats / "cached.json").write_text(
+        json.dumps(
+            {
+                "sessionId": "sess-cached",
+                "messages": [
+                    {
+                        "type": "gemini",
+                        "timestamp": "2026-01-01T00:00:01+00:00",
+                        "model": "gemini-2.0-flash",
+                        "tokens": {"input": 100, "cached": 40, "output": 50, "total": 150},
+                    }
+                ],
+            }
+        )
+    )
+    p = GeminiProvider(str(tmp_path))
+    result = p.passive_scan_full()
+    assert result.token_usage[0]["input_tokens"] == 60  # 100 - 40
+    assert result.token_usage[0]["cached_tokens"] == 40
+    assert result.token_usage[0]["total_tokens"] == 150

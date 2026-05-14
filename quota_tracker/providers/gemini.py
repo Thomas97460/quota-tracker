@@ -323,6 +323,12 @@ class GeminiProvider:
                 cached_t = self._tok_int(tokens, "cached_tokens", "cached")
                 thoughts_t = self._tok_int(tokens, "thoughts_tokens", "thoughts")
                 total_t = self._tok_int(tokens, "total_tokens", "total")
+
+                # Gemini logs include cached tokens in the input count.
+                # Subtract them here so that (input_tokens + cached_tokens) reflects the reality
+                # and doesn't double count the cached part.
+                input_t = max(0, input_t - cached_t)
+
                 if total_t <= 0:
                     continue
                 msg_id = message.get("id")
