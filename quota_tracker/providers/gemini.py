@@ -66,7 +66,7 @@ def _oauth_expired(creds: dict[str, Any], skew_seconds: int = 60) -> bool:
         return False
     try:
         return int(expiry_ms) <= int((time.time() + skew_seconds) * 1000)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return False
 
 
@@ -122,7 +122,7 @@ def _retrieve_quota_buckets(
         rf = bucket.get("remainingFraction")
         try:
             rf_float = float(rf) if rf is not None else None
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             rf_float = None
         out.append(
             {
@@ -214,7 +214,7 @@ class GeminiProvider:
             if v is not None:
                 try:
                     return int(v)
-                except (TypeError, ValueError):
+                except TypeError, ValueError:
                     pass
         return 0
 

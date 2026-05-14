@@ -32,7 +32,7 @@ def _epoch_to_iso(value: Any) -> str | None:
         return None
     try:
         return datetime.fromtimestamp(int(value), tz=UTC).isoformat()
-    except (TypeError, ValueError, OSError):
+    except TypeError, ValueError, OSError:
         return None
 
 

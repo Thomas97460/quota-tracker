@@ -15,7 +15,7 @@ def _version_from_pyproject() -> str | None:
     try:
         with pyproject_path.open("rb") as fh:
             pyproject = tomllib.load(fh)
-    except (OSError, tomllib.TOMLDecodeError):
+    except OSError, tomllib.TOMLDecodeError:
         return None
     project = pyproject.get("project")
     if not isinstance(project, dict):
