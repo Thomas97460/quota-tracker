@@ -1,7 +1,7 @@
 {
   lib,
   buildNpmPackage,
-  python312Packages,
+  python314Packages,
 }:
 let
   pyproject = builtins.fromTOML (builtins.readFile ../pyproject.toml);
@@ -23,24 +23,24 @@ let
     '';
   };
 in
-python312Packages.buildPythonApplication {
+python314Packages.buildPythonApplication {
   inherit pname version;
   pyproject = true;
   src = lib.cleanSource ../.;
 
-  build-system = with python312Packages; [
+  build-system = with python314Packages; [
     setuptools
     wheel
   ];
 
-  dependencies = with python312Packages; [
+  dependencies = with python314Packages; [
     fastapi
     httpx
     uvicorn
     pydantic
   ];
 
-  nativeCheckInputs = with python312Packages; [
+  nativeCheckInputs = with python314Packages; [
     pytestCheckHook
     pytest-cov
   ];
