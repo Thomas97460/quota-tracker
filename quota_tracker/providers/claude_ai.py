@@ -53,7 +53,7 @@ def _as_int(value: Any) -> int:
 
     try:
         return max(0, int(value or 0))
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return 0
 
 
@@ -196,7 +196,7 @@ def _parse_usage_response(data: dict[str, Any], now: str) -> list[QuotaRecord]:
             continue
         try:
             used_pct = float(utilization)
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             continue
         resets_at = value.get("resets_at")
         if isinstance(resets_at, str) and not resets_at.strip():

@@ -224,15 +224,15 @@ def _parse_quota_header_value(value: str) -> dict[str, Any] | None:
 
         try:
             entitlement = int(first("ent") or "0")
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         try:
             overage = float(first("ov") or "0.0")
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
         try:
             remaining = float(first("rem") or "0.0")
-        except (TypeError, ValueError):
+        except TypeError, ValueError:
             return None
 
         reset = first("rst") or None

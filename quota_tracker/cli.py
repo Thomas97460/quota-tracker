@@ -63,8 +63,15 @@ def build_parser() -> argparse.ArgumentParser:
         "--provider", choices=["all", "gemini", "codex", "copilot", "claude"], default="all"
     )
     probe.add_argument("--dry-run", action="store_true")
-    sub.add_parser("daemon")
-    sub.add_parser("serve")
+
+    daemon = sub.add_parser("daemon")
+    daemon.add_argument("--host", help="Host to bind to")
+    daemon.add_argument("--port", type=int, help="Port to bind to")
+
+    serve = sub.add_parser("serve")
+    serve.add_argument("--host", help="Host to bind to")
+    serve.add_argument("--port", type=int, help="Port to bind to")
+
     install = sub.add_parser("install")
     install.add_argument("--interactive", action="store_true")
     install.add_argument("--enable-service", action="store_true")
@@ -230,17 +237,31 @@ def main() -> int:
         return 0
     if args.command == "serve":
         config = load_config()
+        host = args.host or config.daemon.web_host
+        port = args.port or config.daemon.web_port
+        try:
+            _validate_port(port)
+        except ValueError as exc:
+            print(str(exc))
+            return 2
         app = create_app(db_path=Path(config.daemon.database_path))
-        uvicorn.run(app, host=config.daemon.web_host, port=config.daemon.web_port)
+        uvicorn.run(app, host=host, port=port)
         return 0
     if args.command == "daemon":
         config = load_config()
+        host = args.host or config.daemon.web_host
+        port = args.port or config.daemon.web_port
+        try:
+            _validate_port(port)
+        except ValueError as exc:
+            print(str(exc))
+            return 2
         service = _service_from_config(config)
         service.migrate_and_prepare()
         service.start_scheduler()
         app = create_app(service=service, db_path=Path(config.daemon.database_path))
         try:
-            uvicorn.run(app, host=config.daemon.web_host, port=config.daemon.web_port)
+            uvicorn.run(app, host=host, port=port)
         finally:
             service.stop_scheduler()
         return 0
