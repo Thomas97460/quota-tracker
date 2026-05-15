@@ -74,6 +74,11 @@ def _safe_usage_metadata(usage: dict[str, Any]) -> dict[str, Any]:
         "cache_creation_input_tokens": _as_int(usage.get("cache_creation_input_tokens")),
         "cache_read_input_tokens": _as_int(usage.get("cache_read_input_tokens")),
     }
+    # Optional reasoning/thoughts if they appear in future/private APIs
+    for key in ("reasoning_tokens", "thoughts_tokens"):
+        if key in usage:
+            metadata[key] = _as_int(usage.get(key))
+
     service_tier = usage.get("service_tier")
     if isinstance(service_tier, str):
         metadata["service_tier"] = service_tier
@@ -330,7 +335,11 @@ class ClaudeAiProvider:
                 cache_creation_tokens = _as_int(usage.get("cache_creation_input_tokens"))
                 cache_read_tokens = _as_int(usage.get("cache_read_input_tokens"))
                 cached_tokens = cache_creation_tokens + cache_read_tokens
-                input_tokens = max(0, input_tokens - cached_tokens)
+                reasoning_tokens = _as_int(usage.get("reasoning_tokens"))
+                thoughts_tokens = _as_int(usage.get("thoughts_tokens"))
+
+                # Claude API 'input_tokens' is already billable tokens (net of cache).
+                # Total tokens should include the cached part that was deducted.
                 total_tokens = _as_int(usage.get("total_tokens")) or (
                     input_tokens + output_tokens + cached_tokens
                 )
@@ -348,6 +357,8 @@ class ClaudeAiProvider:
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
                     cached_tokens=cached_tokens,
+                    reasoning_tokens=reasoning_tokens,
+                    thoughts_tokens=thoughts_tokens,
                     total_tokens=total_tokens,
                     source="local_log",
                 )

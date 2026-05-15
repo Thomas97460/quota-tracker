@@ -135,7 +135,13 @@ export function useDashboard(
       ),
       // Fetch the newest points first, then sort ascending for chart rendering.
       apiGet<{ items: QuotaRow[] }>(
-        `/api/quotas${buildQuery({ provider_id: providerId, start, order: "desc", limit: 2000 })}`,
+        `/api/quotas${buildQuery({
+          provider_id: providerId,
+          start,
+          order: "desc",
+          limit: 2000,
+          downsample: range === "24h" ? undefined : 200,
+        })}`,
       ),
       apiGet<{ items: SessionRow[] }>(`/api/sessions${buildQuery(scope)}`),
       apiGet<{ items: UsageRow[] }>(

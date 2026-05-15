@@ -18,6 +18,7 @@ from quota_tracker.db import (
     insert_quota,
     insert_token_usage,
     list_provider_rows,
+    run_maintenance,
     update_provider_row,
     upsert_session,
     write_transaction,
@@ -312,6 +313,7 @@ class DaemonService:
         probe_due: list[str] = []
         try:
             apply_migrations(conn)
+            run_maintenance(conn)
             now = datetime.now(UTC)
             for row in list_provider_rows(conn):
                 if not row["enabled"]:

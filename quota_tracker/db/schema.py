@@ -226,6 +226,29 @@ def apply_migrations(conn: sqlite3.Connection) -> list[str]:
             DELETE FROM quota_history WHERE datetime(timestamp) < datetime('now', '-30 days');
             """,
         ),
+        (
+            "0007_fix_claude_token_counts_and_reasoning",
+            """
+            -- Re-calculate input_tokens and total_tokens for Claude from raw_data.
+            -- API input_tokens was incorrectly being decremented by cached_tokens.
+            UPDATE token_usage_history
+            SET 
+                input_tokens = CAST(json_extract(raw_data, '$.input_tokens') AS INTEGER),
+                reasoning_tokens = COALESCE(
+                    CAST(json_extract(raw_data, '$.reasoning_tokens') AS INTEGER), 0
+                ),
+                thoughts_tokens = COALESCE(
+                    CAST(json_extract(raw_data, '$.thoughts_tokens') AS INTEGER), 0
+                )
+            WHERE provider_id = 'claude';
+
+            -- Fix total_tokens to be consistent with the sum of all kinds.
+            UPDATE token_usage_history
+            SET total_tokens = input_tokens + output_tokens + cached_tokens + 
+                               reasoning_tokens + thoughts_tokens + tool_tokens
+            WHERE provider_id = 'claude';
+            """,
+        ),
     ]
 
     newly_applied: list[str] = []
@@ -245,6 +268,42 @@ def apply_migrations(conn: sqlite3.Connection) -> list[str]:
     _ensure_default_providers(conn)
     conn.commit()
     return newly_applied
+
+
+def run_maintenance(conn: sqlite3.Connection) -> None:
+    """Run periodic database maintenance like history archival."""
+
+    # Re-apply the archival logic periodically to move records older than 30 days.
+    sql = """
+        -- Move records older than 30 days to the archive table, aggregated by hour (3600s).
+        INSERT INTO quota_history_archived (
+            id, provider_id, quota_name, timestamp, 
+            used_percent, remaining_percent, window_minutes, point_count
+        )
+        SELECT 
+            provider_id || ':' || quota_name || ':' || (unixepoch(timestamp) / 3600),
+            provider_id, 
+            quota_name,
+            datetime((unixepoch(timestamp) / 3600) * 3600, 'unixepoch'),
+            AVG(used_percent),
+            AVG(remaining_percent),
+            MAX(window_minutes),
+            COUNT(*)
+        FROM quota_history 
+        WHERE datetime(timestamp) < datetime('now', '-30 days')
+        GROUP BY provider_id, quota_name, (unixepoch(timestamp) / 3600)
+        ON CONFLICT(id) DO UPDATE SET
+            used_percent = (
+                quota_history_archived.used_percent * quota_history_archived.point_count + 
+                excluded.used_percent * excluded.point_count
+            ) / (quota_history_archived.point_count + excluded.point_count),
+            point_count = quota_history_archived.point_count + excluded.point_count;
+
+        -- Delete the original high-resolution records after archival.
+        DELETE FROM quota_history WHERE datetime(timestamp) < datetime('now', '-30 days');
+    """
+    conn.executescript(sql)
+    conn.commit()
 
 
 def _ensure_default_providers(conn: sqlite3.Connection) -> None:

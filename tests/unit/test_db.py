@@ -51,7 +51,7 @@ def test_migrations_idempotent_and_default_providers(tmp_path: Path) -> None:
         assert [r[0] for r in providers] == ["claude", "codex", "copilot", "gemini"]
         apply_migrations(conn)
         after = conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
-        assert before == after == 7
+        assert before == after == 8
     finally:
         conn.close()
 
