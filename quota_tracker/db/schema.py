@@ -94,7 +94,11 @@ def apply_migrations(conn: sqlite3.Connection) -> list[str]:
             CREATE INDEX IF NOT EXISTS idx_quota_history_timestamp ON quota_history(timestamp);
             CREATE INDEX IF NOT EXISTS idx_quota_history_quota_name ON quota_history(quota_name);
             CREATE INDEX IF NOT EXISTS idx_quota_history_resets_at ON quota_history(resets_at);
-
+            """,
+        ),
+        (
+            "0002_sessions_table",
+            """
             CREATE TABLE IF NOT EXISTS sessions (
               id TEXT PRIMARY KEY,
               provider_id TEXT NOT NULL,
@@ -129,10 +133,17 @@ def apply_migrations(conn: sqlite3.Connection) -> list[str]:
               FOREIGN KEY (session_id) REFERENCES sessions(id),
               UNIQUE(provider_id, session_id, external_event_id)
             );
+
+            CREATE TABLE IF NOT EXISTS maintenance_events (
+              id TEXT PRIMARY KEY,
+              operation TEXT NOT NULL,
+              timestamp TEXT NOT NULL,
+              metadata TEXT NOT NULL
+            );
             """,
         ),
         (
-            "0002_providers_drop_id_check",
+            "0003_providers_drop_id_check",
             """
             PRAGMA foreign_keys = OFF;
             CREATE TABLE IF NOT EXISTS providers_new (
@@ -154,6 +165,65 @@ def apply_migrations(conn: sqlite3.Connection) -> list[str]:
             UPDATE token_usage_history 
             SET input_tokens = MAX(0, input_tokens - cached_tokens)
             WHERE cached_tokens > 0;
+            """,
+        ),
+        (
+            "0004_fix_total_tokens_deduplication",
+            """
+            UPDATE token_usage_history 
+            SET total_tokens = input_tokens + output_tokens + cached_tokens + 
+                               reasoning_tokens + thoughts_tokens + tool_tokens;
+            """,
+        ),
+        (
+            "0005_quota_history_archived_table",
+            """
+            CREATE TABLE IF NOT EXISTS quota_history_archived (
+              id TEXT PRIMARY KEY,
+              provider_id TEXT NOT NULL,
+              quota_name TEXT NOT NULL,
+              timestamp TEXT NOT NULL,
+              used_percent REAL,
+              remaining_percent REAL,
+              window_minutes INTEGER,
+              point_count INTEGER NOT NULL,
+              FOREIGN KEY (provider_id) REFERENCES providers(id)
+            );
+            CREATE INDEX IF NOT EXISTS idx_quota_archived_provider 
+              ON quota_history_archived(provider_id);
+            CREATE INDEX IF NOT EXISTS idx_quota_archived_timestamp 
+              ON quota_history_archived(timestamp);
+            """,
+        ),
+        (
+            "0006_quota_history_archival_policy",
+            """
+            -- Move records older than 30 days to the archive table, aggregated by hour (3600s).
+            INSERT INTO quota_history_archived (
+                id, provider_id, quota_name, timestamp, 
+                used_percent, remaining_percent, window_minutes, point_count
+            )
+            SELECT 
+                provider_id || ':' || quota_name || ':' || (unixepoch(timestamp) / 3600),
+                provider_id, 
+                quota_name,
+                datetime((unixepoch(timestamp) / 3600) * 3600, 'unixepoch'),
+                AVG(used_percent),
+                AVG(remaining_percent),
+                MAX(window_minutes),
+                COUNT(*)
+            FROM quota_history 
+            WHERE datetime(timestamp) < datetime('now', '-30 days')
+            GROUP BY provider_id, quota_name, (unixepoch(timestamp) / 3600)
+            ON CONFLICT(id) DO UPDATE SET
+                used_percent = (
+                    quota_history_archived.used_percent * quota_history_archived.point_count + 
+                    excluded.used_percent * excluded.point_count
+                ) / (quota_history_archived.point_count + excluded.point_count),
+                point_count = quota_history_archived.point_count + excluded.point_count;
+
+            -- Delete the original high-resolution records after archival.
+            DELETE FROM quota_history WHERE datetime(timestamp) < datetime('now', '-30 days');
             """,
         ),
     ]
