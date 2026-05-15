@@ -84,12 +84,12 @@ def test_codex_passive_and_rate_limits(tmp_path: Path) -> None:
     assert len(r.token_usage) == 2
     assert r.token_usage[0]["input_tokens"] == 2
     assert r.token_usage[1]["model_name"] == "gpt-5"
-    assert r.token_usage[1]["input_tokens"] == 3
+    assert r.token_usage[1]["input_tokens"] == 2
     assert r.token_usage[1]["cached_tokens"] == 1
     assert r.token_usage[1]["output_tokens"] == 2
     assert r.token_usage[1]["reasoning_tokens"] == 1
     assert r.token_usage[1]["total_tokens"] == 5
-    assert len(r.quotas) == 4
+    assert len(r.quotas) == 0
 
 
 def test_codex_parse_failures_and_incremental_skip(tmp_path: Path) -> None:
@@ -250,24 +250,6 @@ def test_codex_session_meta_cwd(tmp_path: Path) -> None:
     assert r.sessions[0].project_name == "myproject"
 
 
-def test_codex_secondary_none_skipped(tmp_path: Path) -> None:
-    """secondary=None in rate_limits should be skipped gracefully (Fix #3)."""
-    d = tmp_path / "sessions" / "p"
-    d.mkdir(parents=True)
-    (d / "s1.jsonl").write_text(
-        json.dumps(
-            {
-                "timestamp": "2026-01-01T00:00:00+00:00",
-                "rate_limits": {"primary": {"used_percent": 10}, "secondary": None},
-            }
-        )
-    )
-    p = CodexProvider(str(tmp_path))
-    r = p.passive_scan_full()
-    assert len(r.quotas) == 1
-    assert r.quotas[0].quota_name == "primary"
-
-
 def test_codex_model_from_payload(tmp_path: Path) -> None:
     """Model in turn_context must be read from payload.model (Fix #2)."""
     d = tmp_path / "sessions" / "p"
@@ -296,22 +278,3 @@ def test_codex_model_from_payload(tmp_path: Path) -> None:
     r = p.passive_scan_full()
     assert len(r.token_usage) == 1
     assert r.token_usage[0]["model_name"] == "o3"
-
-
-def test_codex_resets_at_epoch_conversion(tmp_path: Path) -> None:
-    d = tmp_path / "sessions" / "p"
-    d.mkdir(parents=True)
-    (d / "s1.jsonl").write_text(
-        json.dumps(
-            {
-                "timestamp": "2026-01-01T00:00:00+00:00",
-                "rate_limits": {"primary": {"used_percent": 10, "resets_at": 1751328000}},
-            }
-        )
-    )
-    p = CodexProvider(str(tmp_path))
-    r = p.passive_scan_full()
-    assert len(r.quotas) == 1
-    resets_at = r.quotas[0].resets_at
-    assert resets_at is not None
-    assert "T" in resets_at  # ISO format with time component

@@ -61,7 +61,7 @@ class CodexProvider:
         hwm = hwm or {}
         sessions = []
         usage: list[dict[str, Any]] = []
-        quotas = []
+        quotas: list[QuotaRecord] = []
         marks = {}
         failures = 0
         for p in self._session_files():
@@ -98,6 +98,10 @@ class CodexProvider:
                     eid = sha256(
                         (key + str(ev.get("id") or ev.get("timestamp")) + str(index)).encode()
                     ).hexdigest()
+                    input_t = usage_payload.get("input_tokens") or 0
+                    cached_t = usage_payload.get("cached_input_tokens") or 0
+                    input_t = max(0, input_t - cached_t)
+
                     usage.append(
                         normalize_token_usage(
                             "codex",
@@ -106,34 +110,15 @@ class CodexProvider:
                             ev.get("timestamp") or datetime.now(UTC).isoformat(),
                             model,
                             raw_metadata={"kind": "token_count"},
-                            input_tokens=usage_payload.get("input_tokens"),
+                            input_tokens=input_t,
                             output_tokens=usage_payload.get("output_tokens"),
-                            cached_tokens=usage_payload.get("cached_input_tokens"),
+                            cached_tokens=cached_t,
                             reasoning_tokens=usage_payload.get("reasoning_output_tokens"),
                             total_tokens=usage_payload.get("total_tokens"),
                             source="local_log",
                         )
                     )
-                rate = ev.get("rate_limits") or payload.get("rate_limits") or {}
-                for qn in ("primary", "secondary"):
-                    if qn in rate:
-                        item = rate[qn]
-                        if not isinstance(item, dict):
-                            continue
-                        resets_at_iso = _epoch_to_iso(item.get("resets_at"))
-                        quotas.append(
-                            normalize_quota(
-                                "codex",
-                                qn,
-                                ev.get("timestamp") or datetime.now(UTC).isoformat(),
-                                "local_log",
-                                {"window": qn},
-                                used_percent=item.get("used_percent"),
-                                remaining_percent=item.get("remaining_percent"),
-                                window_minutes=item.get("window_minutes"),
-                                resets_at=resets_at_iso,
-                            )
-                        )
+                # Quota tracking is exclusively handled by active probes for Codex.
             project_name = Path(cwd).name if cwd else None
             sessions.append(
                 normalize_session(

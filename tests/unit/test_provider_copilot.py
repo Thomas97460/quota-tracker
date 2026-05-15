@@ -79,14 +79,14 @@ def test_copilot_passive_and_incremental(tmp_path: Path) -> None:
     assert len(r1.token_usage) == 3
     assert r1.token_usage[0]["provider_id"] == "copilot"
     assert r1.token_usage[0]["external_session_id"] == "abc"
-    assert r1.token_usage[0]["input_tokens"] == 10
+    assert r1.token_usage[0]["input_tokens"] == 7
     assert r1.token_usage[0]["output_tokens"] == 20
     assert r1.token_usage[0]["cached_tokens"] == 3
     assert r1.token_usage[0]["reasoning_tokens"] == 4
     assert r1.token_usage[0]["total_tokens"] == 37
     assert r1.token_usage[1]["total_tokens"] == 12
     assert r1.token_usage[2]["model_name"] == "gpt-5.3-codex"
-    assert r1.token_usage[2]["total_tokens"] == 35
+    assert r1.token_usage[2]["total_tokens"] == 27
     old_mark = {
         str(f): {
             "path": str(f),

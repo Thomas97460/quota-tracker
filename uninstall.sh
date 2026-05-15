@@ -33,12 +33,16 @@ confirm() {
   local answer=""
   while true; do
     if [[ -t 0 ]]; then
-      if ! read -r -p "    ${question} [y/n]: " answer; then
+      printf "    %s [y/n]: " "${question}"
+      if ! read -r answer; then
+        printf "\n"
         warn "could not read confirmation; please enter y or n."
         continue
       fi
     elif [[ -t 1 && -r /dev/tty ]]; then
-      if ! read -r -p "    ${question} [y/n]: " answer </dev/tty 2>/dev/null; then
+      printf "    %s [y/n]: " "${question}" >/dev/tty
+      if ! read -r answer </dev/tty 2>/dev/null; then
+        printf "\n" >/dev/tty
         warn "could not read /dev/tty; please enter y or n."
         continue
       fi

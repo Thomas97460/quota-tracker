@@ -349,6 +349,31 @@ class CopilotProvider:
                     models_seen.add(model)
                     source_id = ev.get("id") or ev.get("event_id") or ev.get("timestamp") or index
                     eid = sha256(f"{key}:{index}:{source_id}".encode()).hexdigest()
+                    input_t = (
+                        self._first_int(
+                            payload,
+                            "input_tokens",
+                            "inputTokens",
+                            "prompt_tokens",
+                            "promptTokens",
+                        )
+                        or 0
+                    )
+                    cached_t = (
+                        self._first_int(
+                            payload,
+                            "cached_tokens",
+                            "cachedTokens",
+                            "cached_input_tokens",
+                            "cachedInputTokens",
+                            "cache_read_tokens",
+                            "cacheReadTokens",
+                        )
+                        or 0
+                    )
+
+                    input_t = max(0, input_t - cached_t)
+
                     usage.append(
                         normalize_token_usage(
                             "copilot",
@@ -361,13 +386,7 @@ class CopilotProvider:
                                 "source_file": key,
                                 "usage_keys": sorted(payload.keys()),
                             },
-                            input_tokens=self._first_int(
-                                payload,
-                                "input_tokens",
-                                "inputTokens",
-                                "prompt_tokens",
-                                "promptTokens",
-                            ),
+                            input_tokens=input_t,
                             output_tokens=self._first_int(
                                 payload,
                                 "output_tokens",
@@ -375,15 +394,7 @@ class CopilotProvider:
                                 "completion_tokens",
                                 "completionTokens",
                             ),
-                            cached_tokens=self._first_int(
-                                payload,
-                                "cached_tokens",
-                                "cachedTokens",
-                                "cached_input_tokens",
-                                "cachedInputTokens",
-                                "cache_read_tokens",
-                                "cacheReadTokens",
-                            ),
+                            cached_tokens=cached_t,
                             reasoning_tokens=self._first_int(
                                 payload,
                                 "reasoning_tokens",

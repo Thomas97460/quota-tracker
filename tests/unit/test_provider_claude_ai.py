@@ -119,10 +119,10 @@ def test_passive_scan_reads_claude_code_sessions_and_tokens(tmp_path: Path) -> N
     assert len(result.token_usage) == 1
     usage = result.token_usage[0]
     assert usage["external_event_id"] == "msg_1"
-    assert usage["input_tokens"] == 5
+    assert usage["input_tokens"] == 0
     assert usage["cached_tokens"] == 18
     assert usage["output_tokens"] == 17
-    assert usage["total_tokens"] == 40
+    assert usage["total_tokens"] == 35
     assert "content" not in usage["raw_metadata"]
     assert result.quotas == []
     assert result.parse_failures == 0

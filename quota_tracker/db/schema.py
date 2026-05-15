@@ -148,6 +148,14 @@ def apply_migrations(conn: sqlite3.Connection) -> list[str]:
             PRAGMA foreign_keys = ON;
             """,
         ),
+        (
+            "0003_fix_double_counted_cached_tokens",
+            """
+            UPDATE token_usage_history 
+            SET input_tokens = MAX(0, input_tokens - cached_tokens)
+            WHERE cached_tokens > 0;
+            """,
+        ),
     ]
 
     newly_applied: list[str] = []

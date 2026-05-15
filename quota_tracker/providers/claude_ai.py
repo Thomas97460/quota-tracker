@@ -330,6 +330,7 @@ class ClaudeAiProvider:
                 cache_creation_tokens = _as_int(usage.get("cache_creation_input_tokens"))
                 cache_read_tokens = _as_int(usage.get("cache_read_input_tokens"))
                 cached_tokens = cache_creation_tokens + cache_read_tokens
+                input_tokens = max(0, input_tokens - cached_tokens)
                 total_tokens = _as_int(usage.get("total_tokens")) or (
                     input_tokens + output_tokens + cached_tokens
                 )
