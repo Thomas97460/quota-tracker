@@ -218,34 +218,113 @@ def register_routes(
         end: str | None = None,
         limit: int = 1000,
         order: str = "desc",
+        downsample: int | None = None,
     ) -> dict[str, Any]:
-        """Return filtered quota history."""
+        """Return filtered quota history with optional server-side downsampling."""
 
-        start = _normalize_iso_param(start)
-        end = _normalize_iso_param(end)
+        start_iso = _normalize_iso_param(start)
+        end_iso = _normalize_iso_param(end)
         if order not in ("asc", "desc"):
             raise HTTPException(status_code=400, detail="order must be 'asc' or 'desc'")
         conn = connect_db(str(db_path))
         try:
             apply_migrations(conn)
-            query = "SELECT * FROM quota_history WHERE 1=1"
-            params: list[Any] = []
+
+            # Define a base query that combines high-res and archived history.
+            # We use NULL for columns present in one but not the other to keep the UNION compatible.
+            combined_base = """
+                SELECT 
+                    provider_id, quota_name, source, timestamp, 
+                    used_percent, remaining_percent, window_minutes, resets_at, raw_data 
+                FROM quota_history
+                UNION ALL
+                SELECT 
+                    provider_id, quota_name, 'archive' as source, timestamp,
+                    used_percent, remaining_percent, window_minutes, 
+                    NULL as resets_at, NULL as raw_data
+                FROM quota_history_archived
+            """
+
+            # If downsample is requested (e.g., target 200 points), we aggregate by time buckets.
+            if downsample and downsample > 0:
+                # Find the actual time range from both tables.
+                range_query = f"""
+                    SELECT MIN(unixepoch(timestamp)), MAX(unixepoch(timestamp)) 
+                    FROM ({combined_base}) as combined WHERE 1=1
+                """
+                range_params: list[Any] = []
+                if provider_id:
+                    range_query += " AND provider_id = ?"
+                    range_params.append(provider_id)
+                if quota_name:
+                    range_query += " AND quota_name = ?"
+                    range_params.append(quota_name)
+                if start_iso:
+                    range_query += " AND datetime(timestamp) >= datetime(?)"
+                    range_params.append(start_iso)
+                if end_iso:
+                    range_query += " AND datetime(timestamp) <= datetime(?)"
+                    range_params.append(end_iso)
+
+                min_ts, max_ts = conn.execute(range_query, tuple(range_params)).fetchone()
+                if min_ts and max_ts and max_ts > min_ts:
+                    bucket_seconds = max(1, (max_ts - min_ts) // downsample)
+                    ts_expr = (
+                        f"datetime((unixepoch(timestamp) / {bucket_seconds}) "
+                        f"* {bucket_seconds}, 'unixepoch')"
+                    )
+                    query = f"""
+                        SELECT 
+                            provider_id, quota_name, source,
+                            {ts_expr} as timestamp,
+                            AVG(used_percent) as used_percent,
+                            AVG(remaining_percent) as remaining_percent,
+                            MAX(window_minutes) as window_minutes,
+                            MAX(resets_at) as resets_at,
+                            NULL as raw_data
+                        FROM ({combined_base}) as combined WHERE 1=1
+                    """
+                    params: list[Any] = []
+                    if provider_id:
+                        query += " AND provider_id = ?"
+                        params.append(provider_id)
+                    if quota_name:
+                        query += " AND quota_name = ?"
+                        params.append(quota_name)
+                    if start_iso:
+                        query += " AND datetime(timestamp) >= datetime(?)"
+                        params.append(start_iso)
+                    if end_iso:
+                        query += " AND datetime(timestamp) <= datetime(?)"
+                        params.append(end_iso)
+
+                    query += " GROUP BY provider_id, quota_name, (unixepoch(timestamp) / ?)"
+                    params.append(bucket_seconds)
+                    query += f" ORDER BY timestamp {order.upper()} LIMIT ?"
+                    params.append(limit)
+
+                    rows = conn.execute(query, tuple(params)).fetchall()
+                    return {"items": [dict(row) for row in rows], "downsampled": True}
+
+            # Default raw fetch if no downsampling requested.
+            raw_query = f"SELECT * FROM ({combined_base}) as combined WHERE 1=1"
+            raw_params: list[Any] = []
             if provider_id:
-                query += " AND provider_id = ?"
-                params.append(provider_id)
+                raw_query += " AND provider_id = ?"
+                raw_params.append(provider_id)
             if quota_name:
-                query += " AND quota_name = ?"
-                params.append(quota_name)
-            if start:
-                query += " AND datetime(timestamp) >= datetime(?)"
-                params.append(start)
-            if end:
-                query += " AND datetime(timestamp) <= datetime(?)"
-                params.append(end)
+                raw_query += " AND quota_name = ?"
+                raw_params.append(quota_name)
+            if start_iso:
+                raw_query += " AND datetime(timestamp) >= datetime(?)"
+                raw_params.append(start_iso)
+            if end_iso:
+                raw_query += " AND datetime(timestamp) <= datetime(?)"
+                raw_params.append(end_iso)
             direction = "ASC" if order == "asc" else "DESC"
-            query += f" ORDER BY datetime(timestamp) {direction} LIMIT ?"
-            params.append(limit)
-            rows = conn.execute(query, tuple(params)).fetchall()
+            raw_query += f" ORDER BY datetime(timestamp) {direction} LIMIT ?"
+            raw_params.append(limit)
+            rows = conn.execute(raw_query, tuple(raw_params)).fetchall()
             items = []
             for row in rows:
                 d = dict(row)

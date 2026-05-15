@@ -1,9 +1,17 @@
 {
-  "health_keys": ["database", "providers", "scheduler", "status"],
-  "provider_item_keys": ["config", "enabled", "id", "updated_at"],
-  "quota_item_keys": [
-    "created_at",
+  "health_keys": [
+    "database",
+    "providers",
+    "scheduler",
+    "status"
+  ],
+  "provider_item_keys": [
+    "config",
+    "enabled",
     "id",
+    "updated_at"
+  ],
+  "quota_item_keys": [
     "provider_id",
     "quota_name",
     "raw_data",
@@ -39,5 +47,12 @@
     "tool_tokens",
     "total_tokens"
   ],
-  "config_top_keys": ["claude", "codex", "copilot", "daemon", "gemini", "pricing"]
+  "config_top_keys": [
+    "claude",
+    "codex",
+    "copilot",
+    "daemon",
+    "gemini",
+    "pricing"
+  ]
 }
