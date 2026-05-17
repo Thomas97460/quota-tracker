@@ -42,6 +42,9 @@ Installs the binary, runs migrations, backfills history and starts a systemd use
 
 ## NixOS
 
+> [!WARNING]
+> If you previously installed via the curl method above, run the [uninstall script](#uninstall) first to avoid systemd service conflicts.
+
 Add to your `configuration.nix`:
 
 ```nix
@@ -76,21 +79,3 @@ curl -fsSL https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/unin
 ```
 
 The uninstall helper asks before removing the systemd user service, then asks separately before deleting app files. It has a separate database prompt so you can uninstall quota-tracker while keeping the local SQLite history.
-
-## Nix packaging
-
-This repository is maintained to stay packagable for `nixpkgs` (Python backend + bundled frontend assets, no mandatory provider CLI runtime deps).
-
-Build locally with Nix:
-
-```bash
-nix build .#quota-tracker
-./result/bin/quota-tracker --help
-./result/bin/quota-tracker --version
-```
-
-Before opening a `nixpkgs` PR, check:
-1. `pyproject.toml` version matches the intended release tag (no `-dev` for release submissions).
-2. `frontend/package-lock.json` is up to date and `npm --prefix frontend run build` succeeds.
-3. `pytest` passes offline without real credentials, provider CLIs, or writes to source paths.
-4. `nix build .#quota-tracker` installs a working `quota-tracker` executable that serves both `/api/*` and frontend assets.
