@@ -48,7 +48,7 @@ Add to your `configuration.nix`:
 { config, pkgs, ... }:
 let
   # ...your other let bindings...
-  quotaTrackerFlake = builtins.getFlake "github:Thomas97460/quota-tracker/v0.1.34"; # ← update tag to upgrade
+  quotaTrackerFlake = builtins.getFlake "github:Thomas97460/quota-tracker/v0.1.35"; # ← update tag to upgrade
   quotaTrackerPackage = quotaTrackerFlake.packages.${pkgs.system}.default;
 in {
   imports = [
