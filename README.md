@@ -40,6 +40,35 @@ Installs the binary, runs migrations, backfills history and starts a systemd use
 <img src="assets/screenshots/overview.png" alt="quota-tracker overview" width="100%">
 </div>
 
+## NixOS
+
+Add to your `configuration.nix`:
+
+```nix
+{ config, pkgs, ... }:
+let
+  # ...your other let bindings...
+  quotaTrackerFlake = builtins.getFlake "github:Thomas97460/quota-tracker/v0.1.34"; # ← update tag to upgrade
+  quotaTrackerPackage = quotaTrackerFlake.packages.${pkgs.system}.default;
+in {
+  imports = [
+    # ...your other imports...
+    quotaTrackerFlake.nixosModules.default
+  ];
+
+  # ...rest of your configuration...
+
+  services.quota-tracker = {
+    enable  = true;
+    package = quotaTrackerPackage;
+    host    = "127.0.0.1";
+    port    = 8787;
+  };
+}
+```
+
+Then apply with `sudo nixos-rebuild switch`. To upgrade, change the version tag and rebuild.
+
 ## Uninstall
 
 ```bash

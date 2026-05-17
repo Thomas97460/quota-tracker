@@ -4,16 +4,18 @@ interface VersionInfo {
   current: string
   latest: string | null
   update_available: boolean
+  install_method: string
 }
 
 interface UseVersionResult {
   current: string
   updateAvailable: boolean
   latestVersion: string | null
+  installMethod: string
 }
 
 export function useVersion(): UseVersionResult {
-  const [info, setInfo] = useState<VersionInfo>({ current: "", latest: null, update_available: false })
+  const [info, setInfo] = useState<VersionInfo>({ current: "", latest: null, update_available: false, install_method: "curl" })
 
   const fetchVersion = useCallback(async () => {
     try {
@@ -34,5 +36,6 @@ export function useVersion(): UseVersionResult {
     current: info.current,
     updateAvailable: info.update_available,
     latestVersion: info.latest,
+    installMethod: info.install_method ?? "curl",
   }
 }

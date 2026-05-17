@@ -52,10 +52,14 @@ export function Sidebar(): React.JSX.Element {
   const { providers, quotas } = useProviders()
   const location = useLocation()
   const latest = latestQuotas(quotas)
-  const { current, updateAvailable, latestVersion } = useVersion()
+  const { current, updateAvailable, latestVersion, installMethod } = useVersion()
   const [updatePopup, setUpdatePopup] = useState(false)
   const popupRef = useRef<HTMLDivElement>(null)
   const INSTALL_CMD = "curl -fsSL https://raw.githubusercontent.com/Thomas97460/quota-tracker/main/install.sh | bash"
+  const NIX_TAG = latestVersion ? `v${latestVersion}` : ""
+  const NIX_FLAKE = latestVersion
+    ? `builtins.getFlake "github:Thomas97460/quota-tracker/v${latestVersion}"`
+    : ""
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -68,7 +72,8 @@ export function Sidebar(): React.JSX.Element {
   }, [updatePopup])
 
   const copyCmd = () => {
-    navigator.clipboard.writeText(INSTALL_CMD).then(() => {
+    const text = installMethod === "nix" ? NIX_TAG : INSTALL_CMD
+    navigator.clipboard.writeText(text).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -81,12 +86,25 @@ export function Sidebar(): React.JSX.Element {
             <div className="update-popup-title">
               {latestVersion ? `Update available - v${latestVersion}` : "Update Quota Tracker"}
             </div>
-            <div className="update-popup-body">
-              <code className="update-popup-cmd">{INSTALL_CMD}</code>
-              <button className="update-popup-copy" onClick={copyCmd}>
-                {copied ? "Copied!" : "Copy"}
-              </button>
-            </div>
+            {installMethod === "nix" ? (
+              <div className="update-popup-body">
+                <p className="update-popup-nix-hint">
+                  Update the version tag in your <code>configuration.nix</code>, then run{" "}
+                  <code>sudo nixos-rebuild switch</code>.
+                </p>
+                <code className="update-popup-cmd">{NIX_FLAKE}</code>
+                <button className="update-popup-copy" onClick={copyCmd}>
+                  {copied ? "Copied!" : "Copy tag"}
+                </button>
+              </div>
+            ) : (
+              <div className="update-popup-body">
+                <code className="update-popup-cmd">{INSTALL_CMD}</code>
+                <button className="update-popup-copy" onClick={copyCmd}>
+                  {copied ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            )}
             <button className="update-popup-close" onClick={() => setUpdatePopup(false)}>x</button>
           </div>
         </div>,

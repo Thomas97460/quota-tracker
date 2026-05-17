@@ -533,6 +533,13 @@ def register_routes(
         save_config(config, config_path_str)
         return {"config": config.model_dump()}
 
+    def _detect_install_method() -> str:
+        import sys as _sys
+
+        if "/nix/store/" in _sys.executable:
+            return "nix"
+        return "curl"
+
     @app.get("/api/version")
     async def get_version() -> dict[str, Any]:
         """Return current version and latest available release from GitHub."""
@@ -552,7 +559,12 @@ def register_routes(
                         update_available = latest != __version__
         except Exception:
             pass
-        return {"current": __version__, "latest": latest, "update_available": update_available}
+        return {
+            "current": __version__,
+            "latest": latest,
+            "update_available": update_available,
+            "install_method": _detect_install_method(),
+        }
 
     @app.post("/api/update")
     def trigger_update() -> dict[str, str]:
