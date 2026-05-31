@@ -34,7 +34,7 @@ class ModelPricing(BaseModel):
 
 
 def get_default_pricing() -> dict[str, ModelPricing]:
-    """Return default pricing for known models as of 2026-05-09."""
+    """Return default pricing for known models as of 2026-05-31."""
 
     # Key format: "provider_id:model_name"
     # Prices are per 1M tokens in USD
@@ -56,6 +56,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "codex:gpt-5-codex": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
         "codex:gpt-5": ModelPricing(input_1m=2.50, cached_1m=0.25, output_1m=15.00),
         # Anthropic (Claude)
+        "claude:claude-opus-4-8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
@@ -94,6 +95,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "copilot:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-sonnet-4-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-sonnet-4-6": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
+        "copilot:claude-opus-4-8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "copilot:claude-opus-4-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "copilot:claude-opus-4-6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "copilot:claude-opus-4-7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
