@@ -75,6 +75,7 @@ Thumbs.db
 .claude/
 .gemini/
 .codex/
+.antigravitycli/
 
 _dev_build.py
 

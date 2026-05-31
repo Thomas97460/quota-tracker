@@ -1,5 +1,6 @@
 """Provider package: contract, normalization, and concrete implementations."""
 
+from quota_tracker.providers.antigravity import AntigravityProvider
 from quota_tracker.providers.base import (
     PassiveSyncResult,
     Provider,
@@ -14,6 +15,7 @@ from quota_tracker.providers.copilot import CopilotProvider
 from quota_tracker.providers.gemini import GeminiProvider
 
 __all__ = [
+    "AntigravityProvider",
     "ClaudeAiProvider",
     "CodexProvider",
     "CopilotProvider",

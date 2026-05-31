@@ -17,6 +17,7 @@ const PROVIDER_NAMES: Record<ProviderId, string> = {
   codex: "Codex",
   copilot: "Copilot",
   claude: "Claude",
+  antigravity: "Antigravity",
 }
 
 const PROVIDER_LOGOS: Record<ProviderId, string> = {
@@ -24,6 +25,7 @@ const PROVIDER_LOGOS: Record<ProviderId, string> = {
   codex: "/logos/codex.png",
   copilot: "/logos/copilot.png",
   claude: "/logos/claude-code.png",
+  antigravity: "/logos/antigravity.svg",
 }
 
 const PROVIDER_COLOR_VARS: Record<ProviderId, string> = {
@@ -31,6 +33,7 @@ const PROVIDER_COLOR_VARS: Record<ProviderId, string> = {
   codex: "var(--codex)",
   copilot: "var(--copilot)",
   claude: "var(--claude)",
+  antigravity: "var(--antigravity)",
 }
 
 const PROVIDER_COLORS_HEX: Record<ProviderId, string> = {
@@ -38,9 +41,10 @@ const PROVIDER_COLORS_HEX: Record<ProviderId, string> = {
   codex: "#10B981",
   copilot: "#F59E0B",
   claude: "#D97757",
+  antigravity: "#7C3AED",
 }
 
-const VALID_PROVIDERS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
+const VALID_PROVIDERS: ProviderId[] = ["gemini", "codex", "copilot", "claude", "antigravity"]
 const SESSION_PAGE_SIZE = 5
 
 function statusFor(pct: number): "crit" | "warn" | "ok" {
@@ -106,14 +110,14 @@ export function ProviderDetail(): React.JSX.Element {
       ? filterClaudeQuotas(latest)
       : providerId === "copilot"
         ? filterCopilotQuotas(latest)
-        : providerId === "gemini"
-          ? rollupGeminiQuotas(latest)
-          : latest
+          : providerId === "gemini" || providerId === "antigravity"
+            ? rollupGeminiQuotas(latest)
+            : latest
   const totalTokens = timeSeries.reduce((s, r) => s + r.total_tokens, 0)
   const totalCost = timeSeries.reduce((s, r) => s + r.estimated_cost, 0)
 
   let historyRows = quotaHistory.filter((q) => q.provider_id === providerId)
-  if (providerId === "gemini") {
+  if (providerId === "gemini" || providerId === "antigravity") {
     const byTs = new Map<string, typeof historyRows>()
     for (const r of historyRows) {
       if (!byTs.has(r.timestamp)) byTs.set(r.timestamp, [])

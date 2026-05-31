@@ -19,7 +19,13 @@ def test_provider_selector_and_reset_marks(tmp_path: Path) -> None:
     service = DaemonService(str(db_path))
     service.migrate_and_prepare()
 
-    assert service._provider_ids("all") == ["gemini", "codex", "copilot", "claude"]
+    assert service._provider_ids("all") == [
+        "gemini",
+        "codex",
+        "copilot",
+        "claude",
+        "antigravity",
+    ]
     with pytest.raises(ValueError):
         service._provider_ids("x")
 
@@ -63,7 +69,7 @@ def test_tick_due_logic_and_scheduler_start_stop(
     conn = connect_db(str(db_path))
     try:
         apply_migrations(conn)
-        for provider in ("gemini", "codex", "copilot", "claude"):
+        for provider in ("gemini", "codex", "copilot", "claude", "antigravity"):
             row = get_provider_row(conn, provider)
             assert row is not None
             cfg = dict(row["config"])
@@ -91,9 +97,11 @@ def test_provider_instance_variants(tmp_path: Path) -> None:
         "codex", {"home_path": str(tmp_path), "safe_options": {"include_archived": False}}
     )
     copilot = service._provider_instance("copilot", {"home_path": str(tmp_path)})
+    antigravity = service._provider_instance("antigravity", {"home_path": str(tmp_path)})
     assert gemini.metadata.id == "gemini"
     assert codex.metadata.id == "codex"
     assert copilot.metadata.id == "copilot"
+    assert antigravity.metadata.id == "antigravity"
     with pytest.raises(ValueError):
         service._provider_instance("other", {"home_path": str(tmp_path)})
 
@@ -269,6 +277,7 @@ def test_tick_disabled_provider_not_due(tmp_path: Path, monkeypatch: pytest.Monk
     service.set_provider_enabled("codex", False)
     service.set_provider_enabled("copilot", False)
     service.set_provider_enabled("claude", False)
+    service.set_provider_enabled("antigravity", False)
     called: list[str] = []
     monkeypatch.setattr(
         service, "run_scan", lambda provider="all", full=False: called.append("scan")
@@ -305,7 +314,7 @@ def test_tick_due_thresholds_and_missing_provider_rows(
     )
     monkeypatch.setattr(service, "run_probe", lambda provider="all": calls.append("probe"))
     service.tick()
-    assert calls == ["scan", "probe", "probe", "probe", "probe"]
+    assert calls == ["scan", "probe", "probe", "probe", "probe", "probe"]
 
     service.set_provider_enabled("copilot", True)
     service.reset_high_water_marks("copilot")
@@ -326,7 +335,7 @@ def test_tick_not_due_when_recent_sync(tmp_path: Path, monkeypatch: pytest.Monke
     service.migrate_and_prepare()
     conn = connect_db(str(db_path))
     try:
-        for provider in ("gemini", "codex", "copilot", "claude"):
+        for provider in ("gemini", "codex", "copilot", "claude", "antigravity"):
             row = get_provider_row(conn, provider)
             assert row is not None
             cfg = dict(row["config"])
@@ -358,7 +367,7 @@ def test_tick_uses_last_probe_attempted_at_for_backoff(
     conn = connect_db(str(db_path))
     try:
         now = datetime.now(UTC).isoformat()
-        for provider in ("gemini", "codex", "copilot", "claude"):
+        for provider in ("gemini", "codex", "copilot", "claude", "antigravity"):
             row = get_provider_row(conn, provider)
             assert row is not None
             cfg = dict(row["config"])

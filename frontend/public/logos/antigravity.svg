@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Antigravity">
+  <rect width="64" height="64" rx="14" fill="#14171F"/>
+  <path d="M32 8 50 56 32 46 14 56 32 8Z" fill="#7C3AED"/>
+  <path d="M32 18 41 43 32 38 23 43 32 18Z" fill="#F4F5F8"/>
+  <circle cx="32" cy="32" r="4" fill="#06B6D4"/>
+</svg>

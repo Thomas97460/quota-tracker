@@ -20,6 +20,7 @@ def detect_provider_homes(home: Path) -> dict[str, str]:
         "codex": home / ".codex",
         "copilot": home / ".copilot",
         "claude": home / ".claude",
+        "antigravity": home / ".gemini" / "antigravity-cli",
     }
     return {provider: str(path) for provider, path in candidates.items() if path.exists()}
 
@@ -53,7 +54,7 @@ def merge_config(base: AppConfig, updates: dict[str, object]) -> AppConfig:
             raise ValueError("web_port must be int")
         base.daemon.web_port = web_port
 
-    for provider in ("gemini", "codex", "copilot", "claude"):
+    for provider in ("gemini", "codex", "copilot", "claude", "antigravity"):
         provider_updates = updates.get(provider)
         if not isinstance(provider_updates, dict):
             continue
@@ -72,7 +73,7 @@ def _run_interactive_flow(config: AppConfig, home: Path) -> AppConfig:
 
     # ── Step 1/3: Detect providers ──────────────────────────────────────────
     ui.step(1, 3, "Detect providers")
-    for provider in ("gemini", "codex", "copilot", "claude"):
+    for provider in ("gemini", "codex", "copilot", "claude", "antigravity"):
         provider_cfg = getattr(config, provider)
         if provider in detected:
             ui.success_check(f"{provider:<8}  {detected[provider]:<20}  found")
@@ -81,7 +82,7 @@ def _run_interactive_flow(config: AppConfig, home: Path) -> AppConfig:
 
     # ── Step 2/3: Configure providers ───────────────────────────────────────
     ui.step(2, 3, "Configure providers")
-    for provider in ("gemini", "codex", "copilot", "claude"):
+    for provider in ("gemini", "codex", "copilot", "claude", "antigravity"):
         provider_cfg = getattr(config, provider)
         detected_home = detected.get(provider)
         default_enabled = detected_home is not None
@@ -106,7 +107,7 @@ def _run_interactive_flow(config: AppConfig, home: Path) -> AppConfig:
     # ── Summary box ──────────────────────────────────────────────────────────
     print()
     summary_lines = []
-    for provider in ("gemini", "codex", "copilot", "claude"):
+    for provider in ("gemini", "codex", "copilot", "claude", "antigravity"):
         pcfg = getattr(config, provider)
         state = "enabled" if pcfg.enabled else "disabled"
         summary_lines.append(f"{provider:<8}  {state:<8}  {pcfg.home_path}")
@@ -150,7 +151,7 @@ def sync_provider_rows_from_config(config: AppConfig) -> None:
     conn = connect_db(config.daemon.database_path)
     try:
         apply_migrations(conn)
-        for provider in ("gemini", "codex", "copilot", "claude"):
+        for provider in ("gemini", "codex", "copilot", "claude", "antigravity"):
             provider_cfg = getattr(config, provider)
             row = get_provider_row(conn, provider)
             current = dict(row["config"]) if row is not None else {}

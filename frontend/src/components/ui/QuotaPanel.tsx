@@ -120,7 +120,7 @@ export function displayLabel(providerId: ProviderId, quotaName: string): string 
     if (quotaName === "secondary") return "Weekly"
     return quotaName
   }
-  if (providerId === "gemini") {
+  if (providerId === "gemini" || providerId === "antigravity") {
     const label = GEMINI_FAMILY_LABEL[quotaName as GeminiFamily]
     return label ?? quotaName
   }
@@ -158,7 +158,7 @@ export function QuotaPanel({
   let visible: QuotaRow[]
   if (providerId === "copilot") {
     visible = sortQuotasBiggestFirst(providerId, filterCopilotQuotas(latest))
-  } else if (providerId === "gemini") {
+  } else if (providerId === "gemini" || providerId === "antigravity") {
     visible = rollupGeminiQuotas(latest)
   } else if (providerId === "codex") {
     visible = sortQuotasBiggestFirst(providerId, latest)

@@ -18,6 +18,7 @@ const PROVIDER_COLORS: Record<ProviderId, string> = {
   codex: "#10B981",
   copilot: "#F59E0B",
   claude: "#D97757",
+  antigravity: "#7C3AED",
 }
 
 const KIND_COLORS: Record<string, string> = {
@@ -54,6 +55,7 @@ function buildProviderRows(byProvider: Record<ProviderId, UsageRow[]>, mode: "to
     codex: new Map(byProvider.codex.map((r) => [r.bucket, r[prop] ?? 0])),
     copilot: new Map(byProvider.copilot.map((r) => [r.bucket, r[prop] ?? 0])),
     claude: new Map(byProvider.claude.map((r) => [r.bucket, r[prop] ?? 0])),
+    antigravity: new Map(byProvider.antigravity.map((r) => [r.bucket, r[prop] ?? 0])),
   }
   return buckets.map((bucket) => ({
     bucket,
@@ -61,6 +63,7 @@ function buildProviderRows(byProvider: Record<ProviderId, UsageRow[]>, mode: "to
     codex: indexed.codex.get(bucket) ?? 0,
     copilot: indexed.copilot.get(bucket) ?? 0,
     claude: indexed.claude.get(bucket) ?? 0,
+    antigravity: indexed.antigravity.get(bucket) ?? 0,
   }))
 }
 
@@ -133,7 +136,7 @@ export function StackedTokenChart({
 
   const series =
     mode === "provider"
-      ? (["gemini", "codex", "copilot", "claude"] as ProviderId[]).map((id) => ({
+      ? (["gemini", "codex", "copilot", "claude", "antigravity"] as ProviderId[]).map((id) => ({
           key: id,
           color: PROVIDER_COLORS[id],
         }))

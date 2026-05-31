@@ -12,13 +12,14 @@ import { useProviders } from "../contexts/ProvidersContext"
 import type { ProviderId, QuotaRow } from "../types"
 import { basename, formatLargeNumber, formatCost, formatRelative, formatDate, latestQuotas } from "../utils"
 
-const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
+const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude", "antigravity"]
 
 const PROVIDER_NAMES: Record<ProviderId, string> = {
   gemini: "Gemini",
   codex: "Codex",
   copilot: "Copilot",
   claude: "Claude",
+  antigravity: "Antigravity",
 }
 
 const PROVIDER_LOGOS: Record<ProviderId, string> = {
@@ -26,6 +27,7 @@ const PROVIDER_LOGOS: Record<ProviderId, string> = {
   codex: "/logos/codex.png",
   copilot: "/logos/copilot.png",
   claude: "/logos/claude-code.png",
+  antigravity: "/logos/antigravity.svg",
 }
 
 const PROVIDER_COLOR_VARS: Record<ProviderId, string> = {
@@ -33,6 +35,7 @@ const PROVIDER_COLOR_VARS: Record<ProviderId, string> = {
   codex: "var(--codex)",
   copilot: "var(--copilot)",
   claude: "var(--claude)",
+  antigravity: "var(--antigravity)",
 }
 
 // Hex values for provider colors (for recharts which can't use CSS vars)
@@ -41,6 +44,7 @@ const PROVIDER_COLORS_HEX: Record<ProviderId, string> = {
   codex: "#10B981",
   copilot: "#F59E0B",
   claude: "#D97757",
+  antigravity: "#7C3AED",
 }
 
 const PROJECT_PAGE_SIZE = 5
@@ -168,7 +172,7 @@ export function Overview(): React.JSX.Element {
   // Rolled-up version for alert ribbon (same filtering as quota cards)
   const latestCtxAlert = PROVIDER_IDS.flatMap((id) => {
     const rows = latestCtx.filter((q) => q.provider_id === id)
-    if (id === "gemini") return rollupGeminiQuotas(rows)
+    if (id === "gemini" || id === "antigravity") return rollupGeminiQuotas(rows)
     if (id === "copilot") return filterCopilotQuotas(rows)
     if (id === "claude") return filterClaudeQuotas(rows)
     return rows
@@ -207,7 +211,7 @@ export function Overview(): React.JSX.Element {
     const rows = latest.filter((q) => q.provider_id === id)
     let visible: QuotaRow[]
     if (id === "copilot") visible = filterCopilotQuotas(rows)
-    else if (id === "gemini") visible = rollupGeminiQuotas(rows)
+    else if (id === "gemini" || id === "antigravity") visible = rollupGeminiQuotas(rows)
     else if (id === "claude") visible = filterClaudeQuotas(rows)
     else visible = rows
     const worst = visible.length > 0 ? Math.max(...visible.map((q) => q.used_percent ?? 0)) : 0

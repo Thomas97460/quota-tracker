@@ -41,7 +41,9 @@ def build_parser() -> argparse.ArgumentParser:
     config_sub = config_parser.add_subparsers(dest="config_command")
     config_sub.add_parser("show")
     config_set = config_sub.add_parser("set")
-    config_set.add_argument("--provider", choices=["gemini", "codex", "copilot", "claude"])
+    config_set.add_argument(
+        "--provider", choices=["gemini", "codex", "copilot", "claude", "antigravity"]
+    )
     config_set.add_argument("--enabled", choices=["true", "false"])
     config_set.add_argument("--home-path")
     config_set.add_argument("--active-probe-enabled", choices=["true", "false"])
@@ -55,12 +57,16 @@ def build_parser() -> argparse.ArgumentParser:
 
     scan = sub.add_parser("scan")
     scan.add_argument(
-        "--provider", choices=["all", "gemini", "codex", "copilot", "claude"], default="all"
+        "--provider",
+        choices=["all", "gemini", "codex", "copilot", "claude", "antigravity"],
+        default="all",
     )
     scan.add_argument("--full", action="store_true")
     probe = sub.add_parser("probe")
     probe.add_argument(
-        "--provider", choices=["all", "gemini", "codex", "copilot", "claude"], default="all"
+        "--provider",
+        choices=["all", "gemini", "codex", "copilot", "claude", "antigravity"],
+        default="all",
     )
     probe.add_argument("--dry-run", action="store_true")
 

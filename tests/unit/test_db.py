@@ -48,7 +48,13 @@ def test_migrations_idempotent_and_default_providers(tmp_path: Path) -> None:
         apply_migrations(conn)
         before = conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
         providers = conn.execute("SELECT id FROM providers ORDER BY id").fetchall()
-        assert [r[0] for r in providers] == ["claude", "codex", "copilot", "gemini"]
+        assert [r[0] for r in providers] == [
+            "antigravity",
+            "claude",
+            "codex",
+            "copilot",
+            "gemini",
+        ]
         apply_migrations(conn)
         after = conn.execute("SELECT COUNT(*) FROM schema_migrations").fetchone()[0]
         assert before == after == 8
@@ -184,7 +190,7 @@ def test_list_provider_health_sanitized_shape(tmp_path: Path) -> None:
     try:
         apply_migrations(conn)
         rows = list_provider_health(conn)
-        assert len(rows) == 4
+        assert len(rows) == 5
         first = rows[0]
         assert set(first.keys()) == {"id", "enabled", "config", "updated_at"}
         assert "home_path" in first["config"]
@@ -200,7 +206,7 @@ def test_provider_row_helpers(tmp_path: Path) -> None:
         assert get_provider_row(conn, "gemini") is not None
         assert get_provider_row(conn, "codex") is not None
         rows = list_provider_rows(conn)
-        assert len(rows) == 4
+        assert len(rows) == 5
         assert get_provider_row(conn, "gemini") is not None
         row = get_provider_row(conn, "gemini")
         assert row is not None

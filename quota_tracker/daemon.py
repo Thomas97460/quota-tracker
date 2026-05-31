@@ -25,6 +25,7 @@ from quota_tracker.db import (
 )
 from quota_tracker.logging import configure_logging, log_operation
 from quota_tracker.providers import (
+    AntigravityProvider,
     ClaudeAiProvider,
     CodexProvider,
     CopilotProvider,
@@ -33,8 +34,8 @@ from quota_tracker.providers import (
 )
 
 LOGGER = logging.getLogger(__name__)
-PROVIDERS = ("gemini", "codex", "copilot", "claude")
-AUTO_PROBE_PROVIDERS = ("gemini", "codex", "copilot", "claude")
+PROVIDERS = ("gemini", "codex", "copilot", "claude", "antigravity")
+AUTO_PROBE_PROVIDERS = ("gemini", "codex", "copilot", "claude", "antigravity")
 
 
 @dataclass(frozen=True)
@@ -116,6 +117,20 @@ class DaemonService:
             return CopilotProvider(home=home)
         if provider_id == "claude":
             return ClaudeAiProvider(home=home)
+        if provider_id == "antigravity":
+            safe_options = config.get("safe_options", {})
+            project_id = None
+            if isinstance(safe_options, dict):
+                for key in (
+                    "google_cloud_project",
+                    "google_cloud_project_id",
+                    "cloudaicompanion_project",
+                ):
+                    value = safe_options.get(key)
+                    if isinstance(value, str) and value.strip():
+                        project_id = value
+                        break
+            return AntigravityProvider(home=home, project_id=project_id)
         raise ValueError(f"unsupported provider_id: {provider_id}")
 
     def _provider_ids(self, provider: str) -> list[str]:

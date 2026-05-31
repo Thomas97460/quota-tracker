@@ -52,8 +52,15 @@ function buildQuery(params: Record<string, string | number | undefined>): string
   return `?${entries.map(([k, v]) => `${k}=${encodeURIComponent(String(v))}`).join("&")}`
 }
 
-const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
+const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude", "antigravity"]
 const PROJECT_PAGE_SIZE = 5
+const EMPTY_PROVIDER_ROWS = (): Record<ProviderId, UsageRow[]> => ({
+  gemini: [],
+  codex: [],
+  copilot: [],
+  claude: [],
+  antigravity: [],
+})
 
 function timeSeriesGroupByFor(range: Range): "hour" | "day" {
   // Heuristic to avoid overly spiky / crowded charts on long ranges.
@@ -74,7 +81,7 @@ export function useDashboard(
   const [timeSeriesGroupBy, setTimeSeriesGroupBy] = useState<"hour" | "day">("hour")
   const [timeSeriesByProvider, setTimeSeriesByProvider] = useState<
     Record<ProviderId, UsageRow[]>
-  >({ gemini: [], codex: [], copilot: [], claude: [] })
+  >(EMPTY_PROVIDER_ROWS())
   const [modelUsage, setModelUsage] = useState<UsageRow[]>([])
   const [providerTotals, setProviderTotals] = useState<UsageRow[]>([])
   const [projectUsage, setProjectUsage] = useState<ProjectUsageRow[]>([])
@@ -208,9 +215,10 @@ export function useDashboard(
             codex: providerSeries[1].items,
             copilot: providerSeries[2].items,
             claude: providerSeries[3].items,
+            antigravity: providerSeries[4].items,
           })
         } else {
-          setTimeSeriesByProvider({ gemini: [], codex: [], copilot: [], claude: [] })
+          setTimeSeriesByProvider(EMPTY_PROVIDER_ROWS())
         }
       })
       .catch((err: unknown) => {

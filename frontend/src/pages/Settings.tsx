@@ -8,15 +8,17 @@ const providerLabels: Record<ProviderId, string> = {
   codex: "Codex",
   copilot: "Copilot",
   claude: "Claude",
+  antigravity: "Antigravity",
 }
 
-const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
+const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude", "antigravity"]
 
 const PROVIDER_COLOR_VARS: Record<ProviderId, string> = {
   gemini: "var(--gemini)",
   codex: "var(--codex)",
   copilot: "var(--copilot)",
   claude: "var(--claude)",
+  antigravity: "var(--antigravity)",
 }
 
 interface ProviderFormState {
@@ -48,6 +50,7 @@ export function Settings(): React.JSX.Element {
     codex: { enabled: true, home_path: "~/.codex" },
     copilot: { enabled: true, home_path: "~/.copilot" },
     claude: { enabled: true, home_path: "~/.claude" },
+    antigravity: { enabled: true, home_path: "~/.gemini/antigravity-cli" },
   })
 
   const [actionBusy, setActionBusy] = useState<string | null>(null)
