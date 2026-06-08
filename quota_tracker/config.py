@@ -178,7 +178,15 @@ def load_config(path: str | None = None) -> AppConfig:
     if not config_path.exists():
         return _force_active_probe_enabled(AppConfig())
     data = json.loads(config_path.read_text())
-    return _force_active_probe_enabled(AppConfig.model_validate(data))
+    config = _force_active_probe_enabled(AppConfig.model_validate(data))
+    # A saved config persists an explicit pricing map, which would otherwise
+    # shadow models added to the defaults in later releases. Backfill missing
+    # models so newly-supported ones get prices after an upgrade; prices
+    # already present in the saved config take precedence.
+    merged = get_default_pricing()
+    merged.update(config.pricing)
+    config.pricing = merged
+    return config
 
 
 def save_config(config: AppConfig, path: str | None = None) -> None:

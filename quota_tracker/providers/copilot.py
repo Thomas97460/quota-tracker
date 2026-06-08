@@ -223,7 +223,11 @@ def _parse_quota_header_value(value: str) -> dict[str, Any] | None:
             return vals[0] if vals else None
 
         try:
-            entitlement = int(first("ent") or "0")
+            ent_str = first("ent") or "0"
+            try:
+                entitlement: int | float = int(ent_str)
+            except ValueError:
+                entitlement = float(ent_str)
         except (TypeError, ValueError):
             return None
         try:

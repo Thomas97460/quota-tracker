@@ -50,13 +50,15 @@ function sortQuotasBiggestFirst(providerId: ProviderId, rows: QuotaRow[]): Quota
   return scored.map((s) => s.q)
 }
 
-/** Filter Copilot quotas to only premium_interactions and weekly keys. */
+/** Filter Copilot quotas to only premium_interactions, weekly, and credits keys. */
 export function filterCopilotQuotas(rows: QuotaRow[]): QuotaRow[] {
   return rows.filter(
     (q) =>
       q.quota_name.includes("premium-interactions") ||
       q.quota_name.includes("premium_interactions") ||
-      q.quota_name.includes("weekly"),
+      q.quota_name.includes("weekly") ||
+      q.quota_name.includes("credits") ||
+      q.quota_name.includes("allotment"),
   )
 }
 
@@ -113,6 +115,10 @@ export function displayLabel(providerId: ProviderId, quotaName: string): string 
       return "Monthly"
     if (quotaName.includes("monthly")) return "Monthly"
     if (quotaName.includes("weekly")) return "Weekly"
+    if (quotaName.includes("ai_credits") || quotaName.includes("ai-credits")) return "AI Credits"
+    if (quotaName.includes("base_credits") || quotaName.includes("base-credits")) return "Base Credits"
+    if (quotaName.includes("flex_allotment") || quotaName.includes("flex-allotment")) return "Flex Allotment"
+    if (quotaName.includes("credits")) return "Credits"
     return quotaName
   }
   if (providerId === "codex") {
@@ -144,6 +150,18 @@ export function formatRequestQuota(q: QuotaRow): string | null {
   if (q.provider_id === "copilot" && rd.entitlement_requests !== undefined) {
     const limit = Number(rd.entitlement_requests)
     if (limit <= 0) return null
+    const isCredit =
+      q.quota_name.includes("credit") || q.quota_name.includes("allotment")
+    if (isCredit) {
+      if (limit >= 100) {
+        const usdLimit = limit / 100
+        const usdUsed = usdLimit * ((q.used_percent ?? 0) / 100)
+        return `$${usdUsed.toFixed(2)} / $${usdLimit.toFixed(2)}`
+      } else {
+        const usdUsed = limit * ((q.used_percent ?? 0) / 100)
+        return `$${usdUsed.toFixed(2)} / $${limit.toFixed(2)}`
+      }
+    }
     const used = Math.round(limit * ((q.used_percent ?? 0) / 100))
     return `${used} / ${limit} requests`
   }
