@@ -132,6 +132,30 @@ def test_copilot_header_parsing_full_and_weekly_only() -> None:
     assert weekly_only[0].resets_at is None
 
 
+def test_copilot_header_parsing_float_entitlements_and_credits() -> None:
+    ts = "2026-01-01T00:00:00+00:00"
+    out = CopilotProvider.parse_quota_headers(
+        {
+            "x-quota-snapshot-ai_credits": "ent=15.00&rem=98.5&rst=2026-07-01T00:00:00Z",
+            "x-quota-snapshot-base_credits": "ent=10.00&rem=100.0&rst=2026-07-01T00:00:00Z",
+            "x-quota-snapshot-flex_allotment": "ent=5.00&rem=90.0&rst=2026-07-01T00:00:00Z",
+        },
+        ts,
+    )
+    assert len(out) == 3
+    assert out[0].quota_name == "ai_credits"
+    assert out[0].used_percent == 1.5
+    assert out[0].raw_data["entitlement_requests"] == 15.00
+
+    assert out[1].quota_name == "base_credits"
+    assert out[1].used_percent == 0.0
+    assert out[1].raw_data["entitlement_requests"] == 10.00
+
+    assert out[2].quota_name == "flex_allotment"
+    assert out[2].used_percent == 10.0
+    assert out[2].raw_data["entitlement_requests"] == 5.00
+
+
 def test_copilot_active_probe_paths(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     p = CopilotProvider(str(tmp_path))
     monkeypatch.delenv("COPILOT_GITHUB_TOKEN", raising=False)
