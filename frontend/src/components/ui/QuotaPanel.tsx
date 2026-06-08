@@ -95,9 +95,13 @@ const GEMINI_FAMILY_LABEL: Record<GeminiFamily, string> = {
  */
 export function rollupGeminiQuotas(rows: QuotaRow[]): QuotaRow[] {
   const best: Partial<Record<GeminiFamily, QuotaRow>> = {}
+  const others: QuotaRow[] = []
   for (const row of rows) {
     const family = geminiFamily(row.quota_name)
-    if (!family) continue
+    if (!family) {
+      others.push(row)
+      continue
+    }
     const prev = best[family]
     const used = row.used_percent
     if (used === null) continue
@@ -105,7 +109,8 @@ export function rollupGeminiQuotas(rows: QuotaRow[]): QuotaRow[] {
       best[family] = { ...row, quota_name: family }
     }
   }
-  return GEMINI_FAMILY_ORDER.flatMap((f) => (best[f] ? [best[f]!] : []))
+  const rolled = GEMINI_FAMILY_ORDER.flatMap((f) => (best[f] ? [best[f]!] : []))
+  return [...rolled, ...others]
 }
 
 /** Map raw quota_name to a human-friendly display label per provider. */
@@ -128,7 +133,13 @@ export function displayLabel(providerId: ProviderId, quotaName: string): string 
   }
   if (providerId === "gemini" || providerId === "antigravity") {
     const label = GEMINI_FAMILY_LABEL[quotaName as GeminiFamily]
-    return label ?? quotaName
+    if (label) return label
+    const lower = quotaName.toLowerCase()
+    if (lower.includes("opus")) return "Claude Opus"
+    if (lower.includes("sonnet")) return "Claude Sonnet"
+    if (lower.includes("gpt-oss") || lower.includes("gpt_oss")) return "GPT OSS"
+    if (lower.includes("gpt")) return "GPT"
+    return quotaName
   }
   if (providerId === "claude") {
     if (quotaName === "seven_day_omelette") return "Claude Design"

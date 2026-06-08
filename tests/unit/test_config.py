@@ -33,6 +33,9 @@ def test_default_pricing_includes_antigravity_gemini_models() -> None:
 
     assert pricing["antigravity:gemini-3-pro-preview"].input_1m == 3.60
     assert pricing["antigravity:gemini-2.5-flash"].output_1m == 4.50
+    assert pricing["antigravity:gemini-3.5-flash"].input_1m == 0.90
+    assert pricing["antigravity:claude-opus-4.6"].input_1m == 5.00
+    assert pricing["antigravity:gpt-oss"].input_1m == 2.00
 
 
 def test_load_config_backfills_pricing_for_new_models(tmp_path) -> None:
