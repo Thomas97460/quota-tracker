@@ -558,6 +558,7 @@ class AntigravityProvider:
         import json
         import re
         import urllib.request
+
         from quota_tracker.providers.base import normalize_quota
 
         port: int | None = None
