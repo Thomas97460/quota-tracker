@@ -5,6 +5,9 @@ from __future__ import annotations
 import json
 import sqlite3
 from pathlib import Path
+from typing import Any
+
+import pytest
 
 from quota_tracker.providers.antigravity import AntigravityProvider
 
@@ -200,11 +203,10 @@ def test_antigravity_passive_scan_db(tmp_path: Path) -> None:
     assert usage["output_tokens"] == 50
 
 def test_antigravity_active_probe_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import pytest
     home = tmp_path / ".gemini" / "antigravity-cli"
     (home / "log").mkdir(parents=True)
     (home / "log" / "cli-20260531_142919.log").write_text(
-        "I0531 14:29:19.793519 14328 server.go:747] Language server listening on random port at 12345 for HTTP\n",
+        "I0531 14:29:19 14328 server.go:747] Language server listening on random port at 12345 for HTTP\n",
         encoding="utf-8",
     )
 
@@ -239,7 +241,6 @@ def test_antigravity_active_probe_success(tmp_path: Path, monkeypatch: pytest.Mo
     assert records[0].resets_at == "2026-06-08T16:52:41Z"
 
 def test_antigravity_active_probe_conn_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import pytest
     home = tmp_path / ".gemini" / "antigravity-cli"
     (home / "log").mkdir(parents=True)
     (home / "log" / "cli-20260531_142919.log").write_text(

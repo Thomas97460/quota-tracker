@@ -232,7 +232,7 @@ def register_routes(
                 params.append(provider_id)
             rows = conn.execute(query, tuple(params)).fetchall()
             # If multiple rows have the same exact max timestamp for a name, deduplicate in memory
-            deduped = {}
+            deduped: dict[tuple[str, str], dict[str, Any]] = {}
             for row in rows:
                 key = (row["provider_id"], row["quota_name"])
                 if key not in deduped or row["timestamp"] > deduped[key]["timestamp"]:
