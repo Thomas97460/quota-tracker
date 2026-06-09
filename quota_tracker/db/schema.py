@@ -11,7 +11,14 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-PROVIDERS = ("gemini", "codex", "copilot", "claude")
+PROVIDERS = ("gemini", "codex", "copilot", "claude", "antigravity")
+DEFAULT_PROVIDER_HOMES = {
+    "gemini": "~/.gemini",
+    "codex": "~/.codex",
+    "copilot": "~/.copilot",
+    "claude": "~/.claude",
+    "antigravity": "~/.gemini/antigravity-cli",
+}
 
 
 def utc_now_iso() -> str:
@@ -312,7 +319,7 @@ def _ensure_default_providers(conn: sqlite3.Connection) -> None:
     now = utc_now_iso()
     for provider in PROVIDERS:
         default_config = {
-            "home_path": f"~/.{provider}",
+            "home_path": DEFAULT_PROVIDER_HOMES[provider],
             "active_probe_enabled": True,
             "high_water_marks": {},
             "safe_options": {},

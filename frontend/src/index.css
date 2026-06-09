@@ -36,6 +36,8 @@
   --copilot-soft: rgba(245, 158, 11, 0.12);
   --claude: #D97757;
   --claude-soft: rgba(217, 119, 87, 0.14);
+  --antigravity: #7C3AED;
+  --antigravity-soft: rgba(124, 58, 237, 0.12);
 
   /* Status */
   --ok: #10B981;
@@ -801,6 +803,7 @@ a { color: inherit; text-decoration: none; }
 .tag.codex { color: var(--codex); border-color: color-mix(in oklab, var(--codex) 24%, transparent); background: var(--codex-soft); }
 .tag.copilot { color: var(--copilot); border-color: color-mix(in oklab, var(--copilot) 24%, transparent); background: var(--copilot-soft); }
 .tag.claude { color: var(--claude); border-color: color-mix(in oklab, var(--claude) 24%, transparent); background: var(--claude-soft); }
+.tag.antigravity { color: var(--antigravity); border-color: color-mix(in oklab, var(--antigravity) 24%, transparent); background: var(--antigravity-soft); }
 .tag.ok { color: var(--ok); border-color: color-mix(in oklab, var(--ok) 24%, transparent); background: color-mix(in oklab, var(--ok) 12%, transparent); }
 .tag.warn { color: var(--warn); border-color: color-mix(in oklab, var(--warn) 24%, transparent); background: var(--copilot-soft); }
 .tag.crit { color: var(--crit); border-color: color-mix(in oklab, var(--crit) 24%, transparent); background: var(--crit-soft); }
@@ -1026,6 +1029,8 @@ a { color: inherit; text-decoration: none; }
   --copilot-soft: rgba(180, 83, 9, 0.10);
   --claude: #B85A3E;
   --claude-soft: rgba(184, 90, 62, 0.10);
+  --antigravity: #6D28D9;
+  --antigravity-soft: rgba(109, 40, 217, 0.10);
 
   --ok: #047857;
   --warn: #B45309;

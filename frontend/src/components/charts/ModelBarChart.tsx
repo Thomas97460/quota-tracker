@@ -24,6 +24,7 @@ const PROVIDER_COLORS: Record<ProviderId, string> = {
   codex: "#10B981",
   copilot: "#F59E0B",
   claude: "#D97757",
+  antigravity: "#7C3AED",
 }
 
 export function ModelBarChart({

@@ -46,6 +46,7 @@
               codex
               github-copilot-cli
               claude-code
+              antigravity-cli
               go-task
             ];
 

@@ -158,7 +158,7 @@ def register_routes(
     def patch_provider(provider_id: str, payload: ProviderPatchRequest) -> dict[str, Any]:
         """Patch one provider configuration in DB."""
 
-        if provider_id not in {"gemini", "codex", "copilot", "claude"}:
+        if provider_id not in {"gemini", "codex", "copilot", "claude", "antigravity"}:
             raise HTTPException(status_code=404, detail="provider not found")
         conn = connect_db(str(db_path))
         try:
@@ -209,6 +209,37 @@ def register_routes(
         runner.reset_high_water_marks(provider_id)
         summary = runner.run_scan(provider=provider_id, full=True)
         return {"ok": True, "summary": summary.__dict__}
+
+    @app.get("/api/quotas/latest")
+    def quotas_latest(provider_id: str | None = None) -> dict[str, Any]:
+        """Return the absolute latest quota value for each provider and quota_name."""
+        conn = connect_db(str(db_path))
+        try:
+            apply_migrations(conn)
+            query = """
+                SELECT provider_id, quota_name, source, timestamp, 
+                       used_percent, remaining_percent, window_minutes, resets_at, raw_data
+                FROM quota_history
+                WHERE (provider_id, quota_name, timestamp) IN (
+                    SELECT provider_id, quota_name, MAX(timestamp)
+                    FROM quota_history
+                    GROUP BY provider_id, quota_name
+                )
+            """
+            params: list[Any] = []
+            if provider_id:
+                query += " AND provider_id = ?"
+                params.append(provider_id)
+            rows = conn.execute(query, tuple(params)).fetchall()
+            # If multiple rows have the same exact max timestamp for a name, deduplicate in memory
+            deduped: dict[tuple[str, str], dict[str, Any]] = {}
+            for row in rows:
+                key = (row["provider_id"], row["quota_name"])
+                if key not in deduped or row["timestamp"] > deduped[key]["timestamp"]:
+                    deduped[key] = dict(row)
+            return {"items": list(deduped.values())}
+        finally:
+            conn.close()
 
     @app.get("/api/quotas")
     def quotas(

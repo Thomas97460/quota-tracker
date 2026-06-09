@@ -48,6 +48,7 @@
     "total_tokens"
   ],
   "config_top_keys": [
+    "antigravity",
     "claude",
     "codex",
     "copilot",

@@ -7,21 +7,22 @@ import { latestQuotas } from "../../utils"
 import type { ProviderId } from "../../types"
 import { rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas } from "../ui/QuotaPanel"
 
-const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude"]
+const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude", "antigravity"]
 
 const PROVIDER_NAMES: Record<ProviderId, string> = {
   gemini: "Gemini",
   codex: "Codex",
   copilot: "Copilot",
   claude: "Claude",
+  antigravity: "Antigravity",
 }
 
-// Logo paths — claude uses claude-code.png
 const PROVIDER_LOGOS: Record<ProviderId, string> = {
   gemini: "/logos/gemini.png",
   codex: "/logos/codex.png",
   copilot: "/logos/copilot.png",
   claude: "/logos/claude-code.png",
+  antigravity: "/logos/antigravity.svg",
 }
 
 function LogoMark(): React.JSX.Element {
@@ -171,7 +172,9 @@ export function Sidebar(): React.JSX.Element {
           let providerQuotas = latest.filter((q) => q.provider_id === id)
           if (id === "claude") providerQuotas = filterClaudeQuotas(providerQuotas)
           else if (id === "copilot") providerQuotas = filterCopilotQuotas(providerQuotas)
-          else if (id === "gemini") providerQuotas = rollupGeminiQuotas(providerQuotas)
+          else if (id === "gemini" || id === "antigravity") {
+            providerQuotas = rollupGeminiQuotas(providerQuotas)
+          }
 
           const worst =
             providerQuotas.length > 0

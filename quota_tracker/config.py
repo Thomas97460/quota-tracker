@@ -81,6 +81,29 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "gemini:gemini-2.5-pro": ModelPricing(input_1m=2.25, cached_1m=0.23, output_1m=18.00),
         "gemini:gemini-2.5-flash": ModelPricing(input_1m=0.54, cached_1m=0.05, output_1m=4.50),
         "gemini:gemini-2.5-flash-lite": ModelPricing(input_1m=0.18, cached_1m=0.02, output_1m=0.72),
+        "antigravity:gemini-3.1-pro-preview": ModelPricing(
+            input_1m=3.60, cached_1m=0.36, output_1m=21.60
+        ),
+        "antigravity:gemini-3.1-pro": ModelPricing(input_1m=3.60, cached_1m=0.36, output_1m=21.60),
+        "antigravity:gemini-3-pro-preview": ModelPricing(
+            input_1m=3.60, cached_1m=0.36, output_1m=21.60
+        ),
+        "antigravity:gemini-3-flash-preview": ModelPricing(
+            input_1m=0.90, cached_1m=0.09, output_1m=5.40
+        ),
+        "antigravity:gemini-3.5-flash": ModelPricing(input_1m=0.90, cached_1m=0.09, output_1m=5.40),
+        "antigravity:gemini-3.1-flash-lite-preview": ModelPricing(
+            input_1m=0.45, cached_1m=0.045, output_1m=2.70
+        ),
+        "antigravity:gemini-2.5-pro": ModelPricing(input_1m=2.25, cached_1m=0.23, output_1m=18.00),
+        "antigravity:gemini-2.5-flash": ModelPricing(input_1m=0.54, cached_1m=0.05, output_1m=4.50),
+        "antigravity:gemini-2.5-flash-lite": ModelPricing(
+            input_1m=0.18, cached_1m=0.02, output_1m=0.72
+        ),
+        "antigravity:claude-opus-4.6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
+        "antigravity:claude-opus-4.8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
+        "antigravity:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
+        "antigravity:gpt-oss": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=8.00),
         # GitHub Copilot
         "copilot:gpt-4.1": ModelPricing(input_1m=2.00, cached_1m=0.50, output_1m=8.00),
         "copilot:gpt-5-mini": ModelPricing(input_1m=0.25, cached_1m=0.025, output_1m=2.00),
@@ -127,13 +150,16 @@ class AppConfig(BaseModel):
     codex: ProviderConfig = Field(default_factory=lambda: ProviderConfig(home_path="~/.codex"))
     copilot: ProviderConfig = Field(default_factory=lambda: ProviderConfig(home_path="~/.copilot"))
     claude: ProviderConfig = Field(default_factory=lambda: ProviderConfig(home_path="~/.claude"))
+    antigravity: ProviderConfig = Field(
+        default_factory=lambda: ProviderConfig(home_path="~/.gemini/antigravity-cli")
+    )
     pricing: dict[str, ModelPricing] = Field(default_factory=get_default_pricing)
 
 
 def _force_active_probe_enabled(config: AppConfig) -> AppConfig:
     """Keep active quota probes mandatory for every provider."""
 
-    for provider in ("gemini", "codex", "copilot", "claude"):
+    for provider in ("gemini", "codex", "copilot", "claude", "antigravity"):
         getattr(config, provider).active_probe_enabled = True
     return config
 
