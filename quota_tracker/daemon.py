@@ -35,7 +35,7 @@ from quota_tracker.providers import (
 
 LOGGER = logging.getLogger(__name__)
 PROVIDERS = ("gemini", "codex", "copilot", "claude", "antigravity")
-AUTO_PROBE_PROVIDERS = ("gemini", "codex", "copilot", "claude", "antigravity")
+AUTO_PROBE_PROVIDERS = ("gemini", "codex", "copilot", "claude")
 
 
 @dataclass(frozen=True)

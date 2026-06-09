@@ -175,6 +175,12 @@ def test_api_endpoints_and_static_fallback(tmp_path: Path, monkeypatch: pytest.M
 
     assert client.get("/api/quotas", params={"order": "asc"}).status_code == 200
     assert client.get("/api/quotas", params={"order": "bad"}).status_code == 400
+
+    latest_resp = client.get("/api/quotas/latest")
+    assert latest_resp.status_code == 200
+    assert "items" in latest_resp.json()
+    assert client.get("/api/quotas/latest", params={"provider_id": "codex"}).status_code == 200
+
     assert client.get("/api/token-usage/by-project").status_code == 200
     assert (
         client.get(

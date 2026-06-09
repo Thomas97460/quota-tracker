@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import sqlite3
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -12,20 +13,10 @@ from quota_tracker.db import QuotaRecord
 from quota_tracker.providers.base import (
     PassiveSyncResult,
     ProviderMetadata,
-    normalize_quota,
     normalize_session,
+    normalize_token_usage,
 )
-from quota_tracker.providers.gemini import _get_access_token, _project_from_env
-from quota_tracker.providers.http import post_json
 
-_CODE_ASSIST_ENDPOINT = "https://daily-cloudcode-pa.googleapis.com"
-_CODE_ASSIST_API_VERSION = "v1internal"
-_CODE_ASSIST_METADATA: dict[str, str] = {
-    "ideType": "IDE_UNSPECIFIED",
-    "platform": "PLATFORM_UNSPECIFIED",
-    # The Antigravity backend currently accepts the same public enum used by Gemini CLI.
-    "pluginType": "GEMINI",
-}
 _PASSIVE_SCAN_MARK_VERSION = 1
 _LOG_TS_RE = re.compile(
     r"^[IWEF](?P<month>\d{2})(?P<day>\d{2}) "
@@ -40,62 +31,6 @@ _CONVERSATION_RE = re.compile(r"Created conversation ([0-9a-fA-F-]+)")
 _PRINT_CONVERSATION_RE = re.compile(r"Print mode: conversation=([0-9a-fA-F-]+),")
 
 
-def _code_assist_url(method: str) -> str:
-    """Build a Code Assist API endpoint URL for Antigravity."""
-
-    return f"{_CODE_ASSIST_ENDPOINT.rstrip('/')}/{_CODE_ASSIST_API_VERSION}:{method}"
-
-
-def _metadata_for_project(project: str | None) -> dict[str, str]:
-    """Build Code Assist metadata, including duetProject when project-scoped."""
-
-    metadata = dict(_CODE_ASSIST_METADATA)
-    if project:
-        metadata["duetProject"] = project
-    return metadata
-
-
-def _retrieve_quota_buckets(
-    token: str, project: str, timeout_seconds: int = 20
-) -> list[dict[str, Any]]:
-    """Call retrieveUserQuota and return normalized Antigravity quota buckets."""
-
-    result = post_json(
-        _code_assist_url("retrieveUserQuota"),
-        {"project": project},
-        bearer_token=token,
-        timeout_seconds=timeout_seconds,
-    )
-    raw = result.get("buckets")
-    if not isinstance(raw, list):
-        return []
-    out: list[dict[str, Any]] = []
-    for bucket in raw:
-        if not isinstance(bucket, dict):
-            continue
-        model_id = bucket.get("modelId")
-        token_type = bucket.get("tokenType")
-        if not model_id or not token_type:
-            continue
-        rf = bucket.get("remainingFraction")
-        try:
-            rf_float = float(rf) if rf is not None else None
-        except (TypeError, ValueError):
-            rf_float = None
-        out.append(
-            {
-                "model_id": str(model_id),
-                "token_type": str(token_type),
-                "reset_time": bucket.get("resetTime"),
-                "remaining_percent": round(rf_float * 100, 4) if rf_float is not None else None,
-                "used_percent": (
-                    round((1.0 - rf_float) * 100, 4) if rf_float is not None else None
-                ),
-            }
-        )
-    return out
-
-
 def _model_label_to_id(label: str | None) -> str | None:
     """Normalize UI model labels like 'Gemini 3.5 Flash (High)' to a stable id."""
 
@@ -104,6 +39,82 @@ def _model_label_to_id(label: str | None) -> str | None:
     base = re.sub(r"\s*\([^)]*\)\s*$", "", label.strip())
     model = re.sub(r"[^a-z0-9.]+", "-", base.lower()).strip("-")
     return model or None
+
+
+def _normalize_model_name(name: str | None) -> str | None:
+    """Map observed Antigravity CLI model names or labels to stable config IDs."""
+
+    if not name:
+        return None
+    name_lower = name.lower().strip()
+    if "claude-opus-4.6" in name_lower or "claude-opus-4-6" in name_lower:
+        return "claude-opus-4.6"
+    if "claude-opus-4.8" in name_lower or "claude-opus-4-8" in name_lower:
+        return "claude-opus-4.8"
+    if "claude-sonnet-4" in name_lower or "claude-sonnet-4" in name_lower:
+        return "claude-sonnet-4"
+    if "gpt-oss" in name_lower:
+        return "gpt-oss"
+    if "gemini-3.5-flash" in name_lower or "gemini-3-5-flash" in name_lower:
+        return "gemini-3.5-flash"
+    if (
+        "gemini-3.1-pro" in name_lower
+        or "gemini-3-1-pro" in name_lower
+        or name_lower == "gemini-pro-default"
+    ):
+        return "gemini-3.1-pro"
+
+    normalized = _model_label_to_id(name)
+    if normalized:
+        if "claude-opus-4-6" in normalized or "claude-opus-4.-6" in normalized:
+            return "claude-opus-4.6"
+        if "claude-opus-4-8" in normalized or "claude-opus-4.-8" in normalized:
+            return "claude-opus-4.8"
+    return normalized
+
+
+def _read_varint(data: bytes, pos: int) -> tuple[int, int]:
+    """Parse a single protobuf varint from data starting at pos."""
+
+    val = 0
+    shift = 0
+    while True:
+        byte = data[pos]
+        val |= (byte & 0x7F) << shift
+        pos += 1
+        if not (byte & 0x80):
+            break
+        shift += 7
+    return val, pos
+
+
+def _parse_proto(data: bytes) -> dict[int, Any]:
+    """Partially decode a raw protobuf message into field dictionary."""
+
+    pos = 0
+    res: dict[int, Any] = {}
+    while pos < len(data):
+        try:
+            val, pos = _read_varint(data, pos)
+            wt = val & 7
+            fn = val >> 3
+            if wt == 0:
+                v, pos = _read_varint(data, pos)
+                res[fn] = v
+            elif wt == 2:
+                length, pos = _read_varint(data, pos)
+                val_bytes = data[pos : pos + length]
+                pos += length
+                res[fn] = val_bytes
+            elif wt == 1:
+                pos += 8
+            elif wt == 5:
+                pos += 4
+            else:
+                break
+        except Exception:
+            break
+    return res
 
 
 def _file_mtime_iso(path: Path) -> str:
@@ -148,7 +159,7 @@ class AntigravityProvider:
     """Antigravity CLI passive sync and active probe."""
 
     metadata = ProviderMetadata(
-        "antigravity", "Antigravity", "~/.gemini/antigravity-cli", True, True
+        "antigravity", "Antigravity", "~/.gemini/antigravity-cli", False, True
     )
 
     def __init__(self, home: str, project_id: str | None = None):
@@ -201,7 +212,7 @@ class AntigravityProvider:
         ):
             if path.is_file():
                 files.add(path)
-        for pattern in ("log/*.log", "conversations/*.pb"):
+        for pattern in ("log/*.log", "conversations/*.pb", "conversations/*.db"):
             files.update(p for p in self.home.glob(pattern) if p.is_file())
         return sorted(files)
 
@@ -377,12 +388,122 @@ class AntigravityProvider:
         )
         return 0
 
+    def _parse_conversation_db(
+        self,
+        path: Path,
+        drafts: dict[str, dict[str, Any]],
+        token_usages: list[dict[str, Any]],
+        default_model: str | None,
+    ) -> int:
+        conversation_id = path.stem
+        ts_init = _file_mtime_iso(path)
+        self._add_session(
+            drafts,
+            conversation_id=conversation_id,
+            model_name=default_model,
+            project_path=None,
+            created_at=ts_init,
+            last_seen_at=ts_init,
+            metadata={"source": "conversation_db", "source_file": str(path)},
+        )
+
+        failures = 0
+        try:
+            uri = f"file:{path}?mode=ro"
+            conn = sqlite3.connect(uri, uri=True)
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='gen_metadata';"
+            )
+            if not cursor.fetchone():
+                conn.close()
+                return 0
+            cursor.execute("SELECT idx, data FROM gen_metadata ORDER BY idx ASC;")
+            rows = cursor.fetchall()
+            conn.close()
+        except Exception:
+            return 1
+
+        for idx, blob in rows:
+            if not isinstance(blob, bytes):
+                continue
+            try:
+                root = _parse_proto(blob)
+                ts_iso = None
+                if 4 in root and isinstance(root[4], bytes):
+                    ts_proto = _parse_proto(root[4])
+                    seconds = ts_proto.get(1)
+                    if isinstance(seconds, int):
+                        ts_iso = datetime.fromtimestamp(seconds, tz=UTC).isoformat()
+
+                if not ts_iso:
+                    ts_iso = ts_init
+
+                model_name = default_model
+                if 1 in root and isinstance(root[1], bytes):
+                    sub = _parse_proto(root[1])
+                    model_label = None
+                    if 21 in sub and isinstance(sub[21], bytes):
+                        try:
+                            model_label = sub[21].decode("utf-8", errors="ignore")
+                        except Exception:
+                            pass
+
+                    model_key = None
+                    if 19 in sub and isinstance(sub[19], bytes):
+                        try:
+                            model_key = sub[19].decode("utf-8", errors="ignore")
+                        except Exception:
+                            pass
+
+                    candidate_model = model_label or model_key or default_model
+                    model_name = _normalize_model_name(candidate_model) or default_model
+
+                    if 4 in sub and isinstance(sub[4], bytes):
+                        tok = _parse_proto(sub[4])
+                        input_tok = tok.get(9)
+                        output_tok = tok.get(10)
+
+                        event_id_bytes = tok.get(11)
+                        if isinstance(event_id_bytes, bytes):
+                            event_id = event_id_bytes.decode("utf-8", errors="ignore")
+                        else:
+                            event_id = f"{conversation_id}_{idx}"
+
+                        if isinstance(input_tok, int) or isinstance(output_tok, int):
+                            normalized_usage = normalize_token_usage(
+                                provider_id="antigravity",
+                                external_session_id=conversation_id,
+                                external_event_id=event_id,
+                                timestamp=ts_iso,
+                                model_name=model_name,
+                                raw_metadata={"idx": idx},
+                                input_tokens=input_tok,
+                                output_tokens=output_tok,
+                            )
+                            token_usages.append(normalized_usage)
+
+                self._add_session(
+                    drafts,
+                    conversation_id=conversation_id,
+                    model_name=model_name,
+                    project_path=None,
+                    created_at=ts_iso,
+                    last_seen_at=ts_iso,
+                    metadata={"source": "conversation_db", "source_file": str(path)},
+                )
+            except Exception:
+                failures += 1
+
+        return failures
+
     def _scan(self, high_water_marks: dict[str, Any] | None = None) -> PassiveSyncResult:
         """Run full or incremental passive scan depending on high-water marks."""
 
         high_water_marks = high_water_marks or {}
         drafts: dict[str, dict[str, Any]] = {}
         marks: dict[str, Any] = {}
+        token_usages: list[dict[str, Any]] = []
         failures = 0
         default_model = self._load_default_model()
 
@@ -400,6 +521,8 @@ class AntigravityProvider:
                 failures += self._parse_log(path, drafts, default_model)
             elif path.suffix == ".pb":
                 failures += self._parse_conversation_file(path, drafts, default_model)
+            elif path.suffix == ".db":
+                failures += self._parse_conversation_db(path, drafts, token_usages, default_model)
             marks[key] = mark
 
         sessions = []
@@ -417,7 +540,7 @@ class AntigravityProvider:
                     metadata=draft.get("metadata", {}),
                 )
             )
-        return PassiveSyncResult(sessions, [], [], marks, failures)
+        return PassiveSyncResult(sessions, token_usages, [], marks, failures)
 
     def passive_scan_full(self) -> PassiveSyncResult:
         """Run a full passive scan."""
@@ -430,47 +553,76 @@ class AntigravityProvider:
         return self._scan(high_water_marks)
 
     def active_probe(self) -> list[QuotaRecord]:
-        """Run active Antigravity quota probe using local Google OAuth credentials."""
+        """Run active Antigravity quota probe by calling the local language server daemon."""
 
-        oauth_path = self._gemini_home() / "oauth_creds.json"
-        if not oauth_path.exists():
-            return []
-        try:
-            creds = json.loads(oauth_path.read_text(encoding="utf-8", errors="replace"))
-        except Exception:
-            return []
-        if not isinstance(creds, dict):
-            return []
-        try:
-            token = _get_access_token(creds)
-            if not token:
-                return []
-            explicit_project = self.project_id or _project_from_env()
-            load_result = post_json(
-                _code_assist_url("loadCodeAssist"),
-                {
-                    "cloudaicompanionProject": explicit_project,
-                    "metadata": _metadata_for_project(explicit_project),
-                },
-                bearer_token=token,
+        import json
+        import re
+        import urllib.request
+        from quota_tracker.providers.base import normalize_quota
+
+        port: int | None = None
+        log_dir = self.home / "log"
+        if log_dir.exists():
+            log_files = sorted(
+                (p for p in log_dir.glob("cli-*.log") if p.is_file()),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True,
             )
-            project = load_result.get("cloudaicompanionProject") or explicit_project
-            if not isinstance(project, str) or not project:
-                return []
-            buckets = _retrieve_quota_buckets(token, project)
+            for path in log_files:
+                try:
+                    content = path.read_text(encoding="utf-8", errors="replace")
+                    matches = re.findall(
+                        r"Language server listening on random port at (\d+) for HTTP", content
+                    )
+                    if matches:
+                        port = int(matches[-1])
+                        break
+                except Exception:
+                    continue
+
+        if not port:
+            return []
+
+        try:
+            req = urllib.request.Request(
+                f"http://127.0.0.1:{port}/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary",
+                data=b"{}",
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="replace"))
         except Exception:
             return []
+
+        if not isinstance(data, dict):
+            return []
+
+        buckets = data.get("response", {}).get("buckets", [])
+        if not buckets and "buckets" in data:
+            buckets = data["buckets"]
+
+        records: list[QuotaRecord] = []
         now = datetime.now(UTC).isoformat()
-        return [
-            normalize_quota(
-                provider_id="antigravity",
-                quota_name=f"{b['model_id']}/{b['token_type']}",
-                timestamp=now,
-                source="active_probe",
-                raw_metadata={"model_id": b["model_id"], "token_type": b["token_type"]},
-                remaining_percent=b.get("remaining_percent"),
-                used_percent=b.get("used_percent"),
-                resets_at=b.get("reset_time"),
+        for b in buckets:
+            bucket_id = b.get("bucketId")
+            if not bucket_id:
+                continue
+            rf_float = float(b.get("remainingFraction", 0))
+            reset_time = b.get("resetTime")
+
+            records.append(
+                normalize_quota(
+                    provider_id="antigravity",
+                    quota_name=bucket_id,
+                    timestamp=now,
+                    source="active_probe",
+                    raw_metadata=b,
+                    used_percent=round((1.0 - rf_float) * 100, 4),
+                    remaining_percent=round(rf_float * 100, 4),
+                    window_minutes=None,
+                    resets_at=reset_time,
+                )
             )
-            for b in buckets
-        ]
+
+        return records

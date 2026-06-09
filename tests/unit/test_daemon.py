@@ -314,7 +314,7 @@ def test_tick_due_thresholds_and_missing_provider_rows(
     )
     monkeypatch.setattr(service, "run_probe", lambda provider="all": calls.append("probe"))
     service.tick()
-    assert calls == ["scan", "probe", "probe", "probe", "probe", "probe"]
+    assert calls == ["scan", "probe", "probe", "probe", "probe"]
 
     service.set_provider_enabled("copilot", True)
     service.reset_high_water_marks("copilot")
