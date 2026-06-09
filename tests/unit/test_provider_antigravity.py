@@ -206,7 +206,10 @@ def test_antigravity_active_probe_success(tmp_path: Path, monkeypatch: pytest.Mo
     home = tmp_path / ".gemini" / "antigravity-cli"
     (home / "log").mkdir(parents=True)
     (home / "log" / "cli-20260531_142919.log").write_text(
-        "I0531 14:29:19 14328 server.go:747] Language server listening on random port at 12345 for HTTP\n",
+        (
+            "I0531 14:29:19 14328 server.go:747] "
+            "Language server listening on random port at 12345 for HTTP\n"
+        ),
         encoding="utf-8",
     )
 
@@ -240,7 +243,9 @@ def test_antigravity_active_probe_success(tmp_path: Path, monkeypatch: pytest.Mo
     assert records[0].used_percent == 75.0
     assert records[0].resets_at == "2026-06-08T16:52:41Z"
 
-def test_antigravity_active_probe_conn_error(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_antigravity_active_probe_conn_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     home = tmp_path / ".gemini" / "antigravity-cli"
     (home / "log").mkdir(parents=True)
     (home / "log" / "cli-20260531_142919.log").write_text(
