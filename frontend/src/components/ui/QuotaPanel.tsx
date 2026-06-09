@@ -131,7 +131,7 @@ export function displayLabel(providerId: ProviderId, quotaName: string): string 
     if (quotaName === "secondary") return "Weekly"
     return quotaName
   }
-  if (providerId === "gemini" || providerId === "antigravity") {
+  if (providerId === "gemini") {
     const label = GEMINI_FAMILY_LABEL[quotaName as GeminiFamily]
     if (label) return label
     const lower = quotaName.toLowerCase()
@@ -139,6 +139,13 @@ export function displayLabel(providerId: ProviderId, quotaName: string): string 
     if (lower.includes("sonnet")) return "Claude Sonnet"
     if (lower.includes("gpt-oss") || lower.includes("gpt_oss")) return "GPT OSS"
     if (lower.includes("gpt")) return "GPT"
+    return quotaName
+  }
+  if (providerId === "antigravity") {
+    if (quotaName === "gemini-weekly") return "Gemini (Pro/Flash) · Weekly"
+    if (quotaName === "gemini-5h") return "Gemini (Pro/Flash) · 5 Hours"
+    if (quotaName === "3p-weekly") return "Claude & GPT-OSS · Weekly"
+    if (quotaName === "3p-5h") return "Claude & GPT-OSS · 5 Hours"
     return quotaName
   }
   if (providerId === "claude") {
@@ -187,8 +194,18 @@ export function QuotaPanel({
   let visible: QuotaRow[]
   if (providerId === "copilot") {
     visible = sortQuotasBiggestFirst(providerId, filterCopilotQuotas(latest))
-  } else if (providerId === "gemini" || providerId === "antigravity") {
+  } else if (providerId === "gemini") {
     visible = rollupGeminiQuotas(latest)
+  } else if (providerId === "antigravity") {
+    const ORDER: Record<string, number> = {
+      "gemini-weekly": 1,
+      "gemini-5h": 2,
+      "3p-weekly": 3,
+      "3p-5h": 4,
+    }
+    visible = latest
+      .filter((q) => q.quota_name in ORDER)
+      .sort((a, b) => ORDER[a.quota_name] - ORDER[b.quota_name])
   } else if (providerId === "codex") {
     visible = sortQuotasBiggestFirst(providerId, latest)
   } else if (providerId === "claude") {
