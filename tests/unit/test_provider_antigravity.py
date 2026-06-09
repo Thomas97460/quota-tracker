@@ -202,6 +202,7 @@ def test_antigravity_passive_scan_db(tmp_path: Path) -> None:
     assert usage["input_tokens"] == 100
     assert usage["output_tokens"] == 50
 
+
 def test_antigravity_active_probe_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / ".gemini" / "antigravity-cli"
     (home / "log").mkdir(parents=True)
@@ -215,24 +216,31 @@ def test_antigravity_active_probe_success(tmp_path: Path, monkeypatch: pytest.Mo
 
     class MockResponse:
         def read(self) -> bytes:
-            return json.dumps({
-                "response": {
-                    "buckets": [
-                        {
-                            "bucketId": "gemini-1.5-pro",
-                            "remainingFraction": 0.25,
-                            "resetTime": "2026-06-08T16:52:41Z"
-                        }
-                    ]
+            return json.dumps(
+                {
+                    "response": {
+                        "buckets": [
+                            {
+                                "bucketId": "gemini-1.5-pro",
+                                "remainingFraction": 0.25,
+                                "resetTime": "2026-06-08T16:52:41Z",
+                            }
+                        ]
+                    }
                 }
-            }).encode("utf-8")
-        def __enter__(self) -> MockResponse: return self
-        def __exit__(self, *args: Any) -> None: pass
+            ).encode("utf-8")
+
+        def __enter__(self) -> MockResponse:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
 
     def mock_urlopen(*args: Any, **kwargs: Any) -> MockResponse:
         return MockResponse()
 
     import urllib.request
+
     monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
 
     provider = AntigravityProvider(str(home))
@@ -242,6 +250,7 @@ def test_antigravity_active_probe_success(tmp_path: Path, monkeypatch: pytest.Mo
     assert records[0].remaining_percent == 25.0
     assert records[0].used_percent == 75.0
     assert records[0].resets_at == "2026-06-08T16:52:41Z"
+
 
 def test_antigravity_active_probe_conn_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -257,6 +266,7 @@ def test_antigravity_active_probe_conn_error(
         raise Exception("Connection refused")
 
     import urllib.request
+
     monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
 
     provider = AntigravityProvider(str(home))
