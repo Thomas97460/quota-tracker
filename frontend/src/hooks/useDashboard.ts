@@ -138,7 +138,7 @@ export function useDashboard(
     const calls: Promise<unknown>[] = [
       apiGet<{ providers: ProviderSummary[] }>("/api/providers"),
       apiGet<{ items: QuotaRow[] }>(
-        `/api/quotas${buildQuery({ provider_id: providerId, limit: 200 })}`,
+        `/api/quotas/latest${buildQuery({ provider_id: providerId })}`,
       ),
       // Fetch the newest points first, then sort ascending for chart rendering.
       apiGet<{ items: QuotaRow[] }>(
