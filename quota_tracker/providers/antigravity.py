@@ -47,6 +47,10 @@ def _normalize_model_name(name: str | None) -> str | None:
     if not name:
         return None
     name_lower = name.lower().strip()
+    if "claude-fable-5" in name_lower:
+        return "claude-fable-5"
+    if "claude-mythos-5" in name_lower:
+        return "claude-mythos-5"
     if "claude-opus-4.6" in name_lower or "claude-opus-4-6" in name_lower:
         return "claude-opus-4.6"
     if "claude-opus-4.8" in name_lower or "claude-opus-4-8" in name_lower:
@@ -66,6 +70,10 @@ def _normalize_model_name(name: str | None) -> str | None:
 
     normalized = _model_label_to_id(name)
     if normalized:
+        if "claude-fable-5" in normalized:
+            return "claude-fable-5"
+        if "claude-mythos-5" in normalized:
+            return "claude-mythos-5"
         if "claude-opus-4-6" in normalized or "claude-opus-4.-6" in normalized:
             return "claude-opus-4.6"
         if "claude-opus-4-8" in normalized or "claude-opus-4.-8" in normalized:
