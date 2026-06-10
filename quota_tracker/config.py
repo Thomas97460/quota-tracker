@@ -103,7 +103,9 @@ def get_default_pricing() -> dict[str, ModelPricing]:
             input_1m=0.18, cached_1m=0.02, output_1m=0.72
         ),
         "antigravity:claude-fable-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
-        "antigravity:claude-mythos-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
+        "antigravity:claude-mythos-5": ModelPricing(
+            input_1m=10.00, cached_1m=1.00, output_1m=50.00
+        ),
         "antigravity:claude-opus-4.6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-opus-4.8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
