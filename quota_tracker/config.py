@@ -34,7 +34,7 @@ class ModelPricing(BaseModel):
 
 
 def get_default_pricing() -> dict[str, ModelPricing]:
-    """Return default pricing for known models as of 2026-05-31."""
+    """Return default pricing for known models as of 2026-07-09."""
 
     # Key format: "provider_id:model_name"
     # Prices are per 1M tokens in USD
@@ -63,10 +63,11 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "claude:claude-opus-4-6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-1": ModelPricing(input_1m=15.00, cached_1m=1.50, output_1m=75.00),
+        "claude:claude-sonnet-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "claude:claude-sonnet-4-6": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "claude:claude-sonnet-4-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "claude:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
-        "claude:claude-haiku-4.5": ModelPricing(input_1m=1.00, cached_1m=0.10, output_1m=5.00),
+        "claude:claude-haiku-4-5": ModelPricing(input_1m=1.00, cached_1m=0.10, output_1m=5.00),
         "claude:claude-haiku-3.5": ModelPricing(input_1m=0.80, cached_1m=0.08, output_1m=4.00),
         "claude:claude-haiku-3": ModelPricing(input_1m=0.25, cached_1m=0.03, output_1m=1.25),
         # Google Gemini
@@ -107,8 +108,10 @@ def get_default_pricing() -> dict[str, ModelPricing]:
             input_1m=10.00, cached_1m=1.00, output_1m=50.00
         ),
         "antigravity:claude-opus-4.6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
+        "antigravity:claude-opus-4.7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-opus-4.8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
+        "antigravity:claude-sonnet-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "antigravity:gpt-oss": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=8.00),
         # GitHub Copilot
         "copilot:gpt-4.1": ModelPricing(input_1m=2.00, cached_1m=0.50, output_1m=8.00),
@@ -120,10 +123,11 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "copilot:gpt-5.4-mini": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=4.50),
         "copilot:gpt-5.4-nano": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.25),
         "copilot:gpt-5.5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00),
-        "copilot:claude-haiku-4.5": ModelPricing(input_1m=1.00, cached_1m=0.10, output_1m=5.00),
+        "copilot:claude-haiku-4-5": ModelPricing(input_1m=1.00, cached_1m=0.10, output_1m=5.00),
         "copilot:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-sonnet-4-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-sonnet-4-6": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
+        "copilot:claude-sonnet-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-fable-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "copilot:claude-mythos-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "copilot:claude-opus-4-8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
