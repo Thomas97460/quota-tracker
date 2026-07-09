@@ -3,9 +3,11 @@
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
+    llm-agents.url = "github:numtide/llm-agents.nix";
+    llm-agents.inputs.nixpkgs.follows = "nixpkgs";
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, llm-agents }:
     let
       systems = [
         "x86_64-linux"
@@ -13,6 +15,7 @@
         "x86_64-darwin"
         "aarch64-darwin"
       ];
+
       forAllSystems = f: nixpkgs.lib.genAttrs systems (system: f system);
     in
     {
@@ -35,19 +38,23 @@
             inherit system;
             config.allowUnfree = true;
           };
+
+          llmAgents = llm-agents.packages.${system};
         in
         {
           default = pkgs.mkShell {
-            packages = with pkgs; [
-              (python314.withPackages (ps: [ ps.pip ]))
-              uv
-              nodejs
-              gemini-cli
-              codex
-              github-copilot-cli
-              claude-code
-              antigravity-cli
-              go-task
+            packages = [
+              (pkgs.python314.withPackages (ps: [ ps.pip ]))
+              pkgs.uv
+              pkgs.nodejs
+              pkgs.go-task
+
+              llmAgents.gemini-cli
+              llmAgents.codex
+              llmAgents.copilot-cli
+              llmAgents.claude-code
+              llmAgents.antigravity-cli
+              llmAgents.opencode
             ];
 
             shellHook = ''

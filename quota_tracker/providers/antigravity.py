@@ -53,8 +53,12 @@ def _normalize_model_name(name: str | None) -> str | None:
         return "claude-mythos-5"
     if "claude-opus-4.6" in name_lower or "claude-opus-4-6" in name_lower:
         return "claude-opus-4.6"
+    if "claude-opus-4.7" in name_lower or "claude-opus-4-7" in name_lower:
+        return "claude-opus-4.7"
     if "claude-opus-4.8" in name_lower or "claude-opus-4-8" in name_lower:
         return "claude-opus-4.8"
+    if "claude-sonnet-5" in name_lower:
+        return "claude-sonnet-5"
     if "claude-sonnet-4" in name_lower or "claude-sonnet-4" in name_lower:
         return "claude-sonnet-4"
     if "gpt-oss" in name_lower:
