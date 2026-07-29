@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.42] - 2026-07-29
+
+### Added
+- Added documented pricing for the GPT-5.6 Sol, Terra, and Luna model family.
+- Added Claude Opus 5 pricing for Claude and Antigravity usage.
+- Added Gemini 3.6 Flash, Gemini 3.5 Flash-Lite, and stable Gemini 3.1 Flash-Lite pricing.
+
+### Fixed
+- Corrected Gemini 3.5 Flash pricing and Antigravity model-label normalization.
+
 ## [0.1.39] - 2026-06-09
 
 ### Added

@@ -34,12 +34,16 @@ class ModelPricing(BaseModel):
 
 
 def get_default_pricing() -> dict[str, ModelPricing]:
-    """Return default pricing for known models as of 2026-07-09."""
+    """Return default pricing for known models as of 2026-07-29."""
 
     # Key format: "provider_id:model_name"
-    # Prices are per 1M tokens in USD
+    # Prices are per 1M tokens in USD.
     defaults = {
         # OpenAI (via Codex or future direct provider)
+        "codex:gpt-5.6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00),
+        "codex:gpt-5.6-sol": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00),
+        "codex:gpt-5.6-terra": ModelPricing(input_1m=2.50, cached_1m=0.25, output_1m=15.00),
+        "codex:gpt-5.6-luna": ModelPricing(input_1m=1.00, cached_1m=0.10, output_1m=6.00),
         "codex:gpt-5.5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00),
         "codex:gpt-5.5-pro": ModelPricing(input_1m=30.00, output_1m=180.00),
         "codex:gpt-5.4": ModelPricing(input_1m=2.50, cached_1m=0.25, output_1m=15.00),
@@ -58,6 +62,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         # Anthropic (Claude)
         "claude:claude-fable-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "claude:claude-mythos-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
+        "claude:claude-opus-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
@@ -81,6 +86,12 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "gemini:gemini-3.1-flash-lite-preview": ModelPricing(
             input_1m=0.45, cached_1m=0.045, output_1m=2.70
         ),
+        "gemini:gemini-3.6-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=7.50),
+        "gemini:gemini-3.5-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=9.00),
+        "gemini:gemini-3.5-flash-lite": ModelPricing(input_1m=0.30, cached_1m=0.03, output_1m=2.50),
+        "gemini:gemini-3.1-flash-lite": ModelPricing(
+            input_1m=0.25, cached_1m=0.025, output_1m=1.50
+        ),
         "gemini:gemini-2.5-pro": ModelPricing(input_1m=2.25, cached_1m=0.23, output_1m=18.00),
         "gemini:gemini-2.5-flash": ModelPricing(input_1m=0.54, cached_1m=0.05, output_1m=4.50),
         "gemini:gemini-2.5-flash-lite": ModelPricing(input_1m=0.18, cached_1m=0.02, output_1m=0.72),
@@ -94,7 +105,14 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "antigravity:gemini-3-flash-preview": ModelPricing(
             input_1m=0.90, cached_1m=0.09, output_1m=5.40
         ),
-        "antigravity:gemini-3.5-flash": ModelPricing(input_1m=0.90, cached_1m=0.09, output_1m=5.40),
+        "antigravity:gemini-3.6-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=7.50),
+        "antigravity:gemini-3.5-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=9.00),
+        "antigravity:gemini-3.5-flash-lite": ModelPricing(
+            input_1m=0.30, cached_1m=0.03, output_1m=2.50
+        ),
+        "antigravity:gemini-3.1-flash-lite": ModelPricing(
+            input_1m=0.25, cached_1m=0.025, output_1m=1.50
+        ),
         "antigravity:gemini-3.1-flash-lite-preview": ModelPricing(
             input_1m=0.45, cached_1m=0.045, output_1m=2.70
         ),
@@ -107,6 +125,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "antigravity:claude-mythos-5": ModelPricing(
             input_1m=10.00, cached_1m=1.00, output_1m=50.00
         ),
+        "antigravity:claude-opus-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-opus-4.6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-opus-4.7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-opus-4.8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
