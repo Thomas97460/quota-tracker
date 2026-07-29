@@ -51,6 +51,8 @@ def _normalize_model_name(name: str | None) -> str | None:
         return "claude-fable-5"
     if "claude-mythos-5" in name_lower:
         return "claude-mythos-5"
+    if "claude-opus-5" in name_lower:
+        return "claude-opus-5"
     if "claude-opus-4.6" in name_lower or "claude-opus-4-6" in name_lower:
         return "claude-opus-4.6"
     if "claude-opus-4.7" in name_lower or "claude-opus-4-7" in name_lower:
@@ -63,6 +65,8 @@ def _normalize_model_name(name: str | None) -> str | None:
         return "claude-sonnet-4"
     if "gpt-oss" in name_lower:
         return "gpt-oss"
+    if "gemini-3.5-flash-lite" in name_lower or "gemini-3-5-flash-lite" in name_lower:
+        return "gemini-3.5-flash-lite"
     if "gemini-3.5-flash" in name_lower or "gemini-3-5-flash" in name_lower:
         return "gemini-3.5-flash"
     if (

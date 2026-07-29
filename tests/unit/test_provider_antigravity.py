@@ -9,7 +9,19 @@ from typing import Any
 
 import pytest
 
-from quota_tracker.providers.antigravity import AntigravityProvider
+from quota_tracker.providers.antigravity import AntigravityProvider, _normalize_model_name
+
+
+@pytest.mark.parametrize(
+    ("label", "expected"),
+    [
+        ("Gemini 3.6 Flash (High)", "gemini-3.6-flash"),
+        ("Gemini 3.5 Flash-Lite", "gemini-3.5-flash-lite"),
+        ("Claude Opus 5 (Thinking)", "claude-opus-5"),
+    ],
+)
+def test_normalize_latest_model_labels(label: str, expected: str) -> None:
+    assert _normalize_model_name(label) == expected
 
 
 def test_antigravity_passive_scan_reads_history_logs_and_conversations(tmp_path: Path) -> None:
