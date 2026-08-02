@@ -11,8 +11,8 @@ permissions:
 jobs:
   # ── enforce Conventional Commits on the PR title ─────────────────────────────
   # Required because the repo squash-merges: the PR title becomes the single
-  # commit message on main, which release-please then parses to decide the next
-  # version and changelog section.
+  # commit message on main, keeping `git log main` a readable changelog on its
+  # own — no separate changelog generation needed.
   lint-pr-title:
     name: lint-pr-title
     runs-on: ubuntu-latest

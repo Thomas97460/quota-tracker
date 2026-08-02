@@ -78,17 +78,19 @@ We follow a standard Git Pull Request (PR) workflow, with `main` protected: no d
     If this command fails, you can run individual tasks like `task format`, `task lint`, or `task test` to identify and fix the specific issues.
 
 4.  **Open a Pull Request** with a [Conventional Commits](https://www.conventionalcommits.org/) title, e.g. `feat(api): add new provider`, `fix(frontend): correct y-axis clipping`, `chore(deps): bump fastapi`.
-    The repo **squash-merges only** — your PR title becomes the single commit message on `main`, and [release-please](https://github.com/googleapis/release-please) parses that history to compute the next version and changelog entry. A required check lints the PR title against Conventional Commits, so a malformed title blocks merge.
+    The repo **squash-merges only** — your PR title becomes the single commit message on `main`. There's no separate changelog to generate: `git log main` is already a readable history on its own, because every entry is a Conventional Commit title. A required check lints the PR title against Conventional Commits, so a malformed title blocks merge.
 
 5.  **Required checks before merge**: `ruff` (lint + format), `mypy` (strict), `interrogate` (docstring coverage ≥ 90%), `pytest` (coverage ≥ 90%), frontend build, PR title lint, and an **integration smoke test** that builds the real PyInstaller binary and hits `GET /api/health` — this catches packaging issues before they ever reach a tag. All are required status checks on `main`; none can be bypassed.
 
-6.  **Governance files require explicit sign-off before merge.** PRs touching `.github/`, `nix/`, `flake.nix`, `release-please-config.json`, `.release-please-manifest.json`, or `SECURITY.md` (see `.github/CODEOWNERS` for the exact list) are never auto-merged. This is enforced by convention rather than a GitHub-side required review: since the repo has a single owner and PRs opened by an agent acting on that owner's behalf are authored as that same account, GitHub's required-review check can never be satisfied (an account can't approve its own PR) — so instead, the agent must get an explicit go-ahead from the owner in conversation before merging any PR touching these paths, and never merges them purely because CI is green.
+6.  **Governance files require explicit sign-off before merge.** PRs touching `.github/`, `nix/`, `flake.nix`, `SECURITY.md`, `AGENTS.md`, or `CLAUDE.md` (see `.github/CODEOWNERS` for the exact list) are never auto-merged. This is enforced by convention rather than a GitHub-side required review: since the repo has a single owner and PRs opened by an agent acting on that owner's behalf are authored as that same account, GitHub's required-review check can never be satisfied (an account can't approve its own PR) — so instead, the agent must get an explicit go-ahead from the owner in conversation before merging any PR touching these paths, and never merges them purely because CI is green.
 
 ### Release process
 
-- `release-please` maintains a standing **release PR** on `main` (title `chore(release): X.Y.Z`) that bumps `pyproject.toml`'s version and updates `CHANGELOG.md` from the Conventional Commits merged since the last release.
-- **Merging that PR is the production-approval step.** There is no separate deploy click: once merged, `release-please` pushes the `vX.Y.Z` tag and creates the GitHub Release; `release.yml` then builds and attaches the Linux amd64/arm64 binaries. Only review that PR (version + changelog) like you would any release sign-off.
-- The `v*` tags are protected: only the release automation can create them, so nobody (human or agent) can hand-push a release tag directly.
+There is no release automation in this repo, by design:
+
+- Bump the version in `pyproject.toml` in a normal PR, merged like any other change — do this in a commit *before* tagging, since `nix/package.nix` reads the version straight from the committed file.
+- Once that's on `main`, **pushing a `vX.Y.Z` tag on that commit is itself the production-approval act**: `git tag vX.Y.Z <sha> && git push origin vX.Y.Z`. There is no PR to merge, no separate click — the tag push triggers `release.yml`, which builds and publishes the GitHub Release with both Linux binaries attached and auto-generated release notes.
+- The `v*` tags are protected against being moved or deleted (only the repository admin role can even create/update/delete one, and that's meant for this manual tag-push flow, not for rewriting history).
 - "Rollback" here means **repointing what `releases/latest` resolves to**, since `install.sh` and Nix installs both pull by tag rather than through a server you control: mark the previous good release as latest again (or `git tag` a new patch release) rather than trying to push a change to users' machines.
 
 ### Code Style & Guidelines

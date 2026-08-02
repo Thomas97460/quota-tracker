@@ -3,12 +3,10 @@
 # and the branch/tag rulesets checked into .github/rulesets/.
 #
 # Prerequisites:
-#   - `gh auth login` as an account with admin rights on this repo.
-#   - The RELEASE_PLEASE_TOKEN secret (a fine-grained PAT: Contents rw,
-#     Pull requests rw, Metadata ro) must already be set on the repo — see
-#     CONTRIBUTING.md. That PAT's owner needs the "admin" role bypass baked
-#     into tags.json (actor_id 5) to be able to push the release tags that
-#     release-please creates.
+#   - `gh auth login` as an account with admin rights on this repo. That
+#     account needs the "admin" role bypass baked into tags.json (actor_id 5)
+#     to be able to manually push release tags (see AGENTS.md: pushing a
+#     vX.Y.Z tag is the production-approval act itself).
 #
 # Idempotent: re-running updates existing rulesets in place instead of
 # creating duplicates.
