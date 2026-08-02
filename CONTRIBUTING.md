@@ -82,7 +82,7 @@ We follow a standard Git Pull Request (PR) workflow, with `main` protected: no d
 
 5.  **Required checks before merge**: `ruff` (lint + format), `mypy` (strict), `interrogate` (docstring coverage ≥ 90%), `pytest` (coverage ≥ 90%), frontend build, PR title lint, and an **integration smoke test** that builds the real PyInstaller binary and hits `GET /api/health` — this catches packaging issues before they ever reach a tag. All are required status checks on `main`; none can be bypassed.
 
-6.  **Governance files require a human review.** PRs touching `.github/`, `nix/`, `flake.nix`, `release-please-config.json`, `.release-please-manifest.json`, or `SECURITY.md` need a code-owner approval (see `.github/CODEOWNERS`) regardless of CI status — these control the workflow itself and are never auto-merged.
+6.  **Governance files require explicit sign-off before merge.** PRs touching `.github/`, `nix/`, `flake.nix`, `release-please-config.json`, `.release-please-manifest.json`, or `SECURITY.md` (see `.github/CODEOWNERS` for the exact list) are never auto-merged. This is enforced by convention rather than a GitHub-side required review: since the repo has a single owner and PRs opened by an agent acting on that owner's behalf are authored as that same account, GitHub's required-review check can never be satisfied (an account can't approve its own PR) — so instead, the agent must get an explicit go-ahead from the owner in conversation before merging any PR touching these paths, and never merges them purely because CI is green.
 
 ### Release process
 
