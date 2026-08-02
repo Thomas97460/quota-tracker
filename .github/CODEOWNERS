@@ -1,6 +1,9 @@
-# Governance-sensitive paths. Changes here always require a code-owner review,
-# even under the repo's auto-merge-on-green policy for regular PRs.
-# See CONTRIBUTING.md for the full workflow.
+# Governance-sensitive paths. Merging changes here always requires the human
+# owner's explicit go-ahead in conversation, even under the repo's
+# auto-merge-on-green policy for regular PRs. This is a procedural rule the
+# agent follows, not a GitHub-enforced review gate — see AGENTS.md and
+# CONTRIBUTING.md for why (GitHub can't block an account from approving its
+# own PR, and the agent shares the owner's GitHub identity).
 
 /.github/                          @Thomas97460
 /nix/                               @Thomas97460
@@ -8,3 +11,5 @@
 /release-please-config.json        @Thomas97460
 /.release-please-manifest.json     @Thomas97460
 /SECURITY.md                       @Thomas97460
+/AGENTS.md                         @Thomas97460
+/CLAUDE.md                         @Thomas97460
