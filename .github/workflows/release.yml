@@ -36,12 +36,6 @@ jobs:
           cache: "npm"
           cache-dependency-path: frontend/package-lock.json
 
-      - name: set version from tag
-        run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          echo "VERSION=${VERSION}" >> "$GITHUB_ENV"
-          sed -i "s/^version = .*/version = \"${VERSION}\"/" pyproject.toml
-
       - name: install python deps
         run: uv sync --extra dev --reinstall-package quota-tracker
 
@@ -103,7 +97,9 @@ jobs:
       - name: create github release
         uses: softprops/action-gh-release@v2
         with:
-          generate_release_notes: true
+          # release-please already created this release with the changelog as
+          # its body; append install instructions rather than overwriting it.
+          append_body: true
           files: |
             dist/release/quota-tracker-linux-amd64
             dist/release/quota-tracker-linux-amd64.sha256

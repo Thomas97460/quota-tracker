@@ -1,0 +1,31 @@
+name: Release Please
+
+on:
+  push:
+    branches: ["main"]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  # ── maintain the release PR; merging it is the human production-approval step ──
+  release-please:
+    name: release-please
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@v4
+        id: release
+        with:
+          # A PAT (not the default GITHUB_TOKEN) is required here: GitHub does not
+          # let a push authored by the default GITHUB_TOKEN trigger other workflows,
+          # and release.yml (which builds + publishes binaries) is triggered by the
+          # `v*` tag this step pushes. See CONTRIBUTING.md for how to mint this token.
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: log outcome
+        run: |
+          echo "release_created=${{ steps.release.outputs.release_created }}"
+          echo "tag_name=${{ steps.release.outputs.tag_name }}"
