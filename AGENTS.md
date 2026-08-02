@@ -1,5 +1,13 @@
 # Agent Guidelines — quota-tracker
 
+**Default to full autonomy.** Given a user request, the agent is expected to
+drive the entire git workflow itself end to end — branch, implement, validate
+locally, open the PR, watch CI, fix failures, and merge — without pausing to
+ask permission at each intermediate step. Asking before acting is the
+exception, reserved specifically for the items listed under "Hard stops"
+below (and only those); everything else in this document describes how to
+execute autonomously, not when to stop and check in.
+
 ## Commits
 
 Never add `Co-Authored-By` or any authorship trailer to commit messages.
