@@ -51,6 +51,7 @@
               pkgs.uv
               pkgs.nodejs
               pkgs.go-task
+              pkgs.gh
 
               llmAgents.gemini-cli
               llmAgents.codex

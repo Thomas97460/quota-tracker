@@ -84,16 +84,71 @@ jobs:
       - run: npm --prefix frontend ci
       - run: npm --prefix frontend run build
 
+  # ── build & smoke-test the packaged binary (integration gate) ─────────────────
+  # Builds the real release artifact and exercises it, so a broken PyInstaller
+  # package or frontend-embedding issue is caught on every PR/main push instead
+  # of only being discovered when release.yml runs at tag time.
+  integration-smoke:
+    name: integration smoke
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: uv sync --extra dev
+      - name: build frontend
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run build
+      - name: build binary
+        run: |
+          env -u PYTHONPATH uv run pyinstaller \
+            --noconfirm \
+            --onefile \
+            --name quota-tracker \
+            --add-data "frontend/dist:frontend/dist" \
+            --copy-metadata quota-tracker \
+            quota_tracker/cli.py
+      - name: version smoke test
+        run: dist/quota-tracker --version
+      - name: api smoke test
+        run: |
+          export HOME="${RUNNER_TEMP}/qt-home"
+          mkdir -p "${HOME}"
+          dist/quota-tracker serve --host 127.0.0.1 --port 8787 &
+          PID=$!
+          trap 'kill "$PID" 2>/dev/null || true' EXIT
+          ok=""
+          for _ in $(seq 1 20); do
+            if curl -fsS http://127.0.0.1:8787/api/health -o /tmp/health.json; then
+              ok=1
+              break
+            fi
+            sleep 0.5
+          done
+          cat /tmp/health.json
+          [ -n "$ok" ] || { echo "quota-tracker serve never became healthy"; exit 1; }
+          python3 -c "import json; json.load(open('/tmp/health.json'))"
+
   # ── update coverage badge (main branch only) ──────────────────────────────────
+  # main is protected with no bypass, so this can no longer push straight to
+  # main: it opens a small PR and lets it auto-merge once required checks pass.
   update-badges:
     name: update badges
     needs: [lint, typecheck, docstrings, tests, frontend]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
       - uses: actions/download-artifact@v4
         with:
           name: coverage-xml
@@ -112,10 +167,19 @@ jobs:
           printf '{"schemaVersion":1,"label":"coverage","message":"%s%%","color":"%s","style":"flat-square"}' \
             "$COVERAGE" "$COLOR" > assets/coverage.json
           echo "coverage: ${COVERAGE}%"
-      - name: commit badges
-        run: |
-          git config user.name  "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add assets/
-          git diff --staged --quiet || \
-            git commit -m "chore: update coverage badge" && git push || true
+      - name: open badge PR if changed
+        id: cpr
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: "chore: update coverage badge"
+          title: "chore: update coverage badge"
+          body: "Automated coverage badge refresh."
+          branch: chore/update-coverage-badge
+          delete-branch: true
+          add-paths: assets/coverage.json
+
+      - name: enable auto-merge
+        if: steps.cpr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --squash --auto "${{ steps.cpr.outputs.pull-request-number }}"
