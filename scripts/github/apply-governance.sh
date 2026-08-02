@@ -50,4 +50,11 @@ apply_ruleset() {
 apply_ruleset "${DIR}/.github/rulesets/main.json"
 apply_ruleset "${DIR}/.github/rulesets/tags.json"
 
+echo "== removing legacy classic branch protection on main =="
+# Superseded by main.json's ruleset above; left in place it stacks an
+# unsatisfiable "1 approving review" requirement on top (an account can never
+# approve its own PR, and every PR here is authored as the sole owner).
+gh api -X DELETE "repos/${REPO}/branches/main/protection" >/dev/null 2>&1 || true
+echo "ok"
+
 echo "done."
