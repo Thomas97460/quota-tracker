@@ -89,6 +89,11 @@ pushes, no force-push, no deletion, no bypass. Everything lands via a PR.
    `.github/CODEOWNERS` path, which need the human's explicit go-ahead first
    (see "Hard stops").
 8. After merge: `git checkout main && git fetch origin && git reset --hard origin/main`.
+9. **Merging is not the finish line.** Watch the resulting CI run on `main`
+   through to completion (`gh run list --branch main`, `gh run watch`). If
+   anything fails post-merge, don't stop and leave it broken — diagnose and
+   fix forward with a new PR through the normal workflow (never push directly
+   to `main` to patch it).
 
 Keep the branch rebased on `main` throughout: `git fetch origin && git rebase
 origin/main`. Never merge `main` into the feature branch — rebase only.
@@ -119,6 +124,12 @@ to generate either: squash-merge + Conventional Commit titles already make
    GitHub Release with both Linux binaries attached.
 3. Never push a `vX.Y.Z` tag without explicit human opt-in in the current
    conversation (see "Hard stops") — pushing the tag *is* the approval.
+4. **Don't stop at the tag push.** Watch `release.yml` through to completion
+   (`gh run watch`) and confirm the release actually has both binaries
+   attached (`gh release view vX.Y.Z --json assets`). If the build or publish
+   step fails, or the tag doesn't match `release.yml`'s trigger, fix it
+   immediately — a "latest" release with missing or broken assets is a live
+   incident, not something to leave for later.
 
 ### Rollback
 
