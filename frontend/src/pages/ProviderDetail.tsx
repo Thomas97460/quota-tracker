@@ -4,7 +4,7 @@ import { ModelBarChart } from "../components/charts/ModelBarChart"
 import { QuotaHistoryChart } from "../components/charts/QuotaHistoryChart"
 import { StackedTokenChart } from "../components/charts/StackedTokenChart"
 import { TokenBreakdownPie } from "../components/charts/TokenBreakdownPie"
-import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, displayLabel, formatRequestQuota } from "../components/ui/QuotaPanel"
+import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, filterCodexQuotas, displayLabel, formatRequestQuota } from "../components/ui/QuotaPanel"
 import { ThemeToggle } from "../components/ui/ThemeToggle"
 import type { Range } from "../hooks/useDashboard"
 import { useDashboard } from "../hooks/useDashboard"
@@ -112,6 +112,8 @@ export function ProviderDetail(): React.JSX.Element {
         ? filterCopilotQuotas(latest)
           : providerId === "gemini" || providerId === "antigravity"
             ? rollupGeminiQuotas(latest)
+            : providerId === "codex"
+              ? filterCodexQuotas(latest)
             : latest
   const totalTokens = timeSeries.reduce((s, r) => s + r.total_tokens, 0)
   const totalCost = timeSeries.reduce((s, r) => s + r.estimated_cost, 0)
@@ -139,7 +141,7 @@ export function ProviderDetail(): React.JSX.Element {
 
   historyRows = historyRows.map((r) => ({
     ...r,
-    quota_name: displayLabel(r.provider_id, r.quota_name),
+    quota_name: displayLabel(r.provider_id, r.quota_name, r.window_minutes),
   }))
 
 
@@ -273,7 +275,7 @@ export function ProviderDetail(): React.JSX.Element {
                 visibleLatest.map((q) => {
                   const pct = q.used_percent ?? 0
                   const st = statusFor(pct)
-                  const label = displayLabel(providerId, q.quota_name)
+                  const label = displayLabel(providerId, q.quota_name, q.window_minutes)
                   const reqStr = formatRequestQuota(q)
                   return (
                     <div key={q.quota_name} className="hero-meter">

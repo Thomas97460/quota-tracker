@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { StackedTokenChart } from "../components/charts/StackedTokenChart"
 import { ModelBarChart } from "../components/charts/ModelBarChart"
 import { TokenBreakdownPie } from "../components/charts/TokenBreakdownPie"
-import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, displayLabel } from "../components/ui/QuotaPanel"
+import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, filterCodexQuotas, displayLabel } from "../components/ui/QuotaPanel"
 import { ThemeToggle } from "../components/ui/ThemeToggle"
 import type { Range } from "../hooks/useDashboard"
 import { useDashboard } from "../hooks/useDashboard"
@@ -60,6 +60,7 @@ function statusFor(pct: number): "crit" | "warn" | "ok" {
 interface AlertItem {
   providerId: ProviderId
   quotaName: string
+  windowMinutes: number | null
   pct: number
   resetsAt: string | null
 }
@@ -73,6 +74,7 @@ function AlertRibbon({ latest }: { latest: QuotaRow[] }): React.JSX.Element | nu
     const item: AlertItem = {
       providerId: q.provider_id,
       quotaName: q.quota_name,
+      windowMinutes: q.window_minutes,
       pct,
       resetsAt: q.resets_at,
     }
@@ -121,7 +123,7 @@ function AlertRibbon({ latest }: { latest: QuotaRow[] }): React.JSX.Element | nu
               >
                 {PROVIDER_NAMES[it.providerId]}
               </span>
-              <span> {displayLabel(it.providerId, it.quotaName)} </span>
+              <span> {displayLabel(it.providerId, it.quotaName, it.windowMinutes)} </span>
               <strong>{it.pct.toFixed(1)}%</strong>
             </span>
           ))}
@@ -175,6 +177,7 @@ export function Overview(): React.JSX.Element {
     if (id === "gemini" || id === "antigravity") return rollupGeminiQuotas(rows)
     if (id === "copilot") return filterCopilotQuotas(rows)
     if (id === "claude") return filterClaudeQuotas(rows)
+    if (id === "codex") return filterCodexQuotas(rows)
     return rows
   })
   // Use dashboard quotas for per-provider quota cards
@@ -213,6 +216,7 @@ export function Overview(): React.JSX.Element {
     if (id === "copilot") visible = filterCopilotQuotas(rows)
     else if (id === "gemini" || id === "antigravity") visible = rollupGeminiQuotas(rows)
     else if (id === "claude") visible = filterClaudeQuotas(rows)
+    else if (id === "codex") visible = filterCodexQuotas(rows)
     else visible = rows
     const worst = visible.length > 0 ? Math.max(...visible.map((q) => q.used_percent ?? 0)) : 0
     return { id, visible, worst }
