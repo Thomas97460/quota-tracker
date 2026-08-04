@@ -16,7 +16,6 @@ function inferredWindowMinutes(providerId: ProviderId, quotaName: string): numbe
   // Provider-specific known keys.
   if (providerId === "codex") {
     if (lower === "secondary") return 60 * 24 * 7 // weekly
-    if (lower === "primary") return 60 * 5 // 5 hours
   }
   if (providerId === "copilot") {
     if (lower.includes("premium_interactions") || lower.includes("premium-interactions")) {
@@ -70,6 +69,16 @@ export function filterClaudeQuotas(rows: QuotaRow[]): QuotaRow[] {
     .sort((a, b) => (ORDER[a.quota_name] ?? 99) - (ORDER[b.quota_name] ?? 99))
 }
 
+/** Keep only the quota windows returned by the most-recent Codex probe. */
+export function filterCodexQuotas(rows: QuotaRow[]): QuotaRow[] {
+  if (rows.length === 0) return rows
+  const latestTimestamp = rows.reduce(
+    (latest, row) => (row.timestamp > latest ? row.timestamp : latest),
+    rows[0].timestamp,
+  )
+  return rows.filter((row) => row.timestamp === latestTimestamp)
+}
+
 // Gemini family order for display (most important first).
 const GEMINI_FAMILY_ORDER = ["pro", "flash", "flash-lite"] as const
 type GeminiFamily = (typeof GEMINI_FAMILY_ORDER)[number]
@@ -113,8 +122,12 @@ export function rollupGeminiQuotas(rows: QuotaRow[]): QuotaRow[] {
   return [...rolled, ...others]
 }
 
-/** Map raw quota_name to a human-friendly display label per provider. */
-export function displayLabel(providerId: ProviderId, quotaName: string): string {
+/** Map raw quota_name and window duration to a human-friendly display label. */
+export function displayLabel(
+  providerId: ProviderId,
+  quotaName: string,
+  windowMinutes: number | null = null,
+): string {
   if (providerId === "copilot") {
     if (quotaName.includes("premium_interactions") || quotaName.includes("premium-interactions"))
       return "Monthly"
@@ -127,8 +140,10 @@ export function displayLabel(providerId: ProviderId, quotaName: string): string 
     return quotaName
   }
   if (providerId === "codex") {
-    if (quotaName === "primary") return "5 hours"
+    if (windowMinutes === 60 * 24 * 7) return "Weekly"
+    if (windowMinutes === 60 * 5) return "5 hours"
     if (quotaName === "secondary") return "Weekly"
+    if (quotaName === "primary") return "Primary"
     return quotaName
   }
   if (providerId === "gemini") {
@@ -207,7 +222,7 @@ export function QuotaPanel({
       .filter((q) => q.quota_name in ORDER)
       .sort((a, b) => ORDER[a.quota_name] - ORDER[b.quota_name])
   } else if (providerId === "codex") {
-    visible = sortQuotasBiggestFirst(providerId, latest)
+    visible = sortQuotasBiggestFirst(providerId, filterCodexQuotas(latest))
   } else if (providerId === "claude") {
     visible = filterClaudeQuotas(latest)
   } else {
@@ -229,7 +244,7 @@ export function QuotaPanel({
       {visible.map((q) => {
         const pct = q.used_percent ?? 0
         const status = statusFor(pct)
-        const label = displayLabel(providerId, q.quota_name)
+        const label = displayLabel(providerId, q.quota_name, q.window_minutes)
         const reqStr = formatRequestQuota(q)
         return (
           <div key={q.quota_name}>
