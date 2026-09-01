@@ -171,10 +171,11 @@ def test_codex_active_probe_wham(tmp_path: Path) -> None:
     assert primary.source == "active_probe"
     secondary = next(r for r in records if r.quota_name == "secondary")
     assert secondary.used_percent == 71.0
+    assert secondary.window_minutes == 10080
 
 
-def test_codex_active_probe_missing_window(tmp_path: Path) -> None:
-    """Missing secondary_window is skipped without crashing."""
+def test_codex_active_probe_weekly_only(tmp_path: Path) -> None:
+    """A weekly-only account keeps the weekly window in the primary slot."""
     auth = {"tokens": {"access_token": "tok"}}
     (tmp_path / "auth.json").write_text(json.dumps(auth))
     p = CodexProvider(str(tmp_path))
@@ -182,7 +183,7 @@ def test_codex_active_probe_missing_window(tmp_path: Path) -> None:
         "rate_limit": {
             "primary_window": {
                 "used_percent": 5,
-                "limit_window_seconds": 18000,
+                "limit_window_seconds": 604800,
                 "reset_at": 1778343402,
             }
             # secondary_window absent
@@ -192,6 +193,7 @@ def test_codex_active_probe_missing_window(tmp_path: Path) -> None:
         records = p.active_probe()
     assert len(records) == 1
     assert records[0].quota_name == "primary"
+    assert records[0].window_minutes == 10080
 
 
 def test_codex_active_probe_network_error(tmp_path: Path) -> None:
