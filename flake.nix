@@ -45,6 +45,8 @@
               pkgs.nodejs
               pkgs.go-task
               pkgs.gh
+              pkgs.ripgrep
+              pkgs.sqlite
             ];
 
             shellHook = ''

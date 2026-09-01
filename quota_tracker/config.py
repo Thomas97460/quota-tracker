@@ -34,16 +34,19 @@ class ModelPricing(BaseModel):
 
 
 def get_default_pricing() -> dict[str, ModelPricing]:
-    """Return default pricing for known models as of 2026-07-29."""
+    """Return default standard/default-tier pricing as of 2026-09-01."""
 
     # Key format: "provider_id:model_name"
     # Prices are per 1M tokens in USD.
     defaults = {
         # OpenAI (via Codex or future direct provider)
-        "codex:gpt-5.6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00),
-        "codex:gpt-5.6-sol": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00),
-        "codex:gpt-5.6-terra": ModelPricing(input_1m=2.50, cached_1m=0.25, output_1m=15.00),
-        "codex:gpt-5.6-luna": ModelPricing(input_1m=1.00, cached_1m=0.10, output_1m=6.00),
+        "codex:gpt-5.6": ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00),
+        "codex:gpt-5.6-sol": ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00),
+        "codex:gpt-5.6-terra": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=12.00),
+        "codex:gpt-5.6-luna": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.20),
+        "codex:daybreak-blue": ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00),
+        "codex:daybreak-red": ModelPricing(input_1m=12.50, cached_1m=1.25, output_1m=75.00),
+        "codex:gpt-5.5-rosalind": ModelPricing(input_1m=12.50, cached_1m=1.25, output_1m=75.00),
         "codex:gpt-5.5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00),
         "codex:gpt-5.5-pro": ModelPricing(input_1m=30.00, output_1m=180.00),
         "codex:gpt-5.4": ModelPricing(input_1m=2.50, cached_1m=0.25, output_1m=15.00),
@@ -53,7 +56,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "codex:gpt-5.3-codex": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
         "codex:gpt-5.3-instant": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=4.50),
         "codex:gpt-5.2-codex": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
-        "codex:gpt-5.2": ModelPricing(input_1m=2.50, cached_1m=0.25, output_1m=15.00),
+        "codex:gpt-5.2": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
         "codex:gpt-5.1-codex": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
         "codex:gpt-5.1-codex-max": ModelPricing(input_1m=3.50, cached_1m=0.35, output_1m=28.00),
         "codex:gpt-5.1-codex-mini": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=4.50),
@@ -68,7 +71,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "claude:claude-opus-4-6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-1": ModelPricing(input_1m=15.00, cached_1m=1.50, output_1m=75.00),
-        "claude:claude-sonnet-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
+        "claude:claude-sonnet-5": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
         "claude:claude-sonnet-4-6": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "claude:claude-sonnet-4-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "claude:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
@@ -77,35 +80,41 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "claude:claude-haiku-3": ModelPricing(input_1m=0.25, cached_1m=0.03, output_1m=1.25),
         # Google Gemini
         "gemini:gemini-3.1-pro-preview": ModelPricing(
-            input_1m=3.60, cached_1m=0.36, output_1m=21.60
+            input_1m=2.00, cached_1m=0.20, output_1m=12.00
         ),
-        "gemini:gemini-3-pro-preview": ModelPricing(input_1m=3.60, cached_1m=0.36, output_1m=21.60),
+        "gemini:gemini-3-pro-preview": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=12.00),
         "gemini:gemini-3-flash-preview": ModelPricing(
-            input_1m=0.90, cached_1m=0.09, output_1m=5.40
+            input_1m=0.50, cached_1m=0.05, output_1m=3.00
         ),
         "gemini:gemini-3.1-flash-lite-preview": ModelPricing(
-            input_1m=0.45, cached_1m=0.045, output_1m=2.70
+            input_1m=0.25, cached_1m=0.025, output_1m=1.50
         ),
-        "gemini:gemini-3.6-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=7.50),
+        "gemini:gemini-3.7-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
+        "gemini:gemini-3.6-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
         "gemini:gemini-3.5-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=9.00),
         "gemini:gemini-3.5-flash-lite": ModelPricing(input_1m=0.30, cached_1m=0.03, output_1m=2.50),
         "gemini:gemini-3.1-flash-lite": ModelPricing(
             input_1m=0.25, cached_1m=0.025, output_1m=1.50
         ),
-        "gemini:gemini-2.5-pro": ModelPricing(input_1m=2.25, cached_1m=0.23, output_1m=18.00),
-        "gemini:gemini-2.5-flash": ModelPricing(input_1m=0.54, cached_1m=0.05, output_1m=4.50),
-        "gemini:gemini-2.5-flash-lite": ModelPricing(input_1m=0.18, cached_1m=0.02, output_1m=0.72),
+        "gemini:gemini-2.5-pro": ModelPricing(input_1m=1.25, cached_1m=0.125, output_1m=10.00),
+        "gemini:gemini-2.5-flash": ModelPricing(input_1m=0.30, cached_1m=0.03, output_1m=2.50),
+        "gemini:gemini-2.5-flash-lite": ModelPricing(input_1m=0.10, cached_1m=0.01, output_1m=0.40),
         "antigravity:gemini-3.1-pro-preview": ModelPricing(
-            input_1m=3.60, cached_1m=0.36, output_1m=21.60
+            input_1m=2.00, cached_1m=0.20, output_1m=12.00
         ),
-        "antigravity:gemini-3.1-pro": ModelPricing(input_1m=3.60, cached_1m=0.36, output_1m=21.60),
+        "antigravity:gemini-3.1-pro": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=12.00),
         "antigravity:gemini-3-pro-preview": ModelPricing(
-            input_1m=3.60, cached_1m=0.36, output_1m=21.60
+            input_1m=2.00, cached_1m=0.20, output_1m=12.00
         ),
         "antigravity:gemini-3-flash-preview": ModelPricing(
-            input_1m=0.90, cached_1m=0.09, output_1m=5.40
+            input_1m=0.50, cached_1m=0.05, output_1m=3.00
         ),
-        "antigravity:gemini-3.6-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=7.50),
+        "antigravity:gemini-3.7-flash": ModelPricing(
+            input_1m=0.75, cached_1m=0.075, output_1m=3.75
+        ),
+        "antigravity:gemini-3.6-flash": ModelPricing(
+            input_1m=0.75, cached_1m=0.075, output_1m=3.75
+        ),
         "antigravity:gemini-3.5-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=9.00),
         "antigravity:gemini-3.5-flash-lite": ModelPricing(
             input_1m=0.30, cached_1m=0.03, output_1m=2.50
@@ -114,12 +123,12 @@ def get_default_pricing() -> dict[str, ModelPricing]:
             input_1m=0.25, cached_1m=0.025, output_1m=1.50
         ),
         "antigravity:gemini-3.1-flash-lite-preview": ModelPricing(
-            input_1m=0.45, cached_1m=0.045, output_1m=2.70
+            input_1m=0.25, cached_1m=0.025, output_1m=1.50
         ),
-        "antigravity:gemini-2.5-pro": ModelPricing(input_1m=2.25, cached_1m=0.23, output_1m=18.00),
-        "antigravity:gemini-2.5-flash": ModelPricing(input_1m=0.54, cached_1m=0.05, output_1m=4.50),
+        "antigravity:gemini-2.5-pro": ModelPricing(input_1m=1.25, cached_1m=0.125, output_1m=10.00),
+        "antigravity:gemini-2.5-flash": ModelPricing(input_1m=0.30, cached_1m=0.03, output_1m=2.50),
         "antigravity:gemini-2.5-flash-lite": ModelPricing(
-            input_1m=0.18, cached_1m=0.02, output_1m=0.72
+            input_1m=0.10, cached_1m=0.01, output_1m=0.40
         ),
         "antigravity:claude-fable-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "antigravity:claude-mythos-5": ModelPricing(
@@ -130,7 +139,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "antigravity:claude-opus-4.7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-opus-4.8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
-        "antigravity:claude-sonnet-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
+        "antigravity:claude-sonnet-5": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
         "antigravity:gpt-oss": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=8.00),
         # GitHub Copilot
         "copilot:gpt-4.1": ModelPricing(input_1m=2.00, cached_1m=0.50, output_1m=8.00),
@@ -142,23 +151,77 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "copilot:gpt-5.4-mini": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=4.50),
         "copilot:gpt-5.4-nano": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.25),
         "copilot:gpt-5.5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00),
+        "copilot:gpt-5.6-luna": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.20),
+        # GitHub promotional rate through 2026-09-03.
+        "copilot:gpt-5.6-sol": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
+        "copilot:gpt-5.6-terra": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=12.00),
         "copilot:claude-haiku-4-5": ModelPricing(input_1m=1.00, cached_1m=0.10, output_1m=5.00),
         "copilot:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-sonnet-4-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-sonnet-4-6": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
-        "copilot:claude-sonnet-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
+        "copilot:claude-sonnet-5": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
         "copilot:claude-fable-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "copilot:claude-mythos-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "copilot:claude-opus-4-8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "copilot:claude-opus-4-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "copilot:claude-opus-4-6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "copilot:claude-opus-4-7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
+        "copilot:claude-opus-4-8-fast": ModelPricing(
+            input_1m=10.00, cached_1m=1.00, output_1m=50.00
+        ),
+        "copilot:claude-opus-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "copilot:gemini-2.5-pro": ModelPricing(input_1m=1.25, cached_1m=0.125, output_1m=10.00),
         "copilot:gemini-3-flash": ModelPricing(input_1m=0.50, cached_1m=0.05, output_1m=3.00),
         "copilot:gemini-3.1-pro": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=12.00),
+        "copilot:gemini-3.5-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=9.00),
+        "copilot:gemini-3.6-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
+        "copilot:gemini-3.7-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
+        "copilot:raptor-mini": ModelPricing(input_1m=0.25, cached_1m=0.025, output_1m=2.00),
+        "copilot:mai-code-1-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=4.50),
+        "copilot:mai-code-1.1-flash": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.20),
+        "copilot:grok-4.5": ModelPricing(input_1m=2.00, cached_1m=0.50, output_1m=6.00),
+        "copilot:grok-4.6": ModelPricing(input_1m=2.00, cached_1m=0.50, output_1m=6.00),
+        "copilot:kimi-k2.7-code": ModelPricing(input_1m=0.95, cached_1m=0.19, output_1m=4.00),
+        "copilot:kimi-k3": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
     }
 
     return defaults
+
+
+_REPLACED_DEFAULT_PRICES: dict[str, tuple[float, float, float]] = {
+    "codex:gpt-5.6": (5.00, 0.50, 30.00),
+    "codex:gpt-5.6-sol": (5.00, 0.50, 30.00),
+    "codex:gpt-5.6-terra": (2.50, 0.25, 15.00),
+    "codex:gpt-5.6-luna": (1.00, 0.10, 6.00),
+    "codex:gpt-5.2": (2.50, 0.25, 15.00),
+    "claude:claude-sonnet-5": (3.00, 0.30, 15.00),
+    "gemini:gemini-3.1-pro-preview": (3.60, 0.36, 21.60),
+    "gemini:gemini-3-pro-preview": (3.60, 0.36, 21.60),
+    "gemini:gemini-3-flash-preview": (0.90, 0.09, 5.40),
+    "gemini:gemini-3.1-flash-lite-preview": (0.45, 0.045, 2.70),
+    "gemini:gemini-3.6-flash": (1.50, 0.15, 7.50),
+    "gemini:gemini-2.5-pro": (2.25, 0.23, 18.00),
+    "gemini:gemini-2.5-flash": (0.54, 0.05, 4.50),
+    "gemini:gemini-2.5-flash-lite": (0.18, 0.02, 0.72),
+    "antigravity:gemini-3.1-pro-preview": (3.60, 0.36, 21.60),
+    "antigravity:gemini-3.1-pro": (3.60, 0.36, 21.60),
+    "antigravity:gemini-3-pro-preview": (3.60, 0.36, 21.60),
+    "antigravity:gemini-3-flash-preview": (0.90, 0.09, 5.40),
+    "antigravity:gemini-3.1-flash-lite-preview": (0.45, 0.045, 2.70),
+    "antigravity:gemini-3.6-flash": (1.50, 0.15, 7.50),
+    "antigravity:gemini-2.5-pro": (2.25, 0.23, 18.00),
+    "antigravity:gemini-2.5-flash": (0.54, 0.05, 4.50),
+    "antigravity:gemini-2.5-flash-lite": (0.18, 0.02, 0.72),
+    "antigravity:claude-sonnet-5": (3.00, 0.30, 15.00),
+    "copilot:claude-sonnet-5": (3.00, 0.30, 15.00),
+}
+
+
+def _is_replaced_default(key: str, pricing: ModelPricing) -> bool:
+    """Return whether a saved price exactly matches a superseded default."""
+
+    old = _REPLACED_DEFAULT_PRICES.get(key)
+    return old == (pricing.input_1m, pricing.cached_1m, pricing.output_1m)
 
 
 class DaemonConfig(BaseModel):
@@ -217,10 +280,14 @@ def load_config(path: str | None = None) -> AppConfig:
     config = _force_active_probe_enabled(AppConfig.model_validate(data))
     # A saved config persists an explicit pricing map, which would otherwise
     # shadow models added to the defaults in later releases. Backfill missing
-    # models so newly-supported ones get prices after an upgrade; prices
-    # already present in the saved config take precedence.
+    # models so newly-supported ones get prices after an upgrade. Preserve
+    # custom prices while replacing exact defaults superseded by this release.
     merged = get_default_pricing()
-    merged.update(config.pricing)
+    merged.update(
+        (key, pricing)
+        for key, pricing in config.pricing.items()
+        if not _is_replaced_default(key, pricing)
+    )
     config.pricing = merged
     return config
 
