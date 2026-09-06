@@ -40,6 +40,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
     # Prices are per 1M tokens in USD.
     defaults = {
         # OpenAI (via Codex or future direct provider)
+        "codex:gpt-6-astra": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "codex:gpt-5.6": ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00),
         "codex:gpt-5.6-sol": ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00),
         "codex:gpt-5.6-terra": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=12.00),
