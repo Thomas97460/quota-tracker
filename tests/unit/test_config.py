@@ -25,6 +25,9 @@ def test_default_pricing_includes_claude_opus_4_8() -> None:
 def test_default_pricing_includes_latest_codex_models() -> None:
     pricing = get_default_pricing()
 
+    assert pricing["codex:gpt-6-astra"] == ModelPricing(
+        input_1m=10.00, cached_1m=1.00, output_1m=50.00
+    )
     assert pricing["codex:gpt-5.6"] == ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00)
     assert pricing["codex:gpt-5.6-sol"] == pricing["codex:gpt-5.6"]
     assert pricing["codex:gpt-5.6-terra"] == ModelPricing(
@@ -92,6 +95,7 @@ def test_default_pricing_covers_current_provider_model_catalogs() -> None:
     pricing = get_default_pricing()
     current_models = {
         "codex": {
+            "gpt-6-astra",
             "gpt-5.6-sol",
             "gpt-5.6-terra",
             "gpt-5.6-luna",
