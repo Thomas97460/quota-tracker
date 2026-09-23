@@ -122,6 +122,19 @@ export function rollupGeminiQuotas(rows: QuotaRow[]): QuotaRow[] {
   return [...rolled, ...others]
 }
 
+/** Filter and sort Antigravity quotas in fixed order (Gemini models first, then 3P models). */
+export function filterAntigravityQuotas(rows: QuotaRow[]): QuotaRow[] {
+  const ORDER: Record<string, number> = {
+    "gemini-weekly": 1,
+    "gemini-5h": 2,
+    "3p-weekly": 3,
+    "3p-5h": 4,
+  }
+  return rows
+    .filter((q) => q.quota_name in ORDER)
+    .sort((a, b) => ORDER[a.quota_name] - ORDER[b.quota_name])
+}
+
 /** Map raw quota_name and window duration to a human-friendly display label. */
 export function displayLabel(
   providerId: ProviderId,
@@ -212,15 +225,7 @@ export function QuotaPanel({
   } else if (providerId === "gemini") {
     visible = rollupGeminiQuotas(latest)
   } else if (providerId === "antigravity") {
-    const ORDER: Record<string, number> = {
-      "gemini-weekly": 1,
-      "gemini-5h": 2,
-      "3p-weekly": 3,
-      "3p-5h": 4,
-    }
-    visible = latest
-      .filter((q) => q.quota_name in ORDER)
-      .sort((a, b) => ORDER[a.quota_name] - ORDER[b.quota_name])
+    visible = filterAntigravityQuotas(latest)
   } else if (providerId === "codex") {
     visible = sortQuotasBiggestFirst(providerId, filterCodexQuotas(latest))
   } else if (providerId === "claude") {

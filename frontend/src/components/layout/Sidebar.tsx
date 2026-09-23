@@ -5,7 +5,7 @@ import { useProviders } from "../../contexts/ProvidersContext"
 import { useVersion } from "../../hooks/useVersion"
 import { latestQuotas } from "../../utils"
 import type { ProviderId } from "../../types"
-import { rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas } from "../ui/QuotaPanel"
+import { rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, filterAntigravityQuotas } from "../ui/QuotaPanel"
 
 const PROVIDER_IDS: ProviderId[] = ["gemini", "codex", "copilot", "claude", "antigravity"]
 
@@ -172,9 +172,8 @@ export function Sidebar(): React.JSX.Element {
           let providerQuotas = latest.filter((q) => q.provider_id === id)
           if (id === "claude") providerQuotas = filterClaudeQuotas(providerQuotas)
           else if (id === "copilot") providerQuotas = filterCopilotQuotas(providerQuotas)
-          else if (id === "gemini" || id === "antigravity") {
-            providerQuotas = rollupGeminiQuotas(providerQuotas)
-          }
+          else if (id === "gemini") providerQuotas = rollupGeminiQuotas(providerQuotas)
+          else if (id === "antigravity") providerQuotas = filterAntigravityQuotas(providerQuotas)
 
           const worst =
             providerQuotas.length > 0
