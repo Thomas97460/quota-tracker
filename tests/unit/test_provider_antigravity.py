@@ -15,10 +15,14 @@ from quota_tracker.providers.antigravity import AntigravityProvider, _normalize_
 @pytest.mark.parametrize(
     ("label", "expected"),
     [
+        ("Gemini 3.8 Flash (High)", "gemini-3.8-flash"),
+        ("Gemini 3.8 Flash (Medium)", "gemini-3.8-flash"),
         ("Gemini 3.7 Flash (Medium)", "gemini-3.7-flash"),
         ("Gemini 3.6 Flash (High)", "gemini-3.6-flash"),
         ("Gemini 3.5 Flash-Lite", "gemini-3.5-flash-lite"),
+        ("Claude Opus 5.5 (Thinking)", "claude-opus-5.5"),
         ("Claude Opus 5 (Thinking)", "claude-opus-5"),
+        ("Claude Fable 5.1", "claude-fable-5.1"),
     ],
 )
 def test_normalize_latest_model_labels(label: str, expected: str) -> None:
