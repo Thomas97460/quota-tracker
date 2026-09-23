@@ -180,11 +180,32 @@ def _expand_workspace(path: str | None) -> str | None:
     return str(Path(path.strip()).expanduser())
 
 
+def _window_to_minutes(window: str | None) -> int | None:
+    """Convert Antigravity quota window string like '5h' or 'weekly' to minutes."""
+
+    if not window:
+        return None
+    w = window.strip().lower()
+    if w == "weekly":
+        return 7 * 24 * 60
+    if w == "daily":
+        return 24 * 60
+    if w == "monthly":
+        return 30 * 24 * 60
+    match = re.match(r"^(\d+)\s*h$", w)
+    if match:
+        return int(match.group(1)) * 60
+    match = re.match(r"^(\d+)\s*m$", w)
+    if match:
+        return int(match.group(1))
+    return None
+
+
 class AntigravityProvider:
     """Antigravity CLI passive sync and active probe."""
 
     metadata = ProviderMetadata(
-        "antigravity", "Antigravity", "~/.gemini/antigravity-cli", False, True
+        "antigravity", "Antigravity", "~/.gemini/antigravity-cli", True, True
     )
 
     def __init__(self, home: str, project_id: str | None = None):
@@ -243,6 +264,8 @@ class AntigravityProvider:
 
     @staticmethod
     def _file_mark(path: Path) -> dict[str, Any]:
+        """Compute change tracking mark for an Antigravity file."""
+
         stat = path.stat()
         return {
             "path": str(path),
@@ -253,6 +276,8 @@ class AntigravityProvider:
 
     @staticmethod
     def _unchanged(path: Path, previous: Any) -> bool:
+        """Check whether an Antigravity file has changed since previous mark."""
+
         if not isinstance(previous, dict):
             return False
         stat = path.stat()
@@ -307,6 +332,8 @@ class AntigravityProvider:
     def _parse_history(
         self, path: Path, drafts: dict[str, dict[str, Any]], default_model: str | None
     ) -> int:
+        """Parse Antigravity history.jsonl file into session drafts."""
+
         failures = 0
         for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
             if not line.strip():
@@ -337,6 +364,8 @@ class AntigravityProvider:
     def _parse_last_conversations(
         self, path: Path, drafts: dict[str, dict[str, Any]], default_model: str | None
     ) -> int:
+        """Parse Antigravity last_conversations.json into session drafts."""
+
         try:
             raw = json.loads(path.read_text(encoding="utf-8", errors="replace"))
         except json.JSONDecodeError:
@@ -361,6 +390,8 @@ class AntigravityProvider:
     def _parse_log(
         self, path: Path, drafts: dict[str, dict[str, Any]], default_model: str | None
     ) -> int:
+        """Parse Antigravity CLI log file into session drafts."""
+
         year = datetime.fromtimestamp(path.stat().st_mtime, tz=UTC).year
         current_workspace: str | None = None
         current_project_id: str | None = None
@@ -401,6 +432,8 @@ class AntigravityProvider:
     def _parse_conversation_file(
         self, path: Path, drafts: dict[str, dict[str, Any]], default_model: str | None
     ) -> int:
+        """Parse Antigravity conversation protobuf file into session drafts."""
+
         ts = _file_mtime_iso(path)
         self._add_session(
             drafts,
@@ -420,6 +453,8 @@ class AntigravityProvider:
         token_usages: list[dict[str, Any]],
         default_model: str | None,
     ) -> int:
+        """Parse Antigravity conversation SQLite database into session drafts and token usage."""
+
         conversation_id = path.stem
         ts_init = _file_mtime_iso(path)
         self._add_session(
@@ -577,43 +612,124 @@ class AntigravityProvider:
 
         return self._scan(high_water_marks)
 
+    def _discover_language_server(self) -> tuple[int | None, str | None]:
+        """Discover the HTTP port and CSRF token of the running Antigravity Language Server."""
+
+        import glob
+        import os
+
+        active_app_dir = (
+            Path(os.environ.get("ANTIGRAVITY_APP_DATA_DIR", "~/.gemini/antigravity-cli"))
+            .expanduser()
+            .resolve()
+        )
+        is_active_home = self.home.resolve() == active_app_dir
+
+        port: int | None = None
+        csrf_token: str | None = (
+            os.environ.get("ANTIGRAVITY_CSRF_TOKEN") if is_active_home else None
+        )
+
+        # 1. Environment variable for address
+        if is_active_home:
+            ls_addr = os.environ.get("ANTIGRAVITY_LS_ADDRESS")
+            if ls_addr and ":" in ls_addr:
+                try:
+                    port = int(ls_addr.split(":")[-1])
+                except ValueError:
+                    pass
+
+        # 2. Check discovery files in daemon/
+        daemon_dir = self.home / "daemon"
+        if daemon_dir.exists():
+            for p in sorted(
+                (f for f in daemon_dir.glob("ls_*.json") if f.is_file()),
+                key=lambda x: x.stat().st_mtime,
+                reverse=True,
+            ):
+                try:
+                    disc = json.loads(p.read_text(encoding="utf-8", errors="replace"))
+                    if isinstance(disc, dict):
+                        if not port and "httpPort" in disc:
+                            port = int(disc["httpPort"])
+                        if not csrf_token and "csrfToken" in disc:
+                            csrf_token = str(disc["csrfToken"])
+                        if port and csrf_token:
+                            return port, csrf_token
+                except Exception:
+                    pass
+
+        # 3. Check /proc/*/environ if port or CSRF token is still missing
+        if is_active_home and (not csrf_token or not port):
+            try:
+                for env_file in glob.glob("/proc/[0-9]*/environ"):
+                    try:
+                        with open(env_file, "rb") as ef:
+                            env_data = ef.read()
+                        if (
+                            b"ANTIGRAVITY_CSRF_TOKEN=" in env_data
+                            or b"ANTIGRAVITY_LS_ADDRESS=" in env_data
+                        ):
+                            for entry in env_data.split(b"\0"):
+                                if not csrf_token and entry.startswith(b"ANTIGRAVITY_CSRF_TOKEN="):
+                                    csrf_token = entry.split(b"=", 1)[1].decode("utf-8", "ignore")
+                                if not port and entry.startswith(b"ANTIGRAVITY_LS_ADDRESS="):
+                                    val = entry.split(b"=", 1)[1].decode("utf-8", "ignore")
+                                    if ":" in val:
+                                        try:
+                                            port = int(val.split(":")[-1])
+                                        except ValueError:
+                                            pass
+                            if csrf_token and port:
+                                return port, csrf_token
+                    except (OSError, PermissionError):
+                        continue
+            except Exception:
+                pass
+
+        # 4. Check log files if port still missing
+        if not port:
+            log_dir = self.home / "log"
+            if log_dir.exists():
+                log_files = sorted(
+                    (p for p in log_dir.glob("cli-*.log") if p.is_file()),
+                    key=lambda p: p.stat().st_mtime,
+                    reverse=True,
+                )
+                for path in log_files:
+                    try:
+                        content = path.read_text(encoding="utf-8", errors="replace")
+                        matches = re.findall(
+                            r"Language server listening on random port at (\d+) for HTTP", content
+                        )
+                        if matches:
+                            port = int(matches[-1])
+                            break
+                    except Exception:
+                        continue
+
+        return port, csrf_token
+
     def active_probe(self) -> list[QuotaRecord]:
         """Run active Antigravity quota probe by calling the local language server daemon."""
 
-        import json
-        import re
         import urllib.request
 
         from quota_tracker.providers.base import normalize_quota
 
-        port: int | None = None
-        log_dir = self.home / "log"
-        if log_dir.exists():
-            log_files = sorted(
-                (p for p in log_dir.glob("cli-*.log") if p.is_file()),
-                key=lambda p: p.stat().st_mtime,
-                reverse=True,
-            )
-            for path in log_files:
-                try:
-                    content = path.read_text(encoding="utf-8", errors="replace")
-                    matches = re.findall(
-                        r"Language server listening on random port at (\d+) for HTTP", content
-                    )
-                    if matches:
-                        port = int(matches[-1])
-                        break
-                except Exception:
-                    continue
-
+        port, csrf_token = self._discover_language_server()
         if not port:
             return []
+
+        headers = {"Content-Type": "application/json"}
+        if csrf_token:
+            headers["x-codeium-csrf-token"] = csrf_token
 
         try:
             req = urllib.request.Request(
                 f"http://127.0.0.1:{port}/exa.language_server_pb.LanguageServerService/RetrieveUserQuotaSummary",
                 data=b"{}",
-                headers={"Content-Type": "application/json"},
+                headers=headers,
                 method="POST",
             )
             with urllib.request.urlopen(req, timeout=5) as resp:
@@ -624,18 +740,43 @@ class AntigravityProvider:
         if not isinstance(data, dict):
             return []
 
-        buckets = data.get("response", {}).get("buckets", [])
-        if not buckets and "buckets" in data:
-            buckets = data["buckets"]
+        buckets: list[dict[str, Any]] = []
+        resp_obj = data.get("response", {})
+        if isinstance(resp_obj, dict):
+            groups = resp_obj.get("groups", [])
+            if isinstance(groups, list):
+                for g in groups:
+                    if isinstance(g, dict):
+                        g_buckets = g.get("buckets", [])
+                        if isinstance(g_buckets, list):
+                            for b in g_buckets:
+                                if isinstance(b, dict):
+                                    b_copy = dict(b)
+                                    if "group" not in b_copy and g.get("displayName"):
+                                        b_copy["group"] = g["displayName"]
+                                    buckets.append(b_copy)
+            if not buckets and "buckets" in resp_obj and isinstance(resp_obj["buckets"], list):
+                buckets.extend(b for b in resp_obj["buckets"] if isinstance(b, dict))
+
+        if not buckets and "buckets" in data and isinstance(data["buckets"], list):
+            buckets.extend(b for b in data["buckets"] if isinstance(b, dict))
 
         records: list[QuotaRecord] = []
         now = datetime.now(UTC).isoformat()
         for b in buckets:
             bucket_id = b.get("bucketId")
-            if not bucket_id:
+            if not bucket_id or not isinstance(bucket_id, str):
                 continue
-            rf_float = float(b.get("remainingFraction", 0))
+            try:
+                rf_float = float(b.get("remainingFraction", 0))
+            except (TypeError, ValueError):
+                rf_float = 0.0
             reset_time = b.get("resetTime")
+            if not isinstance(reset_time, str):
+                reset_time = None
+
+            window = b.get("window")
+            window_str = str(window) if window is not None else None
 
             records.append(
                 normalize_quota(
@@ -646,7 +787,7 @@ class AntigravityProvider:
                     raw_metadata=b,
                     used_percent=round((1.0 - rf_float) * 100, 4),
                     remaining_percent=round(rf_float * 100, 4),
-                    window_minutes=None,
+                    window_minutes=_window_to_minutes(window_str),
                     resets_at=reset_time,
                 )
             )

@@ -9,7 +9,11 @@ from typing import Any
 
 import pytest
 
-from quota_tracker.providers.antigravity import AntigravityProvider, _normalize_model_name
+from quota_tracker.providers.antigravity import (
+    AntigravityProvider,
+    _normalize_model_name,
+    _window_to_minutes,
+)
 
 
 @pytest.mark.parametrize(
@@ -20,12 +24,24 @@ from quota_tracker.providers.antigravity import AntigravityProvider, _normalize_
         ("Gemini 3.7 Flash (Medium)", "gemini-3.7-flash"),
         ("Gemini 3.6 Flash (High)", "gemini-3.6-flash"),
         ("Gemini 3.5 Flash-Lite", "gemini-3.5-flash-lite"),
+        ("Gemini 3.5 Flash", "gemini-3.5-flash"),
+        ("Gemini 3.1 Pro", "gemini-3.1-pro"),
+        ("gemini-pro-default", "gemini-3.1-pro"),
         ("Claude Opus 5.5 (Thinking)", "claude-opus-5.5"),
         ("Claude Opus 5 (Thinking)", "claude-opus-5"),
+        ("Claude Opus 4.8", "claude-opus-4.8"),
+        ("Claude Opus 4.7", "claude-opus-4.7"),
+        ("Claude Opus 4.6", "claude-opus-4.6"),
+        ("Claude Sonnet 5", "claude-sonnet-5"),
+        ("Claude Sonnet 4", "claude-sonnet-4"),
         ("Claude Fable 5.1", "claude-fable-5.1"),
+        ("Claude Fable 5", "claude-fable-5"),
+        ("Claude Mythos 5", "claude-mythos-5"),
+        ("GPT-OSS", "gpt-oss"),
+        ("", None),
     ],
 )
-def test_normalize_latest_model_labels(label: str, expected: str) -> None:
+def test_normalize_latest_model_labels(label: str, expected: str | None) -> None:
     assert _normalize_model_name(label) == expected
 
 
@@ -289,3 +305,311 @@ def test_antigravity_active_probe_conn_error(
     provider = AntigravityProvider(str(home))
     records = provider.active_probe()
     assert len(records) == 0
+
+
+def test_window_to_minutes() -> None:
+    assert _window_to_minutes("weekly") == 10080
+    assert _window_to_minutes("WEEKLY") == 10080
+    assert _window_to_minutes("daily") == 1440
+    assert _window_to_minutes("monthly") == 43200
+    assert _window_to_minutes("5h") == 300
+    assert _window_to_minutes("30m") == 30
+    assert _window_to_minutes(None) is None
+    assert _window_to_minutes("") is None
+    assert _window_to_minutes("unrecognized") is None
+
+
+def test_antigravity_active_probe_nested_groups_with_csrf(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".gemini" / "antigravity-cli"
+    (home / "log").mkdir(parents=True)
+    (home / "log" / "cli-20260531_142919.log").write_text(
+        "Language server listening on random port at 54321 for HTTP\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("ANTIGRAVITY_APP_DATA_DIR", str(home))
+    monkeypatch.setenv("ANTIGRAVITY_CSRF_TOKEN", "test-csrf-1234")
+
+    captured_headers: dict[str, str] = {}
+
+    class MockResponse:
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "response": {
+                        "groups": [
+                            {
+                                "displayName": "Gemini Models",
+                                "buckets": [
+                                    {
+                                        "bucketId": "gemini-weekly",
+                                        "displayName": "Weekly Limit Remaining",
+                                        "window": "weekly",
+                                        "remainingFraction": 0.85,
+                                        "resetTime": "2026-09-30T12:00:00Z",
+                                    },
+                                    {
+                                        "bucketId": "gemini-5h",
+                                        "displayName": "5-Hour Limit Remaining",
+                                        "window": "5h",
+                                        "remainingFraction": 0.50,
+                                        "resetTime": "2026-09-23T16:00:00Z",
+                                    },
+                                ],
+                            }
+                        ]
+                    }
+                }
+            ).encode("utf-8")
+
+        def __enter__(self) -> MockResponse:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+    def mock_urlopen(req: Any, *args: Any, **kwargs: Any) -> MockResponse:
+        nonlocal captured_headers
+        captured_headers = dict(req.headers)
+        return MockResponse()
+
+    import urllib.request
+
+    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
+
+    provider = AntigravityProvider(str(home))
+    records = provider.active_probe()
+
+    assert len(records) == 2
+    assert captured_headers.get("X-codeium-csrf-token") == "test-csrf-1234"
+    assert records[0].quota_name == "gemini-weekly"
+    assert records[0].used_percent == 15.0
+    assert records[0].remaining_percent == 85.0
+    assert records[0].window_minutes == 10080
+    assert records[0].resets_at == "2026-09-30T12:00:00Z"
+
+    assert records[1].quota_name == "gemini-5h"
+    assert records[1].used_percent == 50.0
+    assert records[1].remaining_percent == 50.0
+    assert records[1].window_minutes == 300
+    assert records[1].resets_at == "2026-09-23T16:00:00Z"
+
+
+def test_antigravity_active_probe_daemon_discovery_file(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".gemini" / "antigravity-cli"
+    daemon_dir = home / "daemon"
+    daemon_dir.mkdir(parents=True)
+    monkeypatch.delenv("ANTIGRAVITY_LS_ADDRESS", raising=False)
+    monkeypatch.delenv("ANTIGRAVITY_CSRF_TOKEN", raising=False)
+    # Write invalid json and valid json
+    (daemon_dir / "ls_bad.json").write_text("invalid json", encoding="utf-8")
+    (daemon_dir / "ls_abc.json").write_text(
+        json.dumps({"pid": 9999, "httpPort": 42421, "csrfToken": "discovered-token-xyz"}),
+        encoding="utf-8",
+    )
+
+    captured_url: str = ""
+    captured_csrf: str = ""
+
+    class MockResponse:
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "buckets": [
+                        {
+                            "bucketId": "gemini-flash",
+                            "remainingFraction": 1.0,
+                            "window": "daily",
+                        }
+                    ]
+                }
+            ).encode("utf-8")
+
+        def __enter__(self) -> MockResponse:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+    def mock_urlopen(req: Any, *args: Any, **kwargs: Any) -> MockResponse:
+        nonlocal captured_url, captured_csrf
+        captured_url = req.full_url
+        captured_csrf = req.headers.get("X-codeium-csrf-token", "")
+        return MockResponse()
+
+    import urllib.request
+
+    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
+
+    provider = AntigravityProvider(str(home))
+    records = provider.active_probe()
+    assert len(records) == 1
+    assert "42421" in captured_url
+    assert captured_csrf == "discovered-token-xyz"
+    assert records[0].window_minutes == 1440
+
+
+def test_antigravity_active_probe_proc_environ_discovery(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".gemini" / "antigravity-cli"
+    home.mkdir(parents=True)
+    monkeypatch.setenv("ANTIGRAVITY_APP_DATA_DIR", str(home))
+    monkeypatch.delenv("ANTIGRAVITY_LS_ADDRESS", raising=False)
+    monkeypatch.delenv("ANTIGRAVITY_CSRF_TOKEN", raising=False)
+
+    # Mock glob.glob and builtins.open to simulate /proc/[pid]/environ
+    proc_env_file = tmp_path / "proc_env"
+    proc_env_file.write_bytes(
+        b"PATH=/bin\0ANTIGRAVITY_LS_ADDRESS=127.0.0.1:45678\0ANTIGRAVITY_CSRF_TOKEN=proc-csrf\0"
+    )
+
+    import glob
+
+    monkeypatch.setattr(glob, "glob", lambda pat: [str(proc_env_file)])
+
+    class MockResponse:
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "buckets": [
+                        {
+                            "bucketId": "3p-weekly",
+                            "remainingFraction": "0.75",
+                            "window": "monthly",
+                            "resetTime": "2026-10-01T00:00:00Z",
+                        }
+                    ]
+                }
+            ).encode("utf-8")
+
+        def __enter__(self) -> MockResponse:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+    captured_req: list[Any] = []
+
+    def mock_urlopen(req: Any, *args: Any, **kwargs: Any) -> MockResponse:
+        captured_req.append(req)
+        return MockResponse()
+
+    import urllib.request
+
+    monkeypatch.setattr(urllib.request, "urlopen", mock_urlopen)
+
+    provider = AntigravityProvider(str(home))
+    records = provider.active_probe()
+    assert len(records) == 1
+    assert "45678" in captured_req[0].full_url
+    assert captured_req[0].headers.get("X-codeium-csrf-token") == "proc-csrf"
+    assert records[0].window_minutes == 43200
+
+
+def test_antigravity_active_probe_malformed_bucket_items(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".gemini" / "antigravity-cli"
+    (home / "log").mkdir(parents=True)
+    (home / "log" / "cli-20260531_142919.log").write_text(
+        "Language server listening on random port at 12345 for HTTP\n",
+        encoding="utf-8",
+    )
+
+    class MockResponse:
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "response": {
+                        "buckets": [
+                            # Missing bucketId
+                            {"remainingFraction": 0.5},
+                            # Non-string bucketId
+                            {"bucketId": 123},
+                            # Invalid remainingFraction
+                            {"bucketId": "valid-bucket", "remainingFraction": "not-a-number"},
+                        ]
+                    }
+                }
+            ).encode("utf-8")
+
+        def __enter__(self) -> MockResponse:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+    import urllib.request
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *args, **kwargs: MockResponse())
+
+    provider = AntigravityProvider(str(home))
+    records = provider.active_probe()
+    assert len(records) == 1
+    assert records[0].quota_name == "valid-bucket"
+    assert records[0].used_percent == 100.0
+
+
+def test_antigravity_active_probe_non_dict_response(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    home = tmp_path / ".gemini" / "antigravity-cli"
+    (home / "log").mkdir(parents=True)
+    (home / "log" / "cli-20260531_142919.log").write_text(
+        "Language server listening on random port at 12345 for HTTP\n",
+        encoding="utf-8",
+    )
+
+    class MockResponse:
+        def read(self) -> bytes:
+            return b"[]"
+
+        def __enter__(self) -> MockResponse:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+    import urllib.request
+
+    monkeypatch.setattr(urllib.request, "urlopen", lambda *args, **kwargs: MockResponse())
+
+    provider = AntigravityProvider(str(home))
+    records = provider.active_probe()
+    assert records == []
+
+
+def test_antigravity_load_default_model_variants(tmp_path: Path) -> None:
+    home = tmp_path / "cli"
+    home.mkdir()
+    provider = AntigravityProvider(str(home))
+
+    # Missing file
+    assert provider._load_default_model() is None
+
+    # Invalid json
+    settings = home / "settings.json"
+    settings.write_text("invalid json", encoding="utf-8")
+    assert provider._load_default_model() is None
+
+    # Non-dict json
+    settings.write_text("[]", encoding="utf-8")
+    assert provider._load_default_model() is None
+
+    # Valid model
+    settings.write_text(json.dumps({"model": "Gemini 3.8 Flash (High)"}), encoding="utf-8")
+    assert provider._load_default_model() == "gemini-3.8-flash"
+
+
+def test_antigravity_gemini_home_fallbacks(tmp_path: Path) -> None:
+    parent = tmp_path / ".gemini"
+    home = parent / "antigravity-cli"
+    home.mkdir(parents=True)
+    (parent / "oauth_creds.json").write_text("{}", encoding="utf-8")
+
+    provider = AntigravityProvider(str(home))
+    assert provider._gemini_home() == parent
