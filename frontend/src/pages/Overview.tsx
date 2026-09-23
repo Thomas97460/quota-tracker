@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { StackedTokenChart } from "../components/charts/StackedTokenChart"
 import { ModelBarChart } from "../components/charts/ModelBarChart"
 import { TokenBreakdownPie } from "../components/charts/TokenBreakdownPie"
-import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, filterCodexQuotas, displayLabel } from "../components/ui/QuotaPanel"
+import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, filterCodexQuotas, filterAntigravityQuotas, displayLabel } from "../components/ui/QuotaPanel"
 import { ThemeToggle } from "../components/ui/ThemeToggle"
 import type { Range } from "../hooks/useDashboard"
 import { useDashboard } from "../hooks/useDashboard"
@@ -174,7 +174,8 @@ export function Overview(): React.JSX.Element {
   // Rolled-up version for alert ribbon (same filtering as quota cards)
   const latestCtxAlert = PROVIDER_IDS.flatMap((id) => {
     const rows = latestCtx.filter((q) => q.provider_id === id)
-    if (id === "gemini" || id === "antigravity") return rollupGeminiQuotas(rows)
+    if (id === "gemini") return rollupGeminiQuotas(rows)
+    if (id === "antigravity") return filterAntigravityQuotas(rows)
     if (id === "copilot") return filterCopilotQuotas(rows)
     if (id === "claude") return filterClaudeQuotas(rows)
     if (id === "codex") return filterCodexQuotas(rows)
@@ -196,6 +197,7 @@ export function Overview(): React.JSX.Element {
     ...timeSeriesByProvider.codex,
     ...timeSeriesByProvider.copilot,
     ...timeSeriesByProvider.claude,
+    ...timeSeriesByProvider.antigravity,
   ]
 
   const sessionsFiltered =
@@ -214,7 +216,8 @@ export function Overview(): React.JSX.Element {
     const rows = latest.filter((q) => q.provider_id === id)
     let visible: QuotaRow[]
     if (id === "copilot") visible = filterCopilotQuotas(rows)
-    else if (id === "gemini" || id === "antigravity") visible = rollupGeminiQuotas(rows)
+    else if (id === "gemini") visible = rollupGeminiQuotas(rows)
+    else if (id === "antigravity") visible = filterAntigravityQuotas(rows)
     else if (id === "claude") visible = filterClaudeQuotas(rows)
     else if (id === "codex") visible = filterCodexQuotas(rows)
     else visible = rows

@@ -4,7 +4,7 @@ import { ModelBarChart } from "../components/charts/ModelBarChart"
 import { QuotaHistoryChart } from "../components/charts/QuotaHistoryChart"
 import { StackedTokenChart } from "../components/charts/StackedTokenChart"
 import { TokenBreakdownPie } from "../components/charts/TokenBreakdownPie"
-import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, filterCodexQuotas, displayLabel, formatRequestQuota } from "../components/ui/QuotaPanel"
+import { QuotaPanel, rollupGeminiQuotas, filterCopilotQuotas, filterClaudeQuotas, filterCodexQuotas, filterAntigravityQuotas, displayLabel, formatRequestQuota } from "../components/ui/QuotaPanel"
 import { ThemeToggle } from "../components/ui/ThemeToggle"
 import type { Range } from "../hooks/useDashboard"
 import { useDashboard } from "../hooks/useDashboard"
@@ -110,8 +110,10 @@ export function ProviderDetail(): React.JSX.Element {
       ? filterClaudeQuotas(latest)
       : providerId === "copilot"
         ? filterCopilotQuotas(latest)
-          : providerId === "gemini" || providerId === "antigravity"
-            ? rollupGeminiQuotas(latest)
+        : providerId === "gemini"
+          ? rollupGeminiQuotas(latest)
+          : providerId === "antigravity"
+            ? filterAntigravityQuotas(latest)
             : providerId === "codex"
               ? filterCodexQuotas(latest)
             : latest
@@ -119,7 +121,7 @@ export function ProviderDetail(): React.JSX.Element {
   const totalCost = timeSeries.reduce((s, r) => s + r.estimated_cost, 0)
 
   let historyRows = quotaHistory.filter((q) => q.provider_id === providerId)
-  if (providerId === "gemini" || providerId === "antigravity") {
+  if (providerId === "gemini") {
     const byTs = new Map<string, typeof historyRows>()
     for (const r of historyRows) {
       if (!byTs.has(r.timestamp)) byTs.set(r.timestamp, [])
@@ -129,6 +131,8 @@ export function ProviderDetail(): React.JSX.Element {
     for (const group of byTs.values()) {
       historyRows.push(...rollupGeminiQuotas(group))
     }
+  } else if (providerId === "antigravity") {
+    historyRows = filterAntigravityQuotas(historyRows)
   }
 
   if (providerId === "claude") {
