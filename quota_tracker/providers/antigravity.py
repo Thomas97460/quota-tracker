@@ -44,48 +44,57 @@ def _model_label_to_id(label: str | None) -> str | None:
 def _normalize_model_name(name: str | None) -> str | None:
     """Map observed Antigravity CLI model names or labels to stable config IDs."""
 
-    if not name:
+    normalized = _model_label_to_id(name)
+    if not normalized:
         return None
-    name_lower = name.lower().strip()
-    if "claude-fable-5" in name_lower:
+
+    if "claude-fable-5.1" in normalized or "claude-fable-5-1" in normalized:
+        return "claude-fable-5.1"
+    if "claude-fable-5" in normalized:
         return "claude-fable-5"
-    if "claude-mythos-5" in name_lower:
+    if "claude-mythos-5" in normalized:
         return "claude-mythos-5"
-    if "claude-opus-5" in name_lower:
+    if "claude-opus-5.5" in normalized or "claude-opus-5-5" in normalized:
+        return "claude-opus-5.5"
+    if "claude-opus-5" in normalized:
         return "claude-opus-5"
-    if "claude-opus-4.6" in name_lower or "claude-opus-4-6" in name_lower:
+    if (
+        "claude-opus-4.6" in normalized
+        or "claude-opus-4-6" in normalized
+        or "claude-opus-4.-6" in normalized
+    ):
         return "claude-opus-4.6"
-    if "claude-opus-4.7" in name_lower or "claude-opus-4-7" in name_lower:
+    if "claude-opus-4.7" in normalized or "claude-opus-4-7" in normalized:
         return "claude-opus-4.7"
-    if "claude-opus-4.8" in name_lower or "claude-opus-4-8" in name_lower:
+    if (
+        "claude-opus-4.8" in normalized
+        or "claude-opus-4-8" in normalized
+        or "claude-opus-4.-8" in normalized
+    ):
         return "claude-opus-4.8"
-    if "claude-sonnet-5" in name_lower:
+    if "claude-sonnet-5" in normalized:
         return "claude-sonnet-5"
-    if "claude-sonnet-4" in name_lower or "claude-sonnet-4" in name_lower:
+    if "claude-sonnet-4" in normalized:
         return "claude-sonnet-4"
-    if "gpt-oss" in name_lower:
+    if "gpt-oss" in normalized:
         return "gpt-oss"
-    if "gemini-3.5-flash-lite" in name_lower or "gemini-3-5-flash-lite" in name_lower:
+    if "gemini-3.8-flash" in normalized or "gemini-3-8-flash" in normalized:
+        return "gemini-3.8-flash"
+    if "gemini-3.7-flash" in normalized or "gemini-3-7-flash" in normalized:
+        return "gemini-3.7-flash"
+    if "gemini-3.6-flash" in normalized or "gemini-3-6-flash" in normalized:
+        return "gemini-3.6-flash"
+    if "gemini-3.5-flash-lite" in normalized or "gemini-3-5-flash-lite" in normalized:
         return "gemini-3.5-flash-lite"
-    if "gemini-3.5-flash" in name_lower or "gemini-3-5-flash" in name_lower:
+    if "gemini-3.5-flash" in normalized or "gemini-3-5-flash" in normalized:
         return "gemini-3.5-flash"
     if (
-        "gemini-3.1-pro" in name_lower
-        or "gemini-3-1-pro" in name_lower
-        or name_lower == "gemini-pro-default"
+        "gemini-3.1-pro" in normalized
+        or "gemini-3-1-pro" in normalized
+        or normalized == "gemini-pro-default"
     ):
         return "gemini-3.1-pro"
 
-    normalized = _model_label_to_id(name)
-    if normalized:
-        if "claude-fable-5" in normalized:
-            return "claude-fable-5"
-        if "claude-mythos-5" in normalized:
-            return "claude-mythos-5"
-        if "claude-opus-4-6" in normalized or "claude-opus-4.-6" in normalized:
-            return "claude-opus-4.6"
-        if "claude-opus-4-8" in normalized or "claude-opus-4.-8" in normalized:
-            return "claude-opus-4.8"
     return normalized
 
 

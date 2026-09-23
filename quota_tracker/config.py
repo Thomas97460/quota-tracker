@@ -34,13 +34,16 @@ class ModelPricing(BaseModel):
 
 
 def get_default_pricing() -> dict[str, ModelPricing]:
-    """Return default standard/default-tier pricing as of 2026-09-01."""
+    """Return default standard/default-tier pricing as of 2026-09-23."""
 
     # Key format: "provider_id:model_name"
     # Prices are per 1M tokens in USD.
     defaults = {
         # OpenAI (via Codex or future direct provider)
         "codex:gpt-6-astra": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
+        "codex:gpt-6-sol": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
+        "codex:gpt-6-luna": ModelPricing(input_1m=0.10, cached_1m=0.01, output_1m=0.50),
+        "codex:gpt-reserve": ModelPricing(input_1m=0.10, cached_1m=0.01, output_1m=0.50),
         "codex:gpt-5.6": ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00),
         "codex:gpt-5.6-sol": ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00),
         "codex:gpt-5.6-terra": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=12.00),
@@ -64,8 +67,12 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "codex:gpt-5-codex": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
         "codex:gpt-5": ModelPricing(input_1m=2.50, cached_1m=0.25, output_1m=15.00),
         # Anthropic (Claude)
+        "claude:claude-fable-5.1": ModelPricing(input_1m=10.00, cached_1m=0.25, output_1m=50.00),
+        "claude:claude-fable-5-1": ModelPricing(input_1m=10.00, cached_1m=0.25, output_1m=50.00),
         "claude:claude-fable-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "claude:claude-mythos-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
+        "claude:claude-opus-5.5": ModelPricing(input_1m=4.00, cached_1m=0.20, output_1m=20.00),
+        "claude:claude-opus-5-5": ModelPricing(input_1m=4.00, cached_1m=0.20, output_1m=20.00),
         "claude:claude-opus-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "claude:claude-opus-4-7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
@@ -80,6 +87,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "claude:claude-haiku-3.5": ModelPricing(input_1m=0.80, cached_1m=0.08, output_1m=4.00),
         "claude:claude-haiku-3": ModelPricing(input_1m=0.25, cached_1m=0.03, output_1m=1.25),
         # Google Gemini
+        "gemini:gemini-3.8-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
         "gemini:gemini-3.1-pro-preview": ModelPricing(
             input_1m=2.00, cached_1m=0.20, output_1m=12.00
         ),
@@ -100,6 +108,9 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "gemini:gemini-2.5-pro": ModelPricing(input_1m=1.25, cached_1m=0.125, output_1m=10.00),
         "gemini:gemini-2.5-flash": ModelPricing(input_1m=0.30, cached_1m=0.03, output_1m=2.50),
         "gemini:gemini-2.5-flash-lite": ModelPricing(input_1m=0.10, cached_1m=0.01, output_1m=0.40),
+        "antigravity:gemini-3.8-flash": ModelPricing(
+            input_1m=0.75, cached_1m=0.075, output_1m=3.75
+        ),
         "antigravity:gemini-3.1-pro-preview": ModelPricing(
             input_1m=2.00, cached_1m=0.20, output_1m=12.00
         ),
@@ -131,10 +142,14 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "antigravity:gemini-2.5-flash-lite": ModelPricing(
             input_1m=0.10, cached_1m=0.01, output_1m=0.40
         ),
+        "antigravity:claude-fable-5.1": ModelPricing(
+            input_1m=10.00, cached_1m=0.25, output_1m=50.00
+        ),
         "antigravity:claude-fable-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "antigravity:claude-mythos-5": ModelPricing(
             input_1m=10.00, cached_1m=1.00, output_1m=50.00
         ),
+        "antigravity:claude-opus-5.5": ModelPricing(input_1m=4.00, cached_1m=0.20, output_1m=20.00),
         "antigravity:claude-opus-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-opus-4.6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "antigravity:claude-opus-4.7": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
@@ -143,6 +158,9 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "antigravity:claude-sonnet-5": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
         "antigravity:gpt-oss": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=8.00),
         # GitHub Copilot
+        "copilot:gpt-6-astra": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
+        "copilot:gpt-6-sol": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
+        "copilot:gpt-6-luna": ModelPricing(input_1m=0.10, cached_1m=0.01, output_1m=0.50),
         "copilot:gpt-4.1": ModelPricing(input_1m=2.00, cached_1m=0.50, output_1m=8.00),
         "copilot:gpt-5-mini": ModelPricing(input_1m=0.25, cached_1m=0.025, output_1m=2.00),
         "copilot:gpt-5.2": ModelPricing(input_1m=1.75, cached_1m=0.175, output_1m=14.00),
@@ -153,16 +171,17 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "copilot:gpt-5.4-nano": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.25),
         "copilot:gpt-5.5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00),
         "copilot:gpt-5.6-luna": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.20),
-        # GitHub promotional rate through 2026-09-03.
-        "copilot:gpt-5.6-sol": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
+        "copilot:gpt-5.6-sol": ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00),
         "copilot:gpt-5.6-terra": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=12.00),
         "copilot:claude-haiku-4-5": ModelPricing(input_1m=1.00, cached_1m=0.10, output_1m=5.00),
         "copilot:claude-sonnet-4": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-sonnet-4-5": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-sonnet-4-6": ModelPricing(input_1m=3.00, cached_1m=0.30, output_1m=15.00),
         "copilot:claude-sonnet-5": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
+        "copilot:claude-fable-5.1": ModelPricing(input_1m=10.00, cached_1m=0.25, output_1m=50.00),
         "copilot:claude-fable-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "copilot:claude-mythos-5": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
+        "copilot:claude-opus-5.5": ModelPricing(input_1m=4.00, cached_1m=0.20, output_1m=20.00),
         "copilot:claude-opus-4-8": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "copilot:claude-opus-4-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
         "copilot:claude-opus-4-6": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
@@ -177,6 +196,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "copilot:gemini-3.5-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=9.00),
         "copilot:gemini-3.6-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
         "copilot:gemini-3.7-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
+        "copilot:gemini-3.8-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
         "copilot:raptor-mini": ModelPricing(input_1m=0.25, cached_1m=0.025, output_1m=2.00),
         "copilot:mai-code-1-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=4.50),
         "copilot:mai-code-1.1-flash": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.20),
@@ -215,6 +235,7 @@ _REPLACED_DEFAULT_PRICES: dict[str, tuple[float, float, float]] = {
     "antigravity:gemini-2.5-flash-lite": (0.18, 0.02, 0.72),
     "antigravity:claude-sonnet-5": (3.00, 0.30, 15.00),
     "copilot:claude-sonnet-5": (3.00, 0.30, 15.00),
+    "copilot:gpt-5.6-sol": (2.00, 0.20, 10.00),
 }
 
 

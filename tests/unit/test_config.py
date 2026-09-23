@@ -28,6 +28,15 @@ def test_default_pricing_includes_latest_codex_models() -> None:
     assert pricing["codex:gpt-6-astra"] == ModelPricing(
         input_1m=10.00, cached_1m=1.00, output_1m=50.00
     )
+    assert pricing["codex:gpt-6-sol"] == ModelPricing(
+        input_1m=2.00, cached_1m=0.20, output_1m=10.00
+    )
+    assert pricing["codex:gpt-6-luna"] == ModelPricing(
+        input_1m=0.10, cached_1m=0.01, output_1m=0.50
+    )
+    assert pricing["codex:gpt-reserve"] == ModelPricing(
+        input_1m=0.10, cached_1m=0.01, output_1m=0.50
+    )
     assert pricing["codex:gpt-5.6"] == ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00)
     assert pricing["codex:gpt-5.6-sol"] == pricing["codex:gpt-5.6"]
     assert pricing["codex:gpt-5.6-terra"] == ModelPricing(
@@ -48,6 +57,16 @@ def test_default_pricing_includes_claude_opus_5() -> None:
         )
 
 
+def test_default_pricing_includes_claude_opus_5_5() -> None:
+    pricing = get_default_pricing()
+
+    expected = ModelPricing(input_1m=4.00, cached_1m=0.20, output_1m=20.00)
+    assert pricing["claude:claude-opus-5.5"] == expected
+    assert pricing["claude:claude-opus-5-5"] == expected
+    assert pricing["antigravity:claude-opus-5.5"] == expected
+    assert pricing["copilot:claude-opus-5.5"] == expected
+
+
 def test_default_pricing_uses_current_claude_sonnet_5_rate() -> None:
     pricing = get_default_pricing()
 
@@ -61,6 +80,7 @@ def test_default_pricing_includes_latest_gemini_models() -> None:
     pricing = get_default_pricing()
 
     expected = {
+        "gemini-3.8-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
         "gemini-3.7-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
         "gemini-3.6-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
         "gemini-3.5-flash": ModelPricing(input_1m=1.50, cached_1m=0.15, output_1m=9.00),
@@ -76,10 +96,16 @@ def test_default_pricing_includes_latest_gemini_models() -> None:
 def test_default_pricing_includes_current_copilot_models() -> None:
     pricing = get_default_pricing()
     expected = {
-        "gpt-5.6-sol": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
+        "gpt-6-astra": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
+        "gpt-6-sol": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
+        "gpt-6-luna": ModelPricing(input_1m=0.10, cached_1m=0.01, output_1m=0.50),
+        "gpt-5.6-sol": ModelPricing(input_1m=4.00, cached_1m=0.40, output_1m=20.00),
         "gpt-5.6-terra": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=12.00),
         "gpt-5.6-luna": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.20),
         "claude-opus-5": ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=25.00),
+        "claude-opus-5.5": ModelPricing(input_1m=4.00, cached_1m=0.20, output_1m=20.00),
+        "claude-fable-5.1": ModelPricing(input_1m=10.00, cached_1m=0.25, output_1m=50.00),
+        "gemini-3.8-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
         "gemini-3.7-flash": ModelPricing(input_1m=0.75, cached_1m=0.075, output_1m=3.75),
         "raptor-mini": ModelPricing(input_1m=0.25, cached_1m=0.025, output_1m=2.00),
         "mai-code-1.1-flash": ModelPricing(input_1m=0.20, cached_1m=0.02, output_1m=1.20),
@@ -96,6 +122,9 @@ def test_default_pricing_covers_current_provider_model_catalogs() -> None:
     current_models = {
         "codex": {
             "gpt-6-astra",
+            "gpt-6-sol",
+            "gpt-6-luna",
+            "gpt-reserve",
             "gpt-5.6-sol",
             "gpt-5.6-terra",
             "gpt-5.6-luna",
@@ -109,8 +138,12 @@ def test_default_pricing_covers_current_provider_model_catalogs() -> None:
             "gpt-5.2",
         },
         "claude": {
+            "claude-fable-5.1",
+            "claude-fable-5-1",
             "claude-fable-5",
             "claude-mythos-5",
+            "claude-opus-5.5",
+            "claude-opus-5-5",
             "claude-opus-5",
             "claude-opus-4-8",
             "claude-sonnet-5",
@@ -118,6 +151,7 @@ def test_default_pricing_covers_current_provider_model_catalogs() -> None:
             "claude-haiku-4-5",
         },
         "gemini": {
+            "gemini-3.8-flash",
             "gemini-3.7-flash",
             "gemini-3.6-flash",
             "gemini-3.5-flash",
@@ -126,15 +160,21 @@ def test_default_pricing_covers_current_provider_model_catalogs() -> None:
             "gemini-3.1-flash-lite",
         },
         "antigravity": {
+            "gemini-3.8-flash",
             "gemini-3.7-flash",
             "gemini-3.6-flash",
             "gemini-3.5-flash",
             "gemini-3.1-pro",
             "claude-sonnet-4",
             "claude-opus-4.6",
+            "claude-opus-5.5",
+            "claude-fable-5.1",
             "gpt-oss",
         },
         "copilot": {
+            "gpt-6-astra",
+            "gpt-6-sol",
+            "gpt-6-luna",
             "gpt-5-mini",
             "gpt-5.3-codex",
             "gpt-5.4",
@@ -151,14 +191,17 @@ def test_default_pricing_covers_current_provider_model_catalogs() -> None:
             "claude-opus-4-8",
             "claude-opus-4-8-fast",
             "claude-opus-5",
+            "claude-opus-5.5",
             "claude-sonnet-4-5",
             "claude-sonnet-4-6",
             "claude-sonnet-5",
             "claude-fable-5",
+            "claude-fable-5.1",
             "gemini-3.1-pro",
             "gemini-3.5-flash",
             "gemini-3.6-flash",
             "gemini-3.7-flash",
+            "gemini-3.8-flash",
             "raptor-mini",
             "mai-code-1-flash",
             "mai-code-1.1-flash",
@@ -211,6 +254,9 @@ def test_load_config_replaces_superseded_defaults_but_preserves_custom_prices(tm
     config_path = tmp_path / "config.json"
     saved = AppConfig()
     saved.pricing["codex:gpt-5.6"] = ModelPricing(input_1m=5.00, cached_1m=0.50, output_1m=30.00)
+    saved.pricing["copilot:gpt-5.6-sol"] = ModelPricing(
+        input_1m=2.00, cached_1m=0.20, output_1m=10.00
+    )
     saved.pricing["gemini:gemini-3.6-flash"] = ModelPricing(
         input_1m=99.00, cached_1m=9.00, output_1m=99.00
     )
@@ -219,6 +265,9 @@ def test_load_config_replaces_superseded_defaults_but_preserves_custom_prices(tm
     loaded = load_config(str(config_path))
 
     assert loaded.pricing["codex:gpt-5.6"] == ModelPricing(
+        input_1m=4.00, cached_1m=0.40, output_1m=20.00
+    )
+    assert loaded.pricing["copilot:gpt-5.6-sol"] == ModelPricing(
         input_1m=4.00, cached_1m=0.40, output_1m=20.00
     )
     assert loaded.pricing["gemini:gemini-3.6-flash"] == ModelPricing(
