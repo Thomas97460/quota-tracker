@@ -131,8 +131,7 @@ export function filterAntigravityQuotas(rows: QuotaRow[]): QuotaRow[] {
     "3p-5h": 4,
   }
   return rows
-    .filter((q) => q.quota_name in ORDER)
-    .sort((a, b) => ORDER[a.quota_name] - ORDER[b.quota_name])
+    .sort((a, b) => (ORDER[a.quota_name] ?? 5) - (ORDER[b.quota_name] ?? 5))
 }
 
 /** Map raw quota_name and window duration to a human-friendly display label. */

@@ -209,7 +209,7 @@ export function useDashboard(
         }
 
         setProviderTotals(providerRes.items)
-        if (providerSeries.length === 4) {
+        if (providerSeries.length === PROVIDER_IDS.length) {
           setTimeSeriesByProvider({
             gemini: providerSeries[0].items,
             codex: providerSeries[1].items,
