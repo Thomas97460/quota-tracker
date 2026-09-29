@@ -25,6 +25,9 @@ def test_default_pricing_includes_claude_opus_4_8() -> None:
 def test_default_pricing_includes_latest_codex_models() -> None:
     pricing = get_default_pricing()
 
+    assert pricing["codex:gpt-6.1-sol"] == ModelPricing(
+        input_1m=2.00, cached_1m=0.10, output_1m=10.00
+    )
     assert pricing["codex:gpt-6-astra"] == ModelPricing(
         input_1m=10.00, cached_1m=1.00, output_1m=50.00
     )
@@ -96,6 +99,7 @@ def test_default_pricing_includes_latest_gemini_models() -> None:
 def test_default_pricing_includes_current_copilot_models() -> None:
     pricing = get_default_pricing()
     expected = {
+        "gpt-6.1-sol": ModelPricing(input_1m=2.00, cached_1m=0.10, output_1m=10.00),
         "gpt-6-astra": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "gpt-6-sol": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
         "gpt-6-luna": ModelPricing(input_1m=0.10, cached_1m=0.01, output_1m=0.50),
@@ -121,6 +125,7 @@ def test_default_pricing_covers_current_provider_model_catalogs() -> None:
     pricing = get_default_pricing()
     current_models = {
         "codex": {
+            "gpt-6.1-sol",
             "gpt-6-astra",
             "gpt-6-sol",
             "gpt-6-luna",
@@ -172,6 +177,7 @@ def test_default_pricing_covers_current_provider_model_catalogs() -> None:
             "gpt-oss",
         },
         "copilot": {
+            "gpt-6.1-sol",
             "gpt-6-astra",
             "gpt-6-sol",
             "gpt-6-luna",

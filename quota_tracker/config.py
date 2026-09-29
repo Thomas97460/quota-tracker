@@ -34,12 +34,13 @@ class ModelPricing(BaseModel):
 
 
 def get_default_pricing() -> dict[str, ModelPricing]:
-    """Return default standard/default-tier pricing as of 2026-09-23."""
+    """Return default standard/default-tier pricing as of 2026-09-29."""
 
     # Key format: "provider_id:model_name"
     # Prices are per 1M tokens in USD.
     defaults = {
         # OpenAI (via Codex or future direct provider)
+        "codex:gpt-6.1-sol": ModelPricing(input_1m=2.00, cached_1m=0.10, output_1m=10.00),
         "codex:gpt-6-astra": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "codex:gpt-6-sol": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
         "codex:gpt-6-luna": ModelPricing(input_1m=0.10, cached_1m=0.01, output_1m=0.50),
@@ -158,6 +159,7 @@ def get_default_pricing() -> dict[str, ModelPricing]:
         "antigravity:claude-sonnet-5": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
         "antigravity:gpt-oss": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=8.00),
         # GitHub Copilot
+        "copilot:gpt-6.1-sol": ModelPricing(input_1m=2.00, cached_1m=0.10, output_1m=10.00),
         "copilot:gpt-6-astra": ModelPricing(input_1m=10.00, cached_1m=1.00, output_1m=50.00),
         "copilot:gpt-6-sol": ModelPricing(input_1m=2.00, cached_1m=0.20, output_1m=10.00),
         "copilot:gpt-6-luna": ModelPricing(input_1m=0.10, cached_1m=0.01, output_1m=0.50),
