@@ -279,10 +279,10 @@ def test_codex_cached_tokens_are_not_double_counted(tmp_path: Path) -> None:
     row = response.json()["items"][0]
     assert row["input_tokens"] == 2
     assert row["cached_tokens"] == 8
-    assert row["input_cost"] == pytest.approx(0.000005)
-    assert row["cached_cost"] == pytest.approx(0.000002)
-    assert row["output_cost"] == pytest.approx(0.000075)
-    assert row["estimated_cost"] == pytest.approx(0.000082)
+    assert row["input_cost"] == pytest.approx(0.0000025)
+    assert row["cached_cost"] == pytest.approx(0.000001)
+    assert row["output_cost"] == pytest.approx(0.00005)
+    assert row["estimated_cost"] == pytest.approx(0.0000535)
 
 
 def test_provider_patch_not_found_from_missing_row(

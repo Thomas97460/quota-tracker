@@ -48,10 +48,16 @@ def _normalize_model_name(name: str | None) -> str | None:
     if not normalized:
         return None
 
+    if "claude-fable-5.2" in normalized or "claude-fable-5-2" in normalized:
+        return "claude-fable-5.2"
     if "claude-fable-5.1" in normalized or "claude-fable-5-1" in normalized:
         return "claude-fable-5.1"
     if "claude-fable-5" in normalized:
         return "claude-fable-5"
+    if "claude-mythos-5.2" in normalized or "claude-mythos-5-2" in normalized:
+        return "claude-mythos-5.2"
+    if "claude-mythos-5.1" in normalized or "claude-mythos-5-1" in normalized:
+        return "claude-mythos-5.1"
     if "claude-mythos-5" in normalized:
         return "claude-mythos-5"
     if "claude-opus-5.5" in normalized or "claude-opus-5-5" in normalized:
@@ -72,6 +78,8 @@ def _normalize_model_name(name: str | None) -> str | None:
         or "claude-opus-4.-8" in normalized
     ):
         return "claude-opus-4.8"
+    if "claude-sonnet-5.5" in normalized or "claude-sonnet-5-5" in normalized:
+        return "claude-sonnet-5.5"
     if "claude-sonnet-5" in normalized:
         return "claude-sonnet-5"
     if "claude-sonnet-4" in normalized:

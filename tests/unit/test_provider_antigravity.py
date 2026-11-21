@@ -19,6 +19,7 @@ from quota_tracker.providers.antigravity import (
 @pytest.mark.parametrize(
     ("label", "expected"),
     [
+        ("Gemini 4 Carbon (High)", "gemini-4-carbon"),
         ("Gemini 3.8 Flash (High)", "gemini-3.8-flash"),
         ("Gemini 3.8 Flash (Medium)", "gemini-3.8-flash"),
         ("Gemini 3.7 Flash (Medium)", "gemini-3.7-flash"),
@@ -32,10 +33,14 @@ from quota_tracker.providers.antigravity import (
         ("Claude Opus 4.8", "claude-opus-4.8"),
         ("Claude Opus 4.7", "claude-opus-4.7"),
         ("Claude Opus 4.6", "claude-opus-4.6"),
+        ("Claude Sonnet 5.5", "claude-sonnet-5.5"),
         ("Claude Sonnet 5", "claude-sonnet-5"),
         ("Claude Sonnet 4", "claude-sonnet-4"),
+        ("Claude Fable 5.2", "claude-fable-5.2"),
         ("Claude Fable 5.1", "claude-fable-5.1"),
         ("Claude Fable 5", "claude-fable-5"),
+        ("Claude Mythos 5.2", "claude-mythos-5.2"),
+        ("Claude Mythos 5.1", "claude-mythos-5.1"),
         ("Claude Mythos 5", "claude-mythos-5"),
         ("GPT-OSS", "gpt-oss"),
         ("", None),
